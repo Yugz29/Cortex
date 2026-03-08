@@ -1,9 +1,10 @@
 import http from 'node:http';
 
 export interface CommandError {
-    command: string;
+    command:   string;
     exit_code: number;
-    cwd: string;
+    cwd:       string;
+    stderr:    string;   // ← nouveau : sortie stderr capturée par le hook
     timestamp: number;
     receivedAt: number;
 }
@@ -16,7 +17,10 @@ export interface SocketServer {
     stop: () => void;
 }
 
-export function startSocketServer(preferredPort = 7891): Promise<SocketServer> {
+export function startSocketServer(
+    preferredPort = 7891,
+    onDirectNotify?: (cmd: CommandError) => void,
+): Promise<SocketServer> {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {
             if (req.method === 'POST' && req.url === '/command-error') {
@@ -25,19 +29,25 @@ export function startSocketServer(preferredPort = 7891): Promise<SocketServer> {
                 req.on('end', () => {
                     try {
                         const parsed = JSON.parse(body) as {
-                            command: string;
+                            command:   string;
                             exit_code: number;
-                            cwd: string;
+                            cwd:       string;
+                            stderr?:   string;
                             timestamp: number;
                         };
                         lastCommandError = {
-                            command:    parsed.command ?? '',
-                            exit_code:  parsed.exit_code ?? 1,
-                            cwd:        parsed.cwd ?? '',
-                            timestamp:  parsed.timestamp ?? Date.now(),
+                            command:    parsed.command    ?? '',
+                            exit_code:  parsed.exit_code  ?? 1,
+                            cwd:        parsed.cwd        ?? '',
+                            stderr:     parsed.stderr     ?? '',
+                            timestamp:  parsed.timestamp  ?? Date.now(),
                             receivedAt: Date.now(),
                         };
                         console.log(`[Pulse] Command error received: "${lastCommandError.command}" (exit ${lastCommandError.exit_code})`);
+                        // Notification directe pour toutes les erreurs — pas besoin d'attendre le clipboard
+                        if (onDirectNotify) {
+                            onDirectNotify(lastCommandError);
+                        }
                     } catch (e) {
                         console.warn('[Pulse] Failed to parse command-error payload:', e);
                     }
