@@ -1,4 +1,4 @@
-import { scoreColor } from '../../utils';
+import { scoreColorHex } from '../../utils';
 
 interface Props {
   history: { date: string; score: number }[];
@@ -15,7 +15,7 @@ export default function ProjectTrendGraph({ history }: Props) {
     const y = H - pad - ((s - min) / (max - min || 1)) * (H - pad * 2);
     return `${x},${y}`;
   }).join(' ');
-  const col = scoreColor(scores[scores.length - 1] ?? 0);
+  const col = scoreColorHex(scores[scores.length - 1] ?? 0);
   return (
     <svg width={W} height={H} style={{ display: 'block' }}>
       <polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.7" />

@@ -1,6 +1,5 @@
 import { simpleGit } from 'simple-git';
 import { join } from 'node:path';
-import { loadConfig } from '../../app/main/config.js';
 
 export interface FileCoupling {
     fileA:        string;
@@ -9,11 +8,11 @@ export interface FileCoupling {
 }
 
 let _churnCache: Map<string, number> | null = null;
+let _cachedProjectPath: string | null = null;
 
-export async function buildChurnCache(): Promise<void> {
+export async function buildChurnCache(projectPath: string): Promise<void> {
     try {
-        const config = loadConfig();
-        const git = simpleGit(config.projectPath);
+        const git = simpleGit(projectPath);
         const gitRoot = (await git.revparse(['--show-toplevel'])).trim();
         const log = await git.raw(['log', '--since=30 days ago', '--name-only', '--pretty=format:']);
         _churnCache = new Map();
@@ -23,18 +22,24 @@ export async function buildChurnCache(): Promise<void> {
             const abs = join(gitRoot, trimmed);
             _churnCache.set(abs, (_churnCache.get(abs) ?? 0) + 1);
         }
-        console.log(`[Pulse] Churn cache built — ${_churnCache.size} files tracked.`);
+        _cachedProjectPath = projectPath;
+        console.log(`[Cortex] Churn cache built — ${_churnCache.size} files tracked.`);
     } catch {
         _churnCache = new Map();
+        _cachedProjectPath = projectPath;
     }
 }
 
 export function clearChurnCache(): void {
     _churnCache = null;
+    _cachedProjectPath = null;
 }
 
-export async function getChurnScore(filePath: string): Promise<number> {
-    if (!_churnCache) await buildChurnCache();
+export async function getChurnScore(filePath: string, projectPath?: string): Promise<number> {
+    if (!_churnCache) {
+        if (!projectPath) throw new Error('getChurnScore: projectPath required on first call');
+        await buildChurnCache(projectPath);
+    }
     return _churnCache!.get(filePath) ?? 0;
 }
 

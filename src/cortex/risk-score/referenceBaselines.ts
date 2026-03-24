@@ -8,72 +8,45 @@
 //   - Métriques observées sur des projets GitHub populaires (React, Vite, ESLint, etc.)
 //   - Ajustées empiriquement via les scans de Pulse sur lui-même
 //
-// Ces valeurs servent de PLANCHER pour les baselines projet :
-//   - Si le projet est globalement sain (p90 faible), la référence empêche
-//     de normaliser vers le bas et de rater les vrais outliers.
-//   - Si le projet est globalement complexe, la référence ancre le jugement
-//     à une réalité externe (évite le paradoxe "tout est normal ici").
-//
-// Mise à jour : les valeurs peuvent être raffinées manuellement ou via un
-// script d'analyse de corpus GitHub (voir docs/reference-methodology.md).
+// Ces valeurs servent de PLANCHER pour les baselines projet.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ProjectBaselines } from './riskScore.js';
 
 // Référence générale — tous projets TypeScript/JS/Python confondus
 export const REFERENCE_BASELINES: ProjectBaselines = {
-    // Complexité cyclomatique max par fichier
-    // p25 : la plupart des fichiers ont des fonctions simples (cx ≤ 3)
-    // p90 : 10% des fichiers ont une fonction avec cx > 12 — au-delà c'est notable
-    complexity: { p25: 3, p90: 12 },
-
-    // Complexité cyclomatique moyenne par fichier
-    // Plus stable que le max — un fichier avec mean > 5 a globalement des fonctions denses
-    complexityMean: { p25: 1.5, p90: 5 },
-
-    // Complexité cognitive max
-    // Modèle SonarSource : p90 à 30 correspond aux fonctions de parsing/routing complexes
-    cognitiveComplexity: { p25: 4, p90: 30 },
-
-    // Taille max de fonction (lignes)
-    // p90 à 60L : au-delà on entre dans les fonctions monolithiques
-    functionSize: { p25: 15, p90: 60 },
-
-    // Taille moyenne de fonction (lignes)
-    // Un fichier avec mean > 30L a globalement des grandes fonctions
-    functionSizeMean: { p25: 8, p90: 30 },
-
-    // Profondeur d'imbrication max
-    // depth > 4 est rare dans du code bien structuré
-    depth: { p25: 1, p90: 4 },
-
-    // Nombre max de paramètres
-    // params > 5 commence à signaler un problème de design
-    params: { p25: 2, p90: 5 },
-
-    // Churn git sur 30 jours
-    // p90 à 10 : un fichier modifié + de 10x en 30 jours est une zone instable
-    churn: { p25: 1, p90: 10 },
-
-    // Fan-in (nb de fichiers importateurs)
-    // p90 à 10 : au-delà, le fichier est un nœud central très couplé
-    fanIn: { p25: 1, p90: 10 },
+    complexity:          { p25: 3,   p90: 12  },
+    complexityMean:      { p25: 1.5, p90: 5   },
+    cognitiveComplexity: { p25: 4,   p90: 30  },
+    functionSize:        { p25: 15,  p90: 60  },
+    functionSizeMean:    { p25: 8,   p90: 30  },
+    depth:               { p25: 1,   p90: 4   },
+    params:              { p25: 2,   p90: 5   },
+    churn:               { p25: 1,   p90: 10  },
+    fanIn:               { p25: 1,   p90: 10  },
 };
 
-// ── BASELINES PAR TYPE DE FICHIER ────────────────────────────────────────────
-//
-// Certains types de fichiers ont des profils de complexité naturellement
-// différents. On surcharge les valeurs de référence pour ces cas spécifiques.
-//
-// Types détectés via nom/chemin dans detectFileType().
+// ── TYPES DE FICHIERS ─────────────────────────────────────────────────────────
 
-export type FileType = 'entrypoint' | 'component' | 'service' | 'parser' | 'utility' | 'config' | 'generic';
+export type FileType =
+    | 'entrypoint'      // App.tsx, index.ts, main.ts — point d'entrée global
+    | 'component-tsx'   // Composant React TSX — ternaires de style comptent comme branches
+    | 'component-jsx'   // Composant React JSX
+    | 'service'         // db.ts, scanner.ts, llm.ts — logique métier
+    | 'parser'          // parser.ts, analyzer.ts — algorithmique dense
+    | 'utility'         // utils.ts, helpers.ts — petites fonctions pures
+    | 'config'          // types.ts, constants.ts, baselines — peu de logique
+    | 'generic';        // tout le reste
 
-// Surcharges partielles par type — seules les métriques qui diffèrent significativement
+// ── SURCHARGES PAR TYPE ───────────────────────────────────────────────────────
+//
+// TSX/JSX : les ternaires de style inline (`isSelected ? 'red' : 'blue'`)
+// sont comptés comme branchements par ts-morph, ce qui gonfle artificiellement
+// cx et cog. Les seuils sont relevés en conséquence pour éviter les faux positifs.
+// Référence SonarQube : les règles TSX ignorent les ternaires purs de rendu.
+
 const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
 
-    // App.tsx, index.tsx, main.ts — points d'entrée React/Electron
-    // Naturellement grands : state global, IPC, routing. Complexité élevée tolérée.
     entrypoint: {
         complexity:          { p25: 8,  p90: 40  },
         cognitiveComplexity: { p25: 10, p90: 80  },
@@ -81,16 +54,27 @@ const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
         functionSizeMean:    { p25: 15, p90: 80  },
     },
 
-    // Composants React (*.tsx hors entrypoint) — taille modérée attendue
-    component: {
-        complexity:          { p25: 3,  p90: 15  },
-        cognitiveComplexity: { p25: 4,  p90: 35  },
-        functionSize:        { p25: 20, p90: 80  },
-        functionSizeMean:    { p25: 10, p90: 40  },
+    // TSX : seuils relevés pour absorber les ternaires de style JSX.
+    // Un composant bien écrit avec 20 ternaires de style peut avoir cx=25-30 — c'est normal.
+    // On flag uniquement la vraie logique métier imbriquée (cx > 40, cog > 60).
+    'component-tsx': {
+        complexity:          { p25: 5,  p90: 40  },  // vs 3/12 générique
+        complexityMean:      { p25: 3,  p90: 15  },
+        cognitiveComplexity: { p25: 8,  p90: 60  },  // vs 4/30 générique
+        functionSize:        { p25: 25, p90: 120 },  // fonctions de rendu naturellement grandes
+        functionSizeMean:    { p25: 12, p90: 50  },
+        depth:               { p25: 2,  p90: 5   },  // JSX imbrique naturellement plus
     },
 
-    // Services, modules métier (db.ts, llm.ts, scanner.ts...)
-    // Complexité modérée-haute attendue, churn potentiellement élevé
+    'component-jsx': {
+        complexity:          { p25: 5,  p90: 35  },
+        complexityMean:      { p25: 3,  p90: 12  },
+        cognitiveComplexity: { p25: 8,  p90: 55  },
+        functionSize:        { p25: 25, p90: 100 },
+        functionSizeMean:    { p25: 12, p90: 45  },
+        depth:               { p25: 2,  p90: 5   },
+    },
+
     service: {
         complexity:          { p25: 4,  p90: 18  },
         cognitiveComplexity: { p25: 6,  p90: 40  },
@@ -99,8 +83,6 @@ const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
         churn:               { p25: 2,  p90: 15  },
     },
 
-    // Parsers, analyseurs (parser.ts, lexer.ts, analyzer.ts...)
-    // Complexité intrinsèquement élevée — c'est le cœur algorithmique
     parser: {
         complexity:          { p25: 6,  p90: 25  },
         cognitiveComplexity: { p25: 8,  p90: 50  },
@@ -109,8 +91,6 @@ const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
         depth:               { p25: 2,  p90: 6   },
     },
 
-    // Utilitaires (utils.ts, helpers.ts, shared/*)
-    // Fonctions petites et nombreuses — complexité basse attendue
     utility: {
         complexity:          { p25: 1, p90: 6  },
         cognitiveComplexity: { p25: 1, p90: 12 },
@@ -118,8 +98,6 @@ const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
         functionSizeMean:    { p25: 5, p90: 20 },
     },
 
-    // Configs, types, déclarations, données statiques (config.ts, types.ts, baselines...)
-    // Peu de logique métier, mais peut contenir de grands objets littéraux
     config: {
         complexity:          { p25: 1, p90: 6  },
         cognitiveComplexity: { p25: 1, p90: 10 },
@@ -127,38 +105,83 @@ const FILE_TYPE_OVERRIDES: Record<FileType, Partial<ProjectBaselines>> = {
         functionSizeMean:    { p25: 3, p90: 20 },
     },
 
-    // Cas général — on utilise REFERENCE_BASELINES tel quel
     generic: {},
 };
 
+// ── MULTIPLICATEURS PAR LANGAGE ───────────────────────────────────────────────
+//
+// Ajustement appliqué AU NIVEAU DU SCORE (après normalisation 0-100),
+// pas sur les seuils. Complémentaire aux surcharges par type.
+//
+// TSX/JSX : réduction de 20% sur complexity + cognitive car ts-morph
+// ne distingue pas les ternaires de style des ternaires logiques.
+// Python : la complexité cognitive est légèrement sous-évaluée (indentation
+// approximative) — on réduit légèrement pour compenser la sur-détection.
+
+export interface LanguageMultipliers {
+    complexity:          number;  // [0.5 – 1.5]
+    cognitiveComplexity: number;
+    functionSize:        number;
+    depth:               number;
+    churn:               number;
+    params:              number;
+    fanIn:               number;
+}
+
+const NEUTRAL: LanguageMultipliers = {
+    complexity: 1, cognitiveComplexity: 1, functionSize: 1,
+    depth: 1, churn: 1, params: 1, fanIn: 1,
+};
+
+export const LANGUAGE_MULTIPLIERS: Record<string, LanguageMultipliers> = {
+    // TSX : ternaires de style inline gonflent cx et cog artificiellement
+    tsx: { ...NEUTRAL, complexity: 0.80, cognitiveComplexity: 0.75 },
+
+    // JSX : même problème, légèrement atténué (moins de style inline en pratique)
+    jsx: { ...NEUTRAL, complexity: 0.85, cognitiveComplexity: 0.80 },
+
+    // Python : complexité cognitive approximative via indentation — légère réduction
+    py:  { ...NEUTRAL, cognitiveComplexity: 0.90 },
+
+    // TypeScript/JavaScript purs : pas d'ajustement — les seuils absolus suffisent
+    ts:  NEUTRAL,
+    js:  NEUTRAL,
+    mjs: NEUTRAL,
+};
+
+export function getLanguageMultipliers(filePath: string): LanguageMultipliers {
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+    return LANGUAGE_MULTIPLIERS[ext] ?? NEUTRAL;
+}
+
 // ── DÉTECTION DU TYPE DE FICHIER ─────────────────────────────────────────────
 //
-// Implémentation en table de données — évite une cascade de if/else
-// qui génèrerait une complexité cyclomatique élevée sur detectFileType elle-même.
+// Ordre de priorité explicite — EXTENSION D'ABORD, puis contexte.
+// Bug historique : le check dossier `shared → utility` écrasait l'extension
+// `.tsx → component`, classifiant FileList.tsx, FilterBar.tsx etc. en `utility`.
 
-// Noms exacts → type
 const EXACT_NAMES: Record<string, FileType> = {
     'app.tsx': 'entrypoint', 'app.ts': 'entrypoint', 'app.jsx': 'entrypoint',
-    'index.tsx': 'entrypoint', 'index.ts': 'entrypoint', 'main.ts': 'entrypoint',
+    'index.tsx': 'entrypoint', 'main.tsx': 'entrypoint',
+    'index.ts': 'entrypoint', 'main.ts': 'entrypoint',
     'index.js': 'entrypoint', 'main.js': 'entrypoint',
     'types.ts': 'config', 'types.tsx': 'config',
     'constants.ts': 'config', 'settings.ts': 'config',
 };
 
-// Fragments de nom → type (ordre prioritaire)
 const NAME_FRAGMENTS: [string, FileType][] = [
-    // config
+    // config — données statiques
     ['baseline',   'config'],
     ['reference',  'config'],
     ['constants',  'config'],
     ['fixtures',   'config'],
     ['defaults',   'config'],
     ['thresholds', 'config'],
-    // parser
+    // parser — algorithmique
     ['parser',     'parser'],
     ['lexer',      'parser'],
     ['analyzer',   'parser'],
-    // service
+    // service — logique métier
     ['service',    'service'],
     ['store',      'service'],
     ['engine',     'service'],
@@ -169,7 +192,7 @@ const NAME_FRAGMENTS: [string, FileType][] = [
     ['watcher',    'service'],
     ['socket',     'service'],
     ['churn',      'service'],
-    // utility
+    // utility — fonctions pures
     ['util',       'utility'],
     ['helper',     'utility'],
     ['common',     'utility'],
@@ -182,22 +205,24 @@ export function detectFileType(filePath: string): FileType {
     const ext   = name.split('.').pop() ?? '';
     const parts = filePath.toLowerCase().split('/');
 
-    // 1. Nom exact
+    // 1. Nom exact (entrypoints connus, types.ts, etc.)
     if (name in EXACT_NAMES) return EXACT_NAMES[name]!;
 
-    // 2. Préfixe config
-    if (name.startsWith('config') || name.endsWith('.config.ts')) return 'config';
+    // 2. Config par préfixe de nom
+    if (name.startsWith('config') || name.endsWith('.config.ts') || name.endsWith('.config.js')) return 'config';
 
-    // 3. Fragments dans le nom
+    // 3. Extension TSX/JSX — AVANT tout check de dossier
+    //    Correction du bug : shared/FileList.tsx était classifié 'utility' au lieu de 'component-tsx'
+    if (ext === 'tsx') return 'component-tsx';
+    if (ext === 'jsx') return 'component-jsx';
+
+    // 4. Fragments dans le nom (pour .ts, .js, .py)
     for (const [fragment, type] of NAME_FRAGMENTS) {
         if (name.includes(fragment)) return type;
     }
 
-    // 4. Dossier shared → utility
+    // 5. Dossier partagé → utilitaire (uniquement pour les non-TSX/JSX)
     if (parts.includes('shared') || parts.includes('lib')) return 'utility';
-
-    // 5. Extension
-    if (ext === 'tsx' || ext === 'jsx') return 'component';
 
     return 'generic';
 }
@@ -205,11 +230,10 @@ export function detectFileType(filePath: string): FileType {
 // ── MERGE : baselines de référence + surcharge par type ──────────────────────
 
 export function getReferenceBaselines(filePath: string): ProjectBaselines {
-    const fileType = detectFileType(filePath);
+    const fileType  = detectFileType(filePath);
     const overrides = FILE_TYPE_OVERRIDES[fileType];
+    const result    = { ...REFERENCE_BASELINES };
 
-    // Fusionne REFERENCE_BASELINES avec les surcharges du type
-    const result = { ...REFERENCE_BASELINES };
     for (const [key, value] of Object.entries(overrides)) {
         (result as any)[key] = value;
     }

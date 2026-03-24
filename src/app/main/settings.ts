@@ -2,50 +2,75 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export interface AppSettings {
-    // Modèle legacy (conservé pour rétrocompatibilité)
-    model: string;
-    baseUrl: string;
-    projectPath?: string;
-    // Modèle général : utilisé pour tous les rôles non définis
-    modelGeneral: string;
-    // Overrides par rôle (optionnels — fallback sur modelGeneral si vide)
-    modelAnalyzer?: string;
-    modelCoder?: string;
-    modelBrainstorm?: string;
-    modelFast?: string;
-    // URL overrides par rôle (ex: Perspective Server sur 11435)
-    baseUrlFast?:     string;
-    baseUrlAnalyzer?: string;
-    // Serveur secondaire (Perspective / Apple Intelligence)
-    perspectiveUrl?:  string;
-    // Quel serveur utiliser pour chaque rôle ('primary' = baseUrl, 'perspective' = perspectiveUrl)
-    serverForRole?:   Partial<Record<'analyzer' | 'coder' | 'brainstorm' | 'fast', 'primary' | 'perspective'>>;
+// ── TYPES ──────────────────────────────────────────────────────────────────────
+
+export interface Project {
+    path:    string;
+    name:    string;
+    addedAt: string;
 }
 
+export interface AppSettings {
+    projects:          Project[];
+    activeProjectPath: string;
+    thresholds: {
+        alert:   number;
+        warning: number;
+    };
+    ignore:        string[];
+    ignoredFiles:       string[];
+    locale:             'fr' | 'en';
+    autoSecurityScan:   boolean;
+}
+
+// ── DEFAULTS ──────────────────────────────────────────────────────────────────
+
 const DEFAULTS: AppSettings = {
-    model:        'pulse-qwen3',
-    baseUrl:      'http://localhost:11434',
-    modelGeneral: 'pulse-qwen3',  // modèle général par défaut
-    // overrides vides = tout passe par modelGeneral
-    modelAnalyzer:   '',
-    modelCoder:      '',
-    modelBrainstorm: '',
-    modelFast:       '',
-    baseUrlFast:     '',
-    baseUrlAnalyzer: '',
-    perspectiveUrl:  '',
-    serverForRole:   {},
+    projects:          [],
+    activeProjectPath: '',
+    thresholds: {
+        alert:   50,
+        warning: 20,
+    },
+    ignore:            ['node_modules', '.git', 'dist', 'build', 'out', '.vite', 'vendor', '__pycache__', 'assets', 'venv', '.venv', 'env', 'site-packages', 'migrations'],
+    ignoredFiles:      [],
+    locale:            'fr',
+    autoSecurityScan:  true,
 };
 
+// ── I/O ───────────────────────────────────────────────────────────────────────
+
 function getSettingsPath(): string {
-    return path.join(app.getPath('userData'), 'settings.json');
+    return path.join(app.getPath('userData'), 'cortex-settings.json');
 }
 
 export function loadSettings(): AppSettings {
     try {
-        const raw = fs.readFileSync(getSettingsPath(), 'utf-8');
-        return { ...DEFAULTS, ...JSON.parse(raw) };
+        const raw = JSON.parse(fs.readFileSync(getSettingsPath(), 'utf-8')) as any;
+
+        // Migration depuis l'ancien format Pulse
+        if (!raw.projects) {
+            const legacyPath = raw.projectPath || raw.activeProjectPath || '';
+            const projects: Project[] = legacyPath
+                ? [{ path: legacyPath, name: path.basename(legacyPath), addedAt: new Date().toISOString() }]
+                : [];
+            return {
+                ...DEFAULTS,
+                projects,
+                activeProjectPath: legacyPath,
+            };
+        }
+
+        const mergedIgnore = [...new Set([...DEFAULTS.ignore, ...(raw.ignore ?? [])])];
+        return {
+            ...DEFAULTS,
+            ...raw,
+            ignore:           mergedIgnore,
+            ignoredFiles:     raw.ignoredFiles ?? [],
+            locale:           raw.locale  === 'en'    ? 'en'    : 'fr',
+            thresholds:       { ...DEFAULTS.thresholds, ...(raw.thresholds ?? {}) },
+            autoSecurityScan: raw.autoSecurityScan !== false,
+        };
     } catch {
         return { ...DEFAULTS };
     }
@@ -55,4 +80,43 @@ export function saveSettings(s: AppSettings): void {
     const p = getSettingsPath();
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, JSON.stringify(s, null, 2), 'utf-8');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+export function addProject(settings: AppSettings, projectPath: string): AppSettings {
+    const name    = path.basename(projectPath);
+    const already = settings.projects.find(p => p.path === projectPath);
+    if (already) {
+        // Juste activer si déjà présent
+        return { ...settings, activeProjectPath: projectPath };
+    }
+    const newProject: Project = { path: projectPath, name, addedAt: new Date().toISOString() };
+    return {
+        ...settings,
+        projects:          [...settings.projects, newProject],
+        activeProjectPath: projectPath,
+    };
+}
+
+export function removeProject(settings: AppSettings, projectPath: string): AppSettings {
+    const projects = settings.projects.filter(p => p.path !== projectPath);
+    const active   = settings.activeProjectPath === projectPath
+        ? (projects[0]?.path ?? '')
+        : settings.activeProjectPath;
+    return { ...settings, projects, activeProjectPath: active };
+}
+
+export function setActiveProject(settings: AppSettings, projectPath: string): AppSettings {
+    return { ...settings, activeProjectPath: projectPath };
+}
+
+export function ignoreFile(settings: AppSettings, filePath: string): AppSettings {
+    const already = settings.ignoredFiles.includes(filePath);
+    if (already) return settings;
+    return { ...settings, ignoredFiles: [...settings.ignoredFiles, filePath] };
+}
+
+export function unignoreFile(settings: AppSettings, filePath: string): AppSettings {
+    return { ...settings, ignoredFiles: settings.ignoredFiles.filter(f => f !== filePath) };
 }

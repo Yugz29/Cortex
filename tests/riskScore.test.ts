@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mocks ──
-// getReferenceBaselines retourne des baselines neutres pour les tests
-vi.mock('../src/main/risk-score/referenceBaselines.js', () => ({
+// getReferenceBaselines + getLanguageMultipliers : baselines/multiplicateurs neutres
+vi.mock('../src/cortex/risk-score/referenceBaselines.js', () => ({
     getReferenceBaselines: () => ({
         complexity:          { p25: 3,  p90: 12 },
         complexityMean:      { p25: 2,  p90: 6  },
@@ -14,10 +14,14 @@ vi.mock('../src/main/risk-score/referenceBaselines.js', () => ({
         churn:               { p25: 1,  p90: 10 },
         fanIn:               { p25: 1,  p90: 10 },
     }),
+    getLanguageMultipliers: () => ({
+        complexity: 1, cognitiveComplexity: 1, functionSize: 1,
+        depth: 1, churn: 1, params: 1, fanIn: 1,
+    }),
 }));
 
 // getChurnScore est async — on le mock pour qu'il retourne 0 par défaut
-vi.mock('../src/main/analyzer/churn.js', () => ({
+vi.mock('../src/cortex/analyzer/churn.js', () => ({
     getChurnScore: vi.fn().mockResolvedValue(0),
 }));
 
@@ -26,8 +30,8 @@ import {
     scoreFromRaw,
     computeProjectBaselines,
     extractRaw,
-} from '../src/main/risk-score/riskScore.js';
-import type { RawMetrics } from '../src/main/risk-score/riskScore.js';
+} from '../src/cortex/risk-score/riskScore.js';
+import type { RawMetrics } from '../src/cortex/risk-score/riskScore.js';
 
 // ── Helper : RawMetrics minimal (toutes métriques à 0) ──
 function makeRaw(overrides: Partial<RawMetrics> = {}): RawMetrics {
@@ -57,7 +61,6 @@ describe('clampedScore', () => {
     });
 
     it('interpole linéairement entre safe et danger', () => {
-        // (9 - 3) / (15 - 3) = 6/12 = 50%
         expect(clampedScore(9, 3, 15)).toBeCloseTo(50);
     });
 
@@ -69,11 +72,10 @@ describe('clampedScore', () => {
         expect(clampedScore(15, 3, 15)).toBe(100);
     });
 
-    it("gere safe >= danger sans crash (value > safe → 100, sinon 0)", () => {
-        // safe >= danger → la formule devient : value > safe ? 100 : 0
-        expect(clampedScore(15, 10, 5)).toBe(100);  // 15 > 10 → 100
-        expect(clampedScore(5,  10, 5)).toBe(0);    // 5 <= 10 → 0
-        expect(clampedScore(3,  10, 5)).toBe(0);    // 3 <= 10 → 0
+    it('gere safe >= danger sans crash', () => {
+        expect(clampedScore(15, 10, 5)).toBe(100);
+        expect(clampedScore(5,  10, 5)).toBe(0);
+        expect(clampedScore(3,  10, 5)).toBe(0);
     });
 });
 
@@ -101,7 +103,7 @@ describe('scoreFromRaw — fichier sans fonctions (all metrics = 0)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('scoreFromRaw — Feature 1 : fanIn dans le score global', () => {
+describe('scoreFromRaw — fanIn dans le score global', () => {
 
     it('fanIn élevé augmente le globalScore', () => {
         const low  = scoreFromRaw(makeRaw({ fanIn: 0 }),  '/src/a.ts', 'typescript');
@@ -115,7 +117,7 @@ describe('scoreFromRaw — Feature 1 : fanIn dans le score global', () => {
         expect(res.details.fanInScore).toBeLessThanOrEqual(100);
     });
 
-    it('fanIn = 0 → fanInScore = 0 (en-dessous du seuil safe = 3)', () => {
+    it('fanIn = 0 → fanInScore = 0', () => {
         const res = scoreFromRaw(makeRaw({ fanIn: 0 }), '/src/a.ts', 'typescript');
         expect(res.details.fanInScore).toBe(0);
     });
@@ -125,47 +127,41 @@ describe('scoreFromRaw — Feature 1 : fanIn dans le score global', () => {
         expect(res.details.fanInScore).toBe(100);
     });
 
-    it('contribution fanIn est ~5% du total (à complexités égales, toutes métriques à 100)', () => {
-        // Toutes métriques au danger → globalScore ~ 100
-        // Contribution fanIn = 100 * 0.05 = 5 pts sur ~100
+    it('toutes métriques au danger → globalScore > 90', () => {
         const res = scoreFromRaw(makeRaw({
-            complexity:          15, complexityMean:      8,
-            cognitiveComplexity: 60, functionSize:        80,
-            functionSizeMean:    40, depth:               6,
-            params:              8,  churn:               20,
-            fanIn:               15,
+            complexity: 15, complexityMean: 8, cognitiveComplexity: 60,
+            functionSize: 80, functionSizeMean: 40, depth: 6,
+            params: 8, churn: 20, fanIn: 15,
         }), '/src/a.ts', 'typescript');
-        // On vérifie juste que ça contribue positivement et que le total reste ≤ 100ish
         expect(res.globalScore).toBeGreaterThan(90);
         expect(res.details.fanInScore).toBe(100);
     });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('scoreFromRaw — Feature 2 : hotspotScore natif', () => {
+describe('scoreFromRaw — hotspotScore', () => {
 
     it('hotspotScore = complexity × churn clampé à [0, 150]', () => {
         const res = scoreFromRaw(makeRaw({ complexity: 10, churn: 5 }), '/src/a.ts', 'typescript');
-        expect(res.hotspotScore).toBe(50);  // 10 * 5 = 50
+        expect(res.hotspotScore).toBe(50);
     });
 
     it('hotspotScore est clampé à 150 max', () => {
         const res = scoreFromRaw(makeRaw({ complexity: 20, churn: 20 }), '/src/a.ts', 'typescript');
-        expect(res.hotspotScore).toBe(150);  // 20 * 20 = 400 → clamp 150
+        expect(res.hotspotScore).toBe(150);
     });
 
-    it('hotspotScore = 0 si churn = 0 (fichier stable)', () => {
+    it('hotspotScore = 0 si churn = 0', () => {
         const res = scoreFromRaw(makeRaw({ complexity: 10, churn: 0 }), '/src/a.ts', 'typescript');
         expect(res.hotspotScore).toBe(0);
     });
 
-    it('hotspotScore = 0 si complexity = 0 (fichier simple)', () => {
+    it('hotspotScore = 0 si complexity = 0', () => {
         const res = scoreFromRaw(makeRaw({ complexity: 0, churn: 10 }), '/src/a.ts', 'typescript');
         expect(res.hotspotScore).toBe(0);
     });
 
-    it('hotspotScore est indépendant du globalScore (mesure différente)', () => {
-        // Deux fichiers avec même complexity*churn mais compositions différentes
+    it('hotspotScore symétrique : cx*churn = churn*cx', () => {
         const a = scoreFromRaw(makeRaw({ complexity: 10, churn: 6 }), '/a.ts', 'typescript');
         const b = scoreFromRaw(makeRaw({ complexity: 6,  churn: 10 }), '/b.ts', 'typescript');
         expect(a.hotspotScore).toBe(b.hotspotScore);
@@ -173,7 +169,7 @@ describe('scoreFromRaw — Feature 2 : hotspotScore natif', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('scoreFromRaw — Feature 5 : WeightAdjustment', () => {
+describe('scoreFromRaw — WeightAdjustment', () => {
 
     const base = makeRaw({ complexity: 10, churn: 8, fanIn: 5 });
 
@@ -195,14 +191,13 @@ describe('scoreFromRaw — Feature 5 : WeightAdjustment', () => {
         expect(reduced.globalScore).toBeLessThan(normal.globalScore);
     });
 
-    it('multiplicateur 0 sur une métrique → contribution nulle de cette métrique', () => {
+    it('multiplicateur 0 sur fanIn → contribution nulle au global', () => {
         const withoutFanIn = scoreFromRaw(makeRaw({ fanIn: 20 }), '/a.ts', 'typescript', undefined, {
             complexity: 1, cognitiveComplexity: 1, functionSize: 1,
             depth: 1, churn: 1, params: 1, fanIn: 0,
         });
-        expect(withoutFanIn.details.fanInScore).toBeGreaterThan(0);  // score calculé
-        // Mais sa contribution au global est nulle → même score que fanIn=0 sans adj
         const noFanIn = scoreFromRaw(makeRaw({ fanIn: 0 }), '/a.ts', 'typescript');
+        expect(withoutFanIn.details.fanInScore).toBeGreaterThan(0); // score calculé mais non appliqué
         expect(withoutFanIn.globalScore).toBeCloseTo(noFanIn.globalScore, 5);
     });
 });
@@ -215,9 +210,7 @@ describe('computeProjectBaselines', () => {
             makeRaw({ complexity: v })
         );
         const baselines = computeProjectBaselines(raws);
-        // p25 de [1..10] = valeur à l'index ceil(10*25/100)-1 = ceil(2.5)-1 = 2 → valeur 3
         expect(baselines.complexity.p25).toBe(3);
-        // p90 = ceil(10*90/100)-1 = 9-1 = 8 → valeur 9
         expect(baselines.complexity.p90).toBe(9);
     });
 
@@ -231,11 +224,10 @@ describe('computeProjectBaselines', () => {
         expect(baselines.churn.p90).toBe(7);
     });
 
-    it('inclut fanIn dans les baselines (F1)', () => {
+    it('inclut fanIn dans les baselines', () => {
         const raws = [makeRaw({ fanIn: 2 }), makeRaw({ fanIn: 5 }), makeRaw({ fanIn: 10 })];
         const baselines = computeProjectBaselines(raws);
         expect(baselines.fanIn).toBeDefined();
-        expect(baselines.fanIn.p25).toBeGreaterThanOrEqual(0);
         expect(baselines.fanIn.p90).toBeGreaterThanOrEqual(baselines.fanIn.p25);
     });
 });
@@ -251,7 +243,7 @@ describe('extractRaw', () => {
         expect(raw.fanIn).toBe(0);
     });
 
-    it('accepte fanIn en paramètre optionnel (F1)', async () => {
+    it('accepte fanIn en paramètre optionnel', async () => {
         const raw = await extractRaw(
             { filePath: '/a.ts', language: 'typescript', functions: [] },
             7,

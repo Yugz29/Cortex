@@ -1,6 +1,4 @@
-import type { FileMetrics } from '../analyzer/parser.js';
-import { getChurnScore } from '../analyzer/churn.js';
-import { getReferenceBaselines } from './referenceBaselines.js';
+import { getReferenceBaselines, getLanguageMultipliers } from './referenceBaselines.js';
 
 // ── INTERFACES ──
 
@@ -172,31 +170,17 @@ export function computeProjectBaselines(allRaw: RawMetrics[]): ProjectBaselines 
 //
 // Total : 100%
 
-export interface WeightAdjustment {
-    complexity:          number;  // multiplicateur [0.5, 1.5]
-    cognitiveComplexity: number;
-    functionSize:        number;
-    depth:               number;
-    churn:               number;
-    params:              number;
-    fanIn:               number;
-}
-
 export function scoreFromRaw(
     raw: RawMetrics,
     filePath: string,
     language: string,
     baselines?: ProjectBaselines,
-    adjustments?: WeightAdjustment,
 ): RiskScoreResult {
     // Baselines de référence externe — ancrées par type de fichier
     const refBaselines = getReferenceBaselines(filePath);
 
-    // Multiplicateurs de poids (feedback loop F5 — défaut = 1.0)
-    const adj = adjustments ?? {
-        complexity: 1, cognitiveComplexity: 1, functionSize: 1,
-        depth: 1, churn: 1, params: 1, fanIn: 1,
-    };
+    // Multiplicateurs par langage — corrige les biais du parser (ex: ternaires JSX)
+    const langMult = getLanguageMultipliers(filePath);
 
     // Complexité cyclomatique — blended max+mean (P3)
     const complexityScore = blendedScore('complexity', 'complexityMean', raw, baselines, refBaselines);
@@ -216,13 +200,13 @@ export function scoreFromRaw(
     const hotspotScore = Math.min(Math.max(raw.complexity * raw.churn, 0), 150);
 
     const globalScore =
-        (complexityScore          * 0.28 * adj.complexity)          +
-        (cognitiveComplexityScore * 0.19 * adj.cognitiveComplexity) +
-        (functionSizeScore        * 0.14 * adj.functionSize)        +
-        (depthScore               * 0.14 * adj.depth)               +
-        (churnScore               * 0.12 * adj.churn)               +
-        (paramScore               * 0.08 * adj.params)              +
-        (fanInScore               * 0.05 * adj.fanIn);
+        (complexityScore          * 0.28 * langMult.complexity)          +
+        (cognitiveComplexityScore * 0.19 * langMult.cognitiveComplexity) +
+        (functionSizeScore        * 0.14 * langMult.functionSize)        +
+        (depthScore               * 0.14 * langMult.depth)               +
+        (churnScore               * 0.12 * langMult.churn)               +
+        (paramScore               * 0.08 * langMult.params)              +
+        (fanInScore               * 0.05 * langMult.fanIn);
 
     return {
         filePath,
@@ -244,38 +228,4 @@ export function scoreFromRaw(
     };
 }
 
-// ── EXTRACTION DES MÉTRIQUES BRUTES ──
 
-export async function extractRaw(metrics: FileMetrics, fanIn = 0): Promise<RawMetrics> {
-    const fns = metrics.functions.filter(fn => fn.name !== 'anonymous');
-
-    const complexity          = fns.length > 0 ? Math.max(...fns.map(fn => fn.cyclomaticComplexity)) : 0;
-    const complexityMean      = fns.length > 0 ? fns.reduce((s, fn) => s + fn.cyclomaticComplexity, 0) / fns.length : 0;
-    const cognitiveComplexity = fns.length > 0 ? Math.max(...fns.map(fn => fn.cognitiveComplexity ?? 0)) : 0;
-    const functionSize        = fns.length > 0 ? Math.max(...fns.map(fn => fn.lineCount)) : 0;
-    const functionSizeMean    = fns.length > 0 ? fns.reduce((s, fn) => s + fn.lineCount, 0) / fns.length : 0;
-    const depth               = fns.length > 0 ? Math.max(...fns.map(fn => fn.maxDepth)) : 0;
-    const params              = fns.length > 0 ? Math.max(...fns.map(fn => fn.parameterCount)) : 0;
-    const churn               = await getChurnScore(metrics.filePath);
-
-    return {
-        complexity,
-        complexityMean,
-        cognitiveComplexity,
-        functionSize,
-        functionSizeMean,
-        depth,
-        params,
-        churn,
-        fanIn,
-    };
-}
-
-/**
- * Point d'entrée compatible avec l'ancienne API (sans baselines).
- * Conservé pour compatibilité — préférer le pipeline deux passes dans scanner.ts.
- */
-export async function calculateRiskScore(metrics: FileMetrics): Promise<RiskScoreResult> {
-    const raw = await extractRaw(metrics);
-    return scoreFromRaw(raw, metrics.filePath, metrics.language);
-}

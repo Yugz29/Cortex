@@ -139,11 +139,18 @@ const NESTING_KINDS = new Set([
     SyntaxKind.JsxExpression,
 ]);
 
-function computeMaxDepth(node: Node, current = 0): number {
+function computeMaxDepth(node: Node, current = 0, isRoot = false): number {
     let max = current;
     for (const child of node.getChildren()) {
-        const next = NESTING_KINDS.has(child.getKind()) ? current + 1 : current;
-        max = Math.max(max, computeMaxDepth(child, next));
+        const kind = child.getKind();
+        // Ne pas descendre dans les fonctions imbriquées (sauf le nœud racine lui-même)
+        if (!isRoot && (
+            kind === SyntaxKind.ArrowFunction ||
+            kind === SyntaxKind.FunctionExpression ||
+            kind === SyntaxKind.FunctionDeclaration
+        )) continue;
+        const next = NESTING_KINDS.has(kind) ? current + 1 : current;
+        max = Math.max(max, computeMaxDepth(child, next, false));
     }
     return max;
 }
@@ -202,25 +209,29 @@ const COGNITIVE_NESTING_KINDS = new Set([
     SyntaxKind.TryStatement,
 ]);
 
-function computeCognitiveComplexity(node: Node, nestingLevel = 0): number {
+function computeCognitiveComplexity(node: Node, nestingLevel = 0, isRoot = false): number {
     let score = 0;
 
     for (const child of node.getChildren()) {
         const kind = child.getKind();
 
+        // Ne pas descendre dans les fonctions imbriquées (sauf le nœud racine lui-même)
+        if (!isRoot && (
+            kind === SyntaxKind.ArrowFunction ||
+            kind === SyntaxKind.FunctionExpression ||
+            kind === SyntaxKind.FunctionDeclaration
+        )) continue;
+
         if (COGNITIVE_BREAK_KINDS.has(kind)) {
-            // +1 de base + pénalité d'imbrication
             score += 1 + nestingLevel;
         }
 
-        // else / else-if → +1 rupture de séquence (pas de pénalité d'imbrication)
         if (kind === SyntaxKind.ElseKeyword) {
             score += 1;
         }
 
-        // Récursion — on approfondit le niveau si c'est une structure imbriquante
         const nextLevel = COGNITIVE_NESTING_KINDS.has(kind) ? nestingLevel + 1 : nestingLevel;
-        score += computeCognitiveComplexity(child, nextLevel);
+        score += computeCognitiveComplexity(child, nextLevel, false);
     }
 
     return score;
@@ -244,13 +255,24 @@ function analyzeSourceFile(sourceFile: SourceFile, filePath: string, language: L
         const lineCount = fn.getEndLineNumber() - startLine + 1;
 
         // Complexité cyclomatique
+        // On exclut les corps des fonctions imbriquées (arrow, methods…)
+        // pour éviter le double comptage — elles sont analysées séparément.
         let cyclomaticComplexity = 1;
-        fn.forEachDescendant((node: Node) => {
-            if (COMPLEXITY_KINDS.has(node.getKind())) cyclomaticComplexity++;
+        fn.forEachDescendant((node: Node, traversal) => {
+            const kind = node.getKind();
+            if (node !== fn && (
+                kind === SyntaxKind.ArrowFunction ||
+                kind === SyntaxKind.FunctionExpression ||
+                kind === SyntaxKind.FunctionDeclaration
+            )) {
+                traversal.skip();
+                return;
+            }
+            if (COMPLEXITY_KINDS.has(kind)) cyclomaticComplexity++;
         });
 
         // Complexité cognitive (P2)
-        const cognitiveComplexity = computeCognitiveComplexity(fn);
+        const cognitiveComplexity = computeCognitiveComplexity(fn, 0, true);
 
         // Compte les paramètres réels — détecte le destructuring d'objet React ({ prop1, prop2 })
         // pour éviter de scorer 1 quand la fonction reçoit N props encapsulées dans un objet
@@ -270,7 +292,7 @@ function analyzeSourceFile(sourceFile: SourceFile, filePath: string, language: L
             return params.length;
         })();
 
-        const maxDepth = computeMaxDepth(fn);
+        const maxDepth = computeMaxDepth(fn, 0, true);
 
         return { name, startLine, lineCount, cyclomaticComplexity, cognitiveComplexity, parameterCount, maxDepth };
     });

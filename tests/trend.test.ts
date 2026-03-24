@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDegradationSlope, getTrendSignal } from '../src/main/risk-score/trend.js';
+import { computeDegradationSlope, getTrendSignal } from '../src/cortex/risk-score/trend.js';
 
 describe('computeDegradationSlope', () => {
 
