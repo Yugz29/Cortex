@@ -1,32 +1,32 @@
 {
-  "name": "pulse",
+  "name": "cortex",
   "version": "1.0.0",
   "type": "module",
-  "description": "Pulse is an intelligent agent residing on the desktop, functioning as a proactive entity.",
+  "description": "Cortex — code quality analyzer and report generator.",
   "main": "out/main/index.js",
   "scripts": {
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/marked": "^5.0.2",
     "@types/node": "^25.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
-    "electron-rebuild": "^3.2.9",
     "electron-vite": "^5.0.0",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@types/d3-force": "^3.0.10",
@@ -34,8 +34,6 @@
     "chokidar": "^5.0.0",
     "d3-force": "^3.0.0",
     "electron": "^40.6.1",
-    "marked": "^17.0.3",
-    "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "simple-git": "^3.32.2",

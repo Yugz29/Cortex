@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* ── THEME ──────────────────────────────────────────────────────────────────── */
+:root {
+  --bg-base:    transparent;
+  --bg-surface: rgba(38, 38, 42, 0.60);
+  --bg-center:  rgba(38, 38, 42, 0.60);
+  --bg-hover:   rgba(255,255,255,0.05);
+  --bg-active:  rgba(10,132,255,0.10);
+  --bg-input:   rgba(255,255,255,0.06);
+  --bg-card:    rgba(255,255,255,0.04);
+
+  --border:         rgba(255,255,255,0.08);
+  --border-hover:   rgba(255,255,255,0.16);
+  --border-input:   rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.25);
+
+  --text-primary:   rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.68);
+  --text-muted:     rgba(255,255,255,0.42);
+  --text-faint:     rgba(255,255,255,0.28);
+  --text-ghost:     rgba(255,255,255,0.16);
+
+  --score-bar-bg: rgba(255,255,255,0.08);
+
+  --node-fill:          #18181c;
+  --node-fill-selected: #222228;
+  --node-text:          rgba(255,255,255,0.60);
+  --node-text-selected: rgba(255,255,255,0.92);
+  --node-edge:          rgba(255,255,255,0.10);
+  --node-edge-faint:    rgba(255,255,255,0.22);
+
+  --red:    #ff453a;
+  --orange: #ff9f0a;
+  --green:  #34c759;
+  --blue:   #0a84ff;
+
+  --red-vivid:    #ff453a;
+  --orange-vivid: #ff9f0a;
+  --green-vivid:  #34c759;
+  --blue-vivid:   #0a84ff;
+
+  --red-text:    rgba(255,130,120,0.92);
+  --orange-text: rgba(255,185,80,0.92);
+  --green-text:  rgba(100,220,130,0.92);
+  --blue-text:   rgba(100,185,255,0.92);
+
+  --explain-red-bg:    rgba(255,69,58,0.08);
+  --explain-red-text:  rgba(255,130,120,0.90);
+  --explain-org-bg:    rgba(255,159,10,0.08);
+  --explain-org-text:  rgba(255,185,80,0.90);
+}
+
+/* ── GLASSMORPHISM ──────────────────────────────────────────────────────────── */
+.glass {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ── Base styles ────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: transparent !important;
+}
+
+#root {
+  background: transparent;
+  height: 100vh;
+  overflow: hidden;
+}
+
+body {
+  background: transparent;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+}
+
+input::placeholder { color: var(--text-faint); }
+
+/* Scrollbars — invisibles au repos, visibles au survol du conteneur */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+*:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+*:hover::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
