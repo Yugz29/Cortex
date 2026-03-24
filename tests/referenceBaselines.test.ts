@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectFileType } from '../src/main/risk-score/referenceBaselines.js';
+import { detectFileType } from '../src/cortex/risk-score/referenceBaselines.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('detectFileType — noms exacts (etape 1)', () => {
@@ -54,10 +54,30 @@ describe('detectFileType — prefixe config (etape 2)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('detectFileType — fragments dans le nom (etape 3)', () => {
+describe('detectFileType — extension TSX/JSX (etape 3 — avant fragments)', () => {
+
+    it('monComponent.tsx → component-tsx', () => {
+        expect(detectFileType('/src/components/monComponent.tsx')).toBe('component-tsx');
+    });
+
+    it('Button.jsx → component-jsx', () => {
+        expect(detectFileType('/src/Button.jsx')).toBe('component-jsx');
+    });
+
+    it('fichier tsx dans /shared/ → component-tsx (extension avant dossier)', () => {
+        // Correction du bug historique : shared/ ne doit pas écraser l'extension tsx
+        expect(detectFileType('/src/shared/FileList.tsx')).toBe('component-tsx');
+    });
+
+    it('fichier tsx dans /lib/ → component-tsx', () => {
+        expect(detectFileType('/src/lib/core.tsx')).toBe('component-tsx');
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('detectFileType — fragments dans le nom (etape 4)', () => {
 
     it('parser.utils.ts → parser (parser avant utility dans NAME_FRAGMENTS)', () => {
-        // "parser" est liste avant "util" dans NAME_FRAGMENTS → remporte la priorite
         expect(detectFileType('/src/parser.utils.ts')).toBe('parser');
     });
 
@@ -95,32 +115,23 @@ describe('detectFileType — fragments dans le nom (etape 3)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('detectFileType — dossier shared ou lib (etape 4)', () => {
+describe('detectFileType — dossier shared ou lib (etape 5, non-tsx/jsx)', () => {
 
-    it('fichier dans /shared/ → utility', () => {
+    it('fichier .ts dans /shared/ → utility', () => {
         expect(detectFileType('/src/shared/bridge.ts')).toBe('utility');
     });
 
-    it('fichier dans /lib/ → utility', () => {
+    it('fichier .ts dans /lib/ → utility', () => {
         expect(detectFileType('/src/lib/core.ts')).toBe('utility');
     });
 
-    it('le dossier shared ne surclasse pas un fragment connu', () => {
-        // "parser" est detecte a l'etape 3 avant que shared soit consulte (etape 4)
+    it('le dossier shared ne surclasse pas un fragment connu (.ts)', () => {
         expect(detectFileType('/src/shared/parser.ts')).toBe('parser');
     });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('detectFileType — extension seule (etape 5)', () => {
-
-    it('monComponent.tsx → component', () => {
-        expect(detectFileType('/src/components/monComponent.tsx')).toBe('component');
-    });
-
-    it('Button.jsx → component', () => {
-        expect(detectFileType('/src/Button.jsx')).toBe('component');
-    });
+describe('detectFileType — extension seule (etape 6)', () => {
 
     it('.ts sans fragment connu → generic', () => {
         expect(detectFileType('/src/mystuff.ts')).toBe('generic');
@@ -135,12 +146,10 @@ describe('detectFileType — extension seule (etape 5)', () => {
 describe('detectFileType — cas ambigus et priorites', () => {
 
     it('nom exact surclasse le prefixe config (index.ts = entrypoint, pas config)', () => {
-        // "index.ts" est dans EXACT_NAMES → entrypoint, meme si on pouvait imaginer config
         expect(detectFileType('/src/index.ts')).toBe('entrypoint');
     });
 
     it('le prefixe config surclasse les fragments (configService.ts → config, pas service)', () => {
-        // "config" en prefixe est evalue a l'etape 2, "service" est un fragment (etape 3)
         expect(detectFileType('/src/configService.ts')).toBe('config');
     });
 
@@ -148,7 +157,7 @@ describe('detectFileType — cas ambigus et priorites', () => {
         expect(detectFileType('/src/INDEX.TS')).toBe('entrypoint');
     });
 
-    it('chemin profond — seul le nom de fichier compte (etapes 1-3)', () => {
+    it('chemin profond — seul le nom de fichier compte (etapes 1-4)', () => {
         expect(detectFileType('/very/deep/nested/path/utils.ts')).toBe('utility');
     });
 

@@ -1,15 +1,18 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import { EventEmitter } from 'node:events';
-import { loadConfig } from '../../app/main/config.js';
 
 const SUPPORTED = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py'];
 
-export function startWatcher() {
-    const config  = loadConfig();
+export interface WatcherOptions {
+    projectPath: string;
+    ignore:      string[];
+}
+
+export function startWatcher(options: WatcherOptions) {
     const emitter = new EventEmitter();
 
-    let currentPath    = config.projectPath;
-    let currentIgnore  = config.ignore;
+    let currentPath   = options.projectPath;
+    let currentIgnore = options.ignore;
     let watcher: FSWatcher | null = null;
 
     function attachListeners(w: FSWatcher) {
@@ -32,14 +35,13 @@ export function startWatcher() {
     watcher = createWatcher(currentPath, currentIgnore);
     attachListeners(watcher);
 
-    async function restart(newPath: string): Promise<void> {
+    async function restart(newPath: string, newIgnore?: string[]): Promise<void> {
         if (watcher) {
             await watcher.close();
             watcher = null;
         }
-        const cfg      = loadConfig();
         currentPath   = newPath;
-        currentIgnore = cfg.ignore;
+        currentIgnore = newIgnore ?? currentIgnore;
         watcher = createWatcher(currentPath, currentIgnore);
         attachListeners(watcher);
         emitter.emit('watcher:restarted', newPath);

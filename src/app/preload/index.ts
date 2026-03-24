@@ -1,175 +1,104 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// ── Terminal error types (inline pour éviter imports circulaires en CJS preload) ──
-export interface TerminalErrorNotification {
-    command: string;
-    exit_code: number;
-    cwd: string;
-    errorText: string;
-    errorHash: string;
-    timestamp: number;
-    id: number;
-    pastOccurrences: number;
-    lastSeen: string | null;
-}
-
-export interface LatestScan {
-    filePath: string;
-    globalScore: number;
-    complexityScore: number;
-    functionSizeScore: number;
-    churnScore: number;
-    language: string;
-    scannedAt: string;
-    trend: '↑' | '↓' | '↔';
-    feedback: string | null;
-}
-
-export interface Edge {
-    from: string;
-    to: string;
-}
-
 contextBridge.exposeInMainWorld('api', {
-    getScans: (): Promise<LatestScan[]> => ipcRenderer.invoke('get-scans'),
-    getEdges: (): Promise<Edge[]>       => ipcRenderer.invoke('get-edges'),
-    getFunctions: (filePath: string): Promise<any[]> => ipcRenderer.invoke('get-functions', filePath),
-    saveFeedback: (filePath: string, action: string, score: number): Promise<void> => ipcRenderer.invoke('save-feedback', filePath, action, score),
-    getScoreHistory: (filePath: string): Promise<{ score: number; scanned_at: string }[]> => ipcRenderer.invoke('get-score-history', filePath),
-    getFeedbackHistory: (filePath: string): Promise<{ action: string; created_at: string }[]> => ipcRenderer.invoke('get-feedback-history', filePath),
-    askLLM: (ctx: any): void => ipcRenderer.send('ask-llm', ctx),
-    askLLMProject: (payload: { ctx: any; messages: any[] }): void => ipcRenderer.send('ask-llm-project', payload),
-    abortLLM: (): void => ipcRenderer.send('abort-llm'),
+  // ── Scans & data ──────────────────────────────────────────────────────────
+  getScans: (): Promise<any[]> =>
+    ipcRenderer.invoke('get-scans'),
 
-    // ── LLM listeners — retournent un unlisten() pour cleanup propre ──
-    onLLMChunk: (cb: (chunk: string) => void): (() => void) => {
-        const handler = (_ipc: any, chunk: string) => cb(chunk);
-        ipcRenderer.on('llm-chunk', handler);
-        return () => ipcRenderer.removeListener('llm-chunk', handler);
-    },
-    onLLMDone: (cb: () => void): (() => void) => {
-        const handler = () => cb();
-        ipcRenderer.on('llm-done', handler);
-        return () => ipcRenderer.removeListener('llm-done', handler);
-    },
-    onLLMError: (cb: (err: string) => void): (() => void) => {
-        const handler = (_ipc: any, err: string) => cb(err);
-        ipcRenderer.on('llm-error', handler);
-        return () => ipcRenderer.removeListener('llm-error', handler);
-    },
+  getEdges: (): Promise<{ from: string; to: string }[]> =>
+    ipcRenderer.invoke('get-edges'),
 
-    onScanComplete: (cb: () => void): void => {
-        ipcRenderer.removeAllListeners('scan-complete');
-        ipcRenderer.on('scan-complete', cb);
-    },
-    onEvent: (cb: (e: any) => void): void => {
-        ipcRenderer.removeAllListeners('pulse-event');
-        ipcRenderer.on('pulse-event', (_ipc, e) => cb(e));
-    },
+  getFunctions: (filePath: string): Promise<any[]> =>
+    ipcRenderer.invoke('get-functions', filePath),
 
-    // ── Project ──
-    getProjectPath: (): Promise<string> =>
-        ipcRenderer.invoke('get-project-path'),
+  getScoreHistory: (filePath: string): Promise<{ score: number; scanned_at: string }[]> =>
+    ipcRenderer.invoke('get-score-history', filePath),
 
-    // ── Shell hook ──
-    getShellHook: (): Promise<{ shell: string; snippet: string; installPath: string }> =>
-        ipcRenderer.invoke('get-shell-hook'),
+  // ── Project ───────────────────────────────────────────────────────────────
+  getProjectPath: (): Promise<string> =>
+    ipcRenderer.invoke('get-project-path'),
 
-    pickProject: (): Promise<string | null> =>
-        ipcRenderer.invoke('pick-project'),
+  pickProject: (): Promise<string | null> =>
+    ipcRenderer.invoke('pick-project'),
 
-    getProjectScoreHistory: (): Promise<{ date: string; score: number }[]> =>
-        ipcRenderer.invoke('get-project-score-history'),
+  getProjectScoreHistory: (): Promise<{ date: string; score: number }[]> =>
+    ipcRenderer.invoke('get-project-score-history'),
 
-    // ── Terminal shell integration ──
-    getSocketPort: (): Promise<number> =>
-        ipcRenderer.invoke('get-socket-port'),
+  getProjectHistory: (): Promise<{ date: string; score: number; healthPct: number }[]> =>
+    ipcRenderer.invoke('get-project-history'),
 
-    onTerminalError: (cb: (ctx: TerminalErrorNotification) => void): void => {
-        ipcRenderer.removeAllListeners('terminal-error');
-        ipcRenderer.on('terminal-error', (_ipc, ctx) => cb(ctx));
-    },
+  getProjectHistoryByDay: (): Promise<{ date: string; score: number; healthPct: number }[]> =>
+    ipcRenderer.invoke('get-project-history-day'),
 
-    dismissTerminalError: (): void =>
-        ipcRenderer.send('dismiss-terminal-error'),
+  // ── Events ────────────────────────────────────────────────────────────────
+  onScanComplete: (cb: () => void): void => {
+    ipcRenderer.removeAllListeners('scan-complete');
+    ipcRenderer.on('scan-complete', cb);
+  },
 
-    analyzeTerminalError: (ctx: TerminalErrorNotification): void =>
-        ipcRenderer.send('analyze-terminal-error', ctx),
+  onEvent: (cb: (e: any) => void): void => {
+    ipcRenderer.removeAllListeners('cortex-event');
+    ipcRenderer.on('cortex-event', (_ipc, e) => cb(e));
+  },
 
-    resolveTerminalError: (id: number, resolved: 1 | -1, errorContext?: { command: string; errorText: string; llmResponse?: string }): void =>
-        ipcRenderer.send('resolve-terminal-error', id, resolved, errorContext),
+  onFocusFile: (cb: (filePath: string) => void): (() => void) => {
+    const handler = (_ipc: any, filePath: string) => cb(filePath);
+    ipcRenderer.on('focus-file', handler);
+    return () => ipcRenderer.removeListener('focus-file', handler);
+  },
 
-    getLlmReport: (filePath: string): Promise<string | null> =>
-        ipcRenderer.invoke('get-llm-report', filePath),
+  onFullscreenChange: (cb: (isFullscreen: boolean) => void): (() => void) => {
+    const handler = (_ipc: any, value: boolean) => cb(value);
+    ipcRenderer.on('fullscreen-change', handler);
+    return () => ipcRenderer.removeListener('fullscreen-change', handler);
+  },
 
-    // ── Intel memory ──
-    getIntelMessages: (): Promise<{ role: 'user' | 'assistant'; content: string }[]> =>
-        ipcRenderer.invoke('get-intel-messages'),
+  // ── Settings ──────────────────────────────────────────────────────────────
+  getSettings: (): Promise<any> =>
+    ipcRenderer.invoke('get-settings'),
 
-    saveIntelMessage: (role: 'user' | 'assistant', content: string): Promise<void> =>
-        ipcRenderer.invoke('save-intel-message', role, content),
+  saveSettings: (s: any): Promise<void> =>
+    ipcRenderer.invoke('save-settings', s),
 
-    clearIntelMessages: (): Promise<void> =>
-        ipcRenderer.invoke('clear-intel-messages'),
+  // ── Projets ──────────────────────────────────────────────────────
+  getProjects:   (): Promise<{ path: string; name: string; addedAt: string }[]> =>
+    ipcRenderer.invoke('get-projects'),
 
-    // ── Memory ──
-    getMemories: (): Promise<any[]> =>
-        ipcRenderer.invoke('get-memories'),
-    getMemoriesForFile: (filePath: string): Promise<any[]> =>
-        ipcRenderer.invoke('get-memories-for-file', filePath),
-    dismissMemory: (id: number): Promise<void> =>
-        ipcRenderer.invoke('dismiss-memory', id),
-    updateMemory: (id: number, content: string): Promise<void> =>
-        ipcRenderer.invoke('update-memory', id, content),
-    onMemoriesUpdated: (cb: () => void): (() => void) => {
-        const handler = () => cb();
-        ipcRenderer.on('memories-updated', handler);
-        return () => ipcRenderer.removeListener('memories-updated', handler);
-    },
+  addProject:    (): Promise<{ path: string; name: string; addedAt: string }[] | null> =>
+    ipcRenderer.invoke('add-project'),
 
-    // ── Focus fichier (depuis clic notification) ──
-    onFocusFile: (cb: (filePath: string) => void): (() => void) => {
-        const handler = (_ipc: any, filePath: string) => cb(filePath);
-        ipcRenderer.on('focus-file', handler);
-        return () => ipcRenderer.removeListener('focus-file', handler);
-    },
+  removeProject: (projectPath: string): Promise<{ path: string; name: string; addedAt: string }[]> =>
+    ipcRenderer.invoke('remove-project', projectPath),
 
-    // ── Settings ──
-    getSettings: (): Promise<{
-        model: string;
-        baseUrl: string;
-        modelGeneral: string;
-        modelAnalyzer: string;
-        modelCoder: string;
-        modelBrainstorm: string;
-        modelFast: string;
-        baseUrlFast?: string;
-        baseUrlAnalyzer?: string;
-        perspectiveUrl?: string;
-        serverForRole?: Partial<Record<'analyzer' | 'coder' | 'brainstorm' | 'fast', 'primary' | 'perspective'>>;
-    }> => ipcRenderer.invoke('get-settings'),
+  switchProject: (projectPath: string): Promise<string> =>
+    ipcRenderer.invoke('switch-project', projectPath),
 
-    saveSettings: (s: {
-        model: string;
-        baseUrl: string;
-        modelGeneral: string;
-        modelAnalyzer: string;
-        modelCoder: string;
-        modelBrainstorm: string;
-        modelFast: string;
-        baseUrlFast?: string;
-        baseUrlAnalyzer?: string;
-        perspectiveUrl?: string;
-        serverForRole?: Partial<Record<'analyzer' | 'coder' | 'brainstorm' | 'fast', 'primary' | 'perspective'>>;
-    }): Promise<void> => ipcRenderer.invoke('save-settings', s),
+  getProjectsHealth: (): Promise<{ path: string; avgScore: number | null }[]> =>
+    ipcRenderer.invoke('get-projects-health'),
 
-    testConnection: (url: string): Promise<{ ok: boolean; error?: string }> =>
-        ipcRenderer.invoke('test-connection', url),
+  // ── Export ────────────────────────────────────────────────────────────────
+  exportReport: (): Promise<{ ok: boolean; path?: string }> =>
+    ipcRenderer.invoke('export-report'),
 
-    getAvailableModels: (url: string, serverType: 'ollama' | 'perspective'): Promise<{ models: string[]; error?: string }> =>
-        ipcRenderer.invoke('get-available-models', { url, serverType }),
+  ignoreFile:     (filePath: string): Promise<string[]> =>
+    ipcRenderer.invoke('ignore-file', filePath),
 
-    // ── Hotspots ──
-    getHotspots:      (): Promise<any[]> => ipcRenderer.invoke('get-hotspots'),
-    getComplexStable: (): Promise<any[]> => ipcRenderer.invoke('get-complex-stable'),
+  unignoreFile:   (filePath: string): Promise<string[]> =>
+    ipcRenderer.invoke('unignore-file', filePath),
+
+  getIgnoredFiles: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-ignored-files'),
+
+  readFile: (filePath: string): Promise<{ ok: boolean; content: string }> =>
+    ipcRenderer.invoke('read-file', filePath),
+
+  runSecurityScan: (projectPath: string): Promise<any> =>
+    ipcRenderer.invoke('run-security-scan', projectPath),
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
+
+  getLastSecurityResult: (projectPath: string): Promise<any | null> =>
+    ipcRenderer.invoke('get-last-security-result', projectPath),
+
 });
