@@ -56,6 +56,14 @@
     background: radial-gradient(circle at 50% 50%, rgba(10,132,255,0.97) 0%, rgba(10,132,255,0.70) 22%, rgba(10,132,255,0.00) 40%);
     filter: blur(0.5px); z-index: 2;
     animation: central-pulse 2.5s ease-in-out infinite;
+    cursor: pointer; pointer-events: all; display: block; text-decoration: none;
+  }
+  .central-circle:hover { filter: blur(0.5px) brightness(1.2); }
+  .core-link {
+    position: fixed; z-index: 10;
+    width: 80px; height: 80px; border-radius: 50%;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    cursor: pointer; display: block;
   }
   .scan-wave {
     position: absolute; left: 50%; top: 50%;
@@ -96,23 +104,24 @@
   }
 
   nav {
-    position: relative; z-index: 10;
+    position: sticky; top: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 40px; border-bottom: 0.5px solid var(--border);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    background: rgba(13,13,15,0.60);
+    padding: 0 40px; height: 42px;
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: rgba(13,13,15,0.75);
   }
-  .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; letter-spacing: -0.025em; color: var(--text-primary); }
-  .nav-logo-icon { width: 27px; height: 27px; background: rgba(10,132,255,0.14); border: 0.5px solid rgba(10,132,255,0.30); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-  .nav-links { display: flex; align-items: center; gap: 28px; font-size: 13px; color: rgba(255,255,255,0.52); }
-  .nav-links a { color: inherit; text-decoration: none; transition: color 0.15s; cursor: pointer; }
-  .nav-links a:hover { color: rgba(255,255,255,0.85); }
+  .nav-logo { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 500; letter-spacing: -0.02em; color: rgba(255,255,255,0.70); text-decoration: none; }
+  .nav-links { display: flex; align-items: center; gap: 2px; }
+  .nav-links a { font-size: 12px; font-family: 'Geist', sans-serif; letter-spacing: -0.01em; color: rgba(255,255,255,0.38); text-decoration: none; padding: 0 13px; height: 42px; display: flex; align-items: center; transition: color 0.15s; border-bottom: 1.5px solid transparent; }
+  .nav-links a:hover { color: rgba(255,255,255,0.70); }
+  .nav-links a.nav-active { color: rgba(255,255,255,0.85); border-bottom-color: rgba(10,132,255,0.70); }
   .nav-cta { display: flex; align-items: center; gap: 8px; }
   .btn-ghost { font-size: 12px; font-weight: 500; padding: 7px 14px; border-radius: 8px; border: 0.5px solid rgba(255,255,255,0.15); background: transparent; color: rgba(255,255,255,0.65); cursor: pointer; transition: all 0.15s; font-family: inherit; }
   .btn-ghost:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
-  .btn-primary { font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: 8px; border: 0.5px solid rgba(10,132,255,0.40); background: rgba(10,132,255,0.15); color: rgba(100,185,255,0.95); cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .btn-primary:hover { background: rgba(10,132,255,0.25); border-color: rgba(10,132,255,0.60); }
+  .btn-nav-gh { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 400; font-family: inherit; padding: 5px 13px; border-radius: 7px; border: 0.5px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.48); cursor: pointer; transition: all 0.15s; text-decoration: none; letter-spacing: -0.01em; }
+  .btn-nav-gh:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.18); }
 
   .hero { position: relative; z-index: 5; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 76px 40px 56px; max-width: 800px; margin: 0 auto; }
   .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; border: 0.5px solid rgba(52,199,89,0.30); background: rgba(52,199,89,0.08); color: rgba(100,220,130,0.90); margin-bottom: 28px; font-family: 'Geist Mono', monospace; }
@@ -120,13 +129,10 @@
   @keyframes blink { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.45;transform:scale(0.85);} }
   h1 { font-size: clamp(37px, 5.8vw, 58px); font-weight: 200; letter-spacing: -0.042em; line-height: 1.07; color: var(--text-primary); margin-bottom: 20px; font-family: 'Geist', sans-serif; }
   h1 em { font-style: normal; color: rgba(10,132,255,0.88); }
-  .hero-sub { font-size: 16px; font-weight: 300; line-height: 1.65; color: rgba(255,255,255,0.52); max-width: 510px; margin-bottom: 36px; letter-spacing: -0.01em; }
-  .cta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  .btn-download { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; padding: 10px 20px; border-radius: 10px; border: 0.5px solid rgba(10,132,255,0.40); background: rgba(10,132,255,0.14); color: rgba(100,185,255,0.95); cursor: pointer; transition: all 0.15s; font-family: inherit; letter-spacing: -0.01em; text-decoration: none; display: inline-flex; }
-  .btn-download:hover { background: rgba(10,132,255,0.24); border-color: rgba(10,132,255,0.60); }
+  .hero-sub { font-size: 16px; font-weight: 300; line-height: 1.65; color: rgba(255,255,255,0.52); max-width: 510px; margin-bottom: 44px; letter-spacing: -0.01em; }
   .btn-gh { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; padding: 10px 18px; border-radius: 10px; border: 0.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.60); cursor: pointer; transition: all 0.15s; font-family: inherit; letter-spacing: -0.01em; text-decoration: none; display: inline-flex; }
   .btn-gh:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.22); }
-  .meta-row { display: flex; align-items: center; gap: 16px; margin-top: 20px; font-size: 11px; color: rgba(255,255,255,0.30); font-family: 'Geist Mono', monospace; flex-wrap: wrap; justify-content: center; }
+  .meta-row { display: flex; align-items: center; gap: 16px; margin-top: 44px; font-size: 11px; color: rgba(255,255,255,0.30); font-family: 'Geist Mono', monospace; flex-wrap: wrap; justify-content: center; }
   .meta-dot { width: 2px; height: 2px; border-radius: 50%; background: rgba(255,255,255,0.20); }
 
   /* ── Features ───────────────────────────────────────────────────────────── */
@@ -149,7 +155,7 @@
   }
   .fc:hover { border-color: rgba(255,255,255,0.14); }
 
-  /* Grande card gauche — occupe les 2 lignes */
+  /* Grande card gauche. Occupe les 2 lignes */
   .fc-main {
     grid-row: 1 / 3;
     display: flex; flex-direction: column;
@@ -196,7 +202,7 @@
     display: flex; flex-direction: column;
     padding: 22px 24px;
   }
-  /* Card métriques — barres */
+  /* Card métriques. Barres */
   .fc-metrics-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
   .fc-metric-row { display: flex; align-items: center; gap: 10px; }
   .fc-metric-name {
@@ -212,7 +218,7 @@
     color: rgba(255,255,255,0.22); min-width: 28px; text-align: right;
   }
 
-  /* Card watcher — animation pulse */
+  /* Card watcher. Animation pulse */
   .fc-watcher { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
   .fc-watch-row {
     display: flex; align-items: center; gap: 8px;
@@ -439,7 +445,7 @@
   @media (max-width: 900px) {
     .features-grid { grid-template-columns: 1fr; gap: 16px; }
     .features { padding: 40px 24px 60px; }
-    nav { padding: 14px 20px; }
+    nav { padding: 0 20px; }
     .nav-links { display: none; }
   }
 
@@ -525,9 +531,11 @@
   .step { flex: 1; }
   .step-arrow { flex-shrink: 0; padding: 0 18px; margin-top: 44px; opacity: 0.5; }
   .step-num {
-    font-size: 56px; font-weight: 200; letter-spacing: -0.06em;
-    color: rgba(255,255,255,0.05); font-family: 'Geist', sans-serif;
-    line-height: 1; margin-bottom: 14px; user-select: none;
+    font-size: 72px; font-weight: 700; letter-spacing: -0.06em;
+    font-family: 'Geist', sans-serif; line-height: 1; margin-bottom: 14px;
+    user-select: none;
+    background: linear-gradient(160deg, rgba(10,132,255,0.55) 0%, rgba(255,255,255,0.06) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .step-title { font-size: 14.5px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px; letter-spacing: -0.02em; }
   .step-desc { font-size: 12.5px; line-height: 1.7; color: rgba(255,255,255,0.42); margin-bottom: 14px; padding-right: 20px; }
@@ -629,7 +637,36 @@
     border: 0.5px dashed rgba(255,69,58,0.18); background: rgba(255,69,58,0.03);
     font-size: 11px; font-family: 'Geist Mono', monospace; color: rgba(255,69,58,0.38);
   }
+  .diagram-audit {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; border-radius: 8px; margin-top: 6px;
+    border: 0.5px dashed rgba(255,159,10,0.20); background: rgba(255,159,10,0.04);
+    font-size: 11px; font-family: 'Geist Mono', monospace; color: rgba(255,159,10,0.55);
+  }
   @media (max-width: 860px) { .local-inner { grid-template-columns: 1fr; } .local-right { display: none; } }
+
+  /* ── Export ──────────────────────────────────────────────────────────────── */
+  .export-inner { max-width: 1060px; margin: 0 auto; padding: 80px 40px 88px; display: grid; grid-template-columns: 1fr 1.1fr; gap: 64px; align-items: center; }
+  .export-bullets { display: flex; flex-direction: column; gap: 14px; margin-top: 24px; }
+  .export-bullet { display: flex; align-items: flex-start; gap: 10px; }
+  .export-bullet-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(10,132,255,0.70); flex-shrink: 0; margin-top: 6px; }
+  .export-bullet-text { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.45); }
+  .export-bullet-text strong { color: rgba(255,255,255,0.72); font-weight: 500; }
+  .export-preview { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .export-preview-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+  .export-preview-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .export-preview-filename { font-size: 9.5px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.25); margin-left: 6px; }
+  .export-preview-body { padding: 16px 18px; font-size: 10px; font-family: 'Geist Mono', monospace; line-height: 1.75; overflow: hidden; }
+  .ep-h1 { color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 4px; }
+  .ep-h2 { color: rgba(10,132,255,0.85); font-weight: 600; margin-top: 12px; margin-bottom: 4px; }
+  .ep-muted { color: rgba(255,255,255,0.22); }
+  .ep-row { display: flex; gap: 12px; }
+  .ep-crit { color: #ff453a; }
+  .ep-warn { color: #ff9f0a; }
+  .ep-ok   { color: #34c759; }
+  .ep-ai   { color: rgba(10,132,255,0.65); font-style: italic; }
+  .ep-divider { border: none; border-top: 0.5px solid rgba(255,255,255,0.06); margin: 10px 0; }
+  @media (max-width: 860px) { .export-inner { grid-template-columns: 1fr; } }
 
   /* ── CTA Final ───────────────────────────────────────────────────────────── */
   .cta-inner { max-width: 680px; margin: 0 auto; padding: 88px 40px 72px; text-align: center; }
@@ -681,6 +718,177 @@
     color: rgba(255,255,255,0.40);
   }
   .platform-badge svg { opacity: 0.55; }
+
+  /* ── Feature walkthrough (sticky scroll) ──────────────────────────────────── */
+  .fw-section { position: relative; z-index: 5; }
+  .fw-inner { max-width: 1200px; margin: 0 auto; padding: 80px 40px 0; }
+  .fw-intro { margin-bottom: 64px; }
+  .fw-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.45fr;
+    gap: 60px;
+    align-items: start;
+  }
+  .fw-items { display: flex; flex-direction: column; }
+  .fw-item {
+    padding: 52px 0;
+    border-bottom: 0.5px solid rgba(255,255,255,0.05);
+    opacity: 0.28;
+    transition: opacity 0.5s ease;
+    cursor: pointer;
+  }
+  .fw-item:hover { opacity: 0.55; }
+  .fw-item:first-child { padding-top: 0; }
+  .fw-item:last-child { border-bottom: none; padding-bottom: 80px; }
+  .fw-item.fw-active { opacity: 1; }
+  .fw-item-eyebrow {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    font-family: 'Geist Mono', monospace; color: rgba(10,132,255,0.65); margin-bottom: 12px;
+  }
+  .fw-item-title {
+    font-size: clamp(22px, 2.8vw, 30px); font-weight: 200; letter-spacing: -0.04em;
+    color: var(--text-primary); margin-bottom: 14px; line-height: 1.15;
+  }
+  .fw-item-desc {
+    font-size: 14px; line-height: 1.72; color: rgba(255,255,255,0.46);
+    font-weight: 300; max-width: 420px; margin-bottom: 20px; letter-spacing: -0.01em;
+  }
+  .fw-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fw-tag {
+    font-size: 10px; font-family: 'Geist Mono', monospace; padding: 3px 9px;
+    border-radius: 5px; background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(255,255,255,0.09); color: rgba(255,255,255,0.36);
+  }
+  .fw-sticky { position: sticky; top: 90px; }
+  .fw-screen-wrap.fw-wrap-fit { width: fit-content; }
+  .fw-screen-wrap {
+    background: rgba(20,20,24,0.80);
+    border: 0.5px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 32px 64px rgba(0,0,0,0.55), inset 0 0 0 0.5px rgba(255,255,255,0.05);
+  }
+  .fw-titlebar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 14px; border-bottom: 0.5px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02); flex-shrink: 0;
+  }
+  .fw-screen-img {
+    width: 100%; display: block;
+    opacity: 1; transition: opacity 0.25s ease;
+  }
+  .fw-screen-img.fading { opacity: 0; }
+  @media (max-width: 900px) {
+    .fw-layout { grid-template-columns: 1fr; }
+    .fw-sticky { display: none; }
+    .fw-item { opacity: 1; }
+    .fw-inner { padding: 60px 24px 0; }
+  }
+
+  /* ── Feature preview panels ───────────────────────────────────────────────── */
+  .fw-screen-wrap { position: relative; min-height: 400px; }
+  .fw-titlebar-label { font-size: 10px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.26); margin-left: 4px; }
+  .fw-preview { display: none; overflow: hidden; }
+  .fw-preview.fw-prev-active { display: block; animation: fw-fadein 0.28s ease; }
+  #prev-scoring  { height: 360px; }
+  #prev-graph    { height: 420px; }
+  #prev-history  { height: 418px; }
+  #prev-security { height: 338px; }
+  @keyframes fw-fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* Scoring */
+  .prev-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .prev-count { font-size: 10px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.28); }
+  .prev-pills { display: flex; gap: 5px; }
+  .prev-pill { font-size: 9px; font-family: 'Geist Mono', monospace; padding: 2px 7px; border-radius: 4px; }
+  .prev-pill-crit { background: rgba(255,69,58,0.09); color: rgba(255,120,110,0.85); border: 0.5px solid rgba(255,69,58,0.18); }
+  .prev-pill-str  { background: rgba(255,159,10,0.09); color: rgba(255,185,80,0.85); border: 0.5px solid rgba(255,159,10,0.18); }
+  .prev-pill-ok   { background: rgba(52,199,89,0.07); color: rgba(100,220,130,0.80); border: 0.5px solid rgba(52,199,89,0.16); }
+  /* Scoring split layout */
+  .prev-score-split { display: flex; height: 100%; overflow: hidden; }
+  .prev-score-left { flex: 0 0 48%; border-right: 0.5px solid rgba(255,255,255,0.07); overflow-y: auto; padding: 6px 0; }
+  .prev-score-right { flex: 1; overflow-y: auto; }
+  /* Left: file rows */
+  .prev-score-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; transition: background 0.12s; }
+  .prev-score-row:hover { background: rgba(255,255,255,0.025); }
+  .prev-score-row.ps-active { background: rgba(255,255,255,0.04); }
+  .prev-score-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; opacity: 0.25; transition: opacity 0.2s; }
+  .prev-score-row.ps-active .prev-score-dot { opacity: 1; }
+  .prev-score-row:hover .prev-score-dot { opacity: 0.6; }
+  .prev-score-name { font-size: 10px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.55); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prev-score-val { font-size: 10px; font-family: 'Geist Mono', monospace; min-width: 30px; text-align: right; }
+  .prev-score-trend { font-size: 9px; flex-shrink: 0; width: 10px; text-align: center; }
+  /* Right: detail panel */
+  .prev-score-right { scrollbar-width: none; }
+  .prev-score-right::-webkit-scrollbar { display: none; }
+  .pd-header { display: flex; align-items: center; padding: 8px 12px 7px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .pd-fname { font-size: 11.5px; font-weight: 600; font-family: 'Geist', sans-serif; color: rgba(255,255,255,0.88); }
+  .pd-path { font-size: 7px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.20); padding: 3px 12px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pd-meta { padding: 7px 12px 0; }
+  .pd-badge { display: inline-block; font-size: 8px; font-family: 'Geist Mono', monospace; font-weight: 700; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px; }
+  .pd-score-row { display: flex; align-items: center; gap: 8px; }
+  .pd-score-num { font-size: 34px; font-weight: 200; letter-spacing: -2px; line-height: 1; font-family: 'Geist', sans-serif; }
+  .pd-score-label { font-size: 10px; color: rgba(255,255,255,0.30); align-self: flex-end; padding-bottom: 4px; }
+  .pd-score-trend { margin-left: auto; font-size: 16px; }
+  .pd-tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); margin-top: 8px; }
+  .pd-tab { font-size: 8.5px; font-family: 'Geist Mono', monospace; letter-spacing: 0.06em; padding: 6px 12px; color: rgba(255,255,255,0.28); cursor: default; border-bottom: 1.5px solid transparent; }
+  .pd-tab.pd-tab-on { color: rgba(255,255,255,0.78); border-bottom-color: #4a9eff; }
+  .pd-section { padding: 8px 12px 0; }
+  .pd-section-head { display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; letter-spacing: 0.10em; font-weight: 600; text-transform: uppercase; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.25); margin-bottom: 6px; }
+  .pd-mini-chart { display: block; width: 100%; overflow: visible; }
+  .pd-metrics { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .pd-metric-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .pd-metric-label { font-size: 7.5px; letter-spacing: 0.10em; text-transform: uppercase; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.28); }
+  .pd-metric-val { font-size: 10.5px; font-family: 'Geist Mono', monospace; font-weight: 500; }
+  .pd-metric-bar-bg { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .pd-metric-bar { height: 100%; border-radius: 2px; }
+
+  /* History */
+  .prev-hist-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .prev-stat { padding: 10px 12px 9px; border-right: 0.5px solid rgba(255,255,255,0.05); }
+  .prev-stat:last-child { border-right: none; }
+  .prev-stat-label { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.28); font-family: 'Geist Mono', monospace; margin-bottom: 5px; }
+  .prev-stat-val { font-size: 21px; font-weight: 200; letter-spacing: -1.5px; line-height: 1; font-family: 'Geist', sans-serif; }
+  .prev-stat-denom { font-size: 10px; color: rgba(255,255,255,0.22); letter-spacing: 0; }
+  .prev-hist-chart { padding: 12px 16px 0; }
+  .prev-hist-meta { display: flex; justify-content: space-between; padding: 6px 16px 10px; font-size: 9px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.22); }
+  #prev-hist-trends { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 14px; }
+  .prev-trend-group-title { font-size: 9px; letter-spacing: 0.10em; font-weight: 600; text-transform: uppercase; font-family: 'Geist Mono', monospace; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+  .prev-trend-rows { display: flex; flex-direction: column; gap: 3px; }
+  .prev-trend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .prev-trend-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; border-left-width: 2px; border-left-style: solid; }
+  .prev-trend-name { flex: 1; font-size: 9.5px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.55); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prev-trend-score { font-size: 9px; font-family: 'Geist Mono', monospace; flex-shrink: 0; }
+  .prev-trend-arrow { font-size: 10px; flex-shrink: 0; }
+
+  /* Security */
+  .prev-sec-header { padding: 12px 16px 10px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .prev-sec-summary { display: flex; gap: 12px; font-size: 10px; font-family: 'Geist Mono', monospace; margin-bottom: 10px; align-items: center; }
+  .prev-sec-tabs { display: flex; gap: 6px; }
+  .prev-sec-tab { font-size: 9px; font-family: 'Geist Mono', monospace; padding: 4px 10px; border-radius: 4px; border: 0.5px solid rgba(255,255,255,0.08); background: transparent; color: rgba(255,255,255,0.28); cursor: pointer; transition: all 0.15s; }
+  .prev-sec-tab.fw-tab-active { color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); }
+  .prev-dep-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 16px; opacity: 0; transform: translateX(-8px); transition: opacity 0.4s ease, transform 0.4s ease; }
+  .prev-dep-row.visible { opacity: 1; transform: none; }
+  .prev-dep-meta { font-size: 9px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.24); margin-top: 3px; }
+  .prev-dep-fix { color: rgba(52,199,89,0.70); font-size: 9px; font-family: 'Geist Mono', monospace; margin-top: 3px; }
+  .prev-sec-list { padding: 6px 0 4px; }
+  .prev-sec-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 16px; opacity: 0; transform: translateX(-8px); transition: opacity 0.4s ease, transform 0.4s ease; }
+  .prev-sec-row.visible { opacity: 1; transform: none; }
+  .prev-sec-badge { font-size: 8px; font-weight: 600; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.05em; flex-shrink: 0; margin-top: 1px; min-width: 54px; text-align: center; }
+  .prev-sec-info { flex: 1; min-width: 0; }
+  .prev-sec-file { font-size: 9.5px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.50); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prev-sec-msg { font-size: 9px; color: rgba(255,255,255,0.25); font-family: 'Geist Mono', monospace; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Graph */
+  #prev-graph { position: relative; }
+  #fw-graph-svg { display: block; width: 100%; }
+  .graph-tooltip {
+    position: absolute; pointer-events: none;
+    background: rgba(14,14,18,0.96); border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: 6px; padding: 5px 10px; font-size: 10px; font-family: 'Geist Mono', monospace;
+    color: rgba(255,255,255,0.80); white-space: nowrap; z-index: 10;
+    opacity: 0; transition: opacity 0.12s; top: 0; left: 0;
+  }
 </style>
 </head>
 <body>
@@ -691,56 +899,35 @@
   <div class="scan-points"></div>
 </div>
 <div class="noise"></div>
+<a href="#how-it-works" class="core-link" aria-label="Get started"></a>
 
 <nav>
-  <div class="nav-logo">
-    <div class="nav-logo-icon">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="2.5" fill="rgba(10,132,255,0.90)"/>
-        <circle cx="7" cy="7" r="5.5" stroke="rgba(10,132,255,0.40)" stroke-width="0.8" fill="none"/>
-        <circle cx="7" cy="7" r="3.5" stroke="rgba(10,132,255,0.22)" stroke-width="3" fill="none"/>
-      </svg>
-    </div>
+  <a href="#" class="nav-logo">
+    <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
+      <circle cx="7" cy="7" r="2.5" fill="rgba(10,132,255,0.90)"/>
+      <circle cx="7" cy="7" r="5.5" stroke="rgba(10,132,255,0.40)" stroke-width="0.8" fill="none"/>
+    </svg>
     Cortex
-  </div>
+  </a>
   <div class="nav-links">
-    <a href="#features">Features</a><a href="#metrics">Metrics</a><a href="#privacy">Privacy</a><a href="https://github.com/yugz29/Cortex" target="_blank">GitHub</a>
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#metrics">Metrics</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#export">Export</a>
   </div>
   <div class="nav-cta">
-    <a href="https://github.com/yugz29/Cortex" target="_blank" class="btn-ghost">Star on GitHub</a>
-    <a href="https://github.com/yugz29/Cortex/releases" target="_blank" class="btn-primary">↓ Download</a>
+    <a href="https://github.com/yugz29/Cortex" target="_blank" class="btn-nav-gh">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.19c0 4.5 2.87 8.32 6.84 9.67.5.09.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.17-1.11-1.48-1.11-1.48-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.72 0 0 .84-.27 2.75 1.05A9.39 9.39 0 0 1 12 7.03c.85.004 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.49A10.19 10.19 0 0 0 22 12.19C22 6.58 17.52 2 12 2z"/></svg>
+      GitHub
+    </a>
   </div>
 </nav>
 
 <div class="hero">
   <h1>Know which file will break<br><em>before</em> it does.</h1>
   <p class="hero-sub">Cortex watches your codebase in real time, scores every file 0–100 across 7 weighted metrics, and surfaces risk before it becomes a problem. Everything runs on your machine.</p>
-  <div class="cta-row">
-    <a href="https://github.com/yugz29/Cortex/releases" target="_blank" class="btn-download">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3 6.5l3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Download
-    </a>
-    <a href="https://github.com/yugz29/Cortex" target="_blank" class="btn-gh">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.19c0 4.5 2.87 8.32 6.84 9.67.5.09.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.17-1.11-1.48-1.11-1.48-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.72 0 0 .84-.27 2.75 1.05A9.39 9.39 0 0 1 12 7.03c.85.004 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.49A10.19 10.19 0 0 0 22 12.19C22 6.58 17.52 2 12 2z"/></svg>
-      View on GitHub
-    </a>
-  </div>
-  <div class="platform-badges">
-    <span class="platform-badge">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-      macOS
-    </span>
-    <span class="platform-badge">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg>
-      Windows
-    </span>
-    <span class="platform-badge">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.22 15.03c-.35.88-.52 1.27-1.03 2.05-.67 1.03-1.6 2.3-2.77 2.31-1.03.01-1.3-.67-2.7-.66-1.4.01-1.7.67-2.73.66-1.16-.01-2.04-1.17-2.71-2.2-1.84-2.82-2.04-6.13-1-7.89.73-1.27 1.89-2.02 3-2.02 1.12 0 1.82.67 2.74.67.89 0 1.43-.67 2.72-.67 1 0 2.06.66 2.79 1.81-.53.27-2.02 1.06-1.99 3.13.02 2.08 1.56 2.89 1.68 2.81zm-5.48-9.93c.49-.6.91-1.46.77-2.34-.76.05-1.65.53-2.17 1.12-.48.54-.94 1.4-.77 2.24.83.03 1.69-.46 2.17-1.02z"/></svg>
-      Linux
-    </span>
-  </div>
   <div class="meta-row">
-    <span>Apache-2.0</span><div class="meta-dot"></div>
     <span>Electron · TypeScript · SQLite</span><div class="meta-dot"></div>
     <span>Free & open source</span>
   </div>
@@ -787,124 +974,128 @@
   </div>
 </div>
 
-<!-- Features Section -->
-<div class="features" id="features">
-  <div class="features-layout">
-
-    <!-- Card principale : per-file scoring -->
-    <div class="fc fc-main">
-      <div class="fc-header">
-        <div class="fc-label">Per-file scoring</div>
-        <div class="fc-title">Every file has<br>a score.</div>
-        <div class="fc-desc">Not a vague project average. Each file gets its own 0–100 risk score, updated on every save. You always know exactly where to look.</div>
-      </div>
-      <div class="fc-demo">
-        <div class="fc-file"><div class="fc-file-dot" style="background:#ff453a;"></div><span class="fc-file-name">parser.ts</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:91%;background:#ff453a;"></div></div><span class="fc-file-score" style="color:#ff453a;">91.2</span></div>
-        <div class="fc-file"><div class="fc-file-dot" style="background:#ff453a;"></div><span class="fc-file-name">db.ts</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:78%;background:#ff453a;"></div></div><span class="fc-file-score" style="color:#ff453a;">78.4</span></div>
-        <div class="fc-file"><div class="fc-file-dot" style="background:#ff9f0a;"></div><span class="fc-file-name">scanner.ts</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:44%;background:#ff9f0a;"></div></div><span class="fc-file-score" style="color:#ff9f0a;">44.1</span></div>
-        <div class="fc-file"><div class="fc-file-dot" style="background:#ff9f0a;"></div><span class="fc-file-name">CortexView.tsx</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:29%;background:#ff9f0a;"></div></div><span class="fc-file-score" style="color:#ff9f0a;">29.2</span></div>
-        <div class="fc-file"><div class="fc-file-dot" style="background:#34c759;"></div><span class="fc-file-name">watcher.ts</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:14%;background:#34c759;"></div></div><span class="fc-file-score" style="color:#34c759;">14.0</span></div>
-        <div class="fc-file"><div class="fc-file-dot" style="background:#34c759;"></div><span class="fc-file-name">utils.ts</span><div class="fc-file-bar-wrap"><div class="fc-file-bar" style="width:8%;background:#34c759;"></div></div><span class="fc-file-score" style="color:#34c759;">8.1</span></div>
-      </div>
+<!-- ════════════════════════════ FEATURES ════════════════════════════════════ -->
+<section class="page-section fw-section reveal-section" id="features">
+  <div class="fw-inner">
+    <div class="fw-intro reveal-child">
+      <div class="section-eyebrow">Features</div>
+      <h2 class="section-title">Built for developers<br>who ship often.</h2>
+      <p class="section-sub">Every feature runs locally, updates on every save, and gives you concrete signal, not vague advice.</p>
     </div>
+    <div class="fw-layout">
+      <div class="fw-items">
 
-    <!-- Card : real-time watcher -->
-    <div class="fc fc-right">
-      <div class="fc-label">Real-time · Local-first</div>
-      <div class="fc-title">Scores update<br>on every save.</div>
-      <div class="fc-desc">Filesystem watcher (chokidar) triggers on each change — debounced, exclusion-aware. No server, no sync, no latency.</div>
-      <div class="fc-watcher">
-        <div class="fc-watch-row active"><div class="fc-watch-dot"></div><span>parser.ts saved</span><span class="fc-watch-time">just now</span></div>
-        <div class="fc-watch-row active"><div class="fc-watch-dot"></div><span>score updated 91.2</span><span class="fc-watch-time">0ms</span></div>
-        <div class="fc-watch-row"><div class="fc-watch-dot idle"></div><span>db.ts</span><span class="fc-watch-time">2m ago</span></div>
-        <div class="fc-watch-row"><div class="fc-watch-dot idle"></div><span>watcher.ts</span><span class="fc-watch-time">14m ago</span></div>
+        <div class="fw-item" data-preview="prev-scoring">
+          <div class="fw-item-eyebrow">Scoring</div>
+          <h3 class="fw-item-title">Every file has<br>a live score.</h3>
+          <p class="fw-item-desc">Each file gets its own 0–100 risk score, recalculated on every save. No project averages, just precise, per-file signal updated in real time.</p>
+          <div class="fw-tags">
+            <span class="fw-tag">per-file</span>
+            <span class="fw-tag">real-time</span>
+            <span class="fw-tag">0–100 risk</span>
+          </div>
+        </div>
+
+        <div class="fw-item" data-preview="prev-graph">
+          <div class="fw-item-eyebrow">Graph</div>
+          <h3 class="fw-item-title">See the architecture,<br>see the risk.</h3>
+          <p class="fw-item-desc">Interactive force-directed graph of your import edges. Nodes colored by risk, sized by fan-in. Drag them, explore the coupling, spot the dangerous files before they cause a regression.</p>
+          <div class="fw-tags">
+            <span class="fw-tag">force-directed</span>
+            <span class="fw-tag">draggable</span>
+            <span class="fw-tag">coupling analysis</span>
+          </div>
+        </div>
+
+        <div class="fw-item" data-preview="prev-history">
+          <div class="fw-item-eyebrow">Activity</div>
+          <h3 class="fw-item-title">Every scan,<br>logged.</h3>
+          <p class="fw-item-desc">Full scan history with an interactive trend graph. Track your project's risk score over time, by scan or by day. See exactly when complexity crept in, and when a refactor paid off.</p>
+          <div class="fw-tags">
+            <span class="fw-tag">scan history</span>
+            <span class="fw-tag">trend graph</span>
+            <span class="fw-tag">by scan · by day</span>
+          </div>
+        </div>
+
+        <div class="fw-item" data-preview="prev-security">
+          <div class="fw-item-eyebrow">Security</div>
+          <h3 class="fw-item-title">20 patterns.<br>Dep audit included.</h3>
+          <p class="fw-item-desc">Static pattern scan for secrets, XSS vectors, unsafe crypto, eval usage, and more. Plus npm advisory integration to catch vulnerable dependencies, without leaving the app.</p>
+          <div class="fw-tags">
+            <span class="fw-tag">40+ rules</span>
+            <span class="fw-tag">npm audit</span>
+            <span class="fw-tag">XSS · Secrets · Crypto</span>
+          </div>
+        </div>
+
       </div>
-    </div>
 
-    <!-- Card : security scan -->
-    <div class="fc fc-right">
-      <div class="fc-label">Security · 20+ rules</div>
-      <div class="fc-title">Pattern-based<br>security scan.</div>
-      <div class="fc-desc">Hardcoded secrets, SQL injection, eval usage, weak crypto, XSS vectors — scanned at every build. No external service required.</div>
-      <div class="fc-security-list">
-        <div class="fc-sec-row"><span class="fc-sec-badge sec-critical">critical</span><span class="fc-sec-file">db.ts:42</span><span class="fc-sec-msg">hardcoded-secret</span></div>
-        <div class="fc-sec-row"><span class="fc-sec-badge sec-high">high</span><span class="fc-sec-file">api.ts:87</span><span class="fc-sec-msg">eval-usage</span></div>
-        <div class="fc-sec-row"><span class="fc-sec-badge sec-medium">medium</span><span class="fc-sec-file">auth.ts:14</span><span class="fc-sec-msg">math-random-security</span></div>
-        <div class="fc-sec-row"><span class="fc-sec-badge sec-low">low</span><span class="fc-sec-file">index.ts:3</span><span class="fc-sec-msg">http-cleartext</span></div>
-      </div>
-    </div>
+      <div class="fw-sticky">
+        <div class="fw-screen-wrap">
+          <div class="fw-titlebar">
+            <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+            <span class="fw-titlebar-label">cortex</span>
+          </div>
 
-  </div>
+          <!-- Preview: Scoring -->
+          <div class="fw-preview" id="prev-scoring">
+            <div class="prev-score-split">
+              <div class="prev-score-left" id="prev-scoring-list"></div>
+              <div class="prev-score-right" id="prev-score-detail"></div>
+            </div>
+          </div>
 
-  <!-- Deuxième rangée de features -->
-  <div class="features-layout" style="margin-top:14px;">
+          <!-- Preview: Graph -->
+          <div class="fw-preview" id="prev-graph">
+            <svg id="fw-graph-svg" height="419"></svg>
+            <div class="graph-tooltip" id="graph-tooltip"></div>
+          </div>
 
-    <!-- Card : dependency graph -->
-    <div class="fc fc-right" style="padding:22px 24px;">
-      <div class="fc-label">Graph view · FREE / LAYERS</div>
-      <div class="fc-title">Dependency graph,<br>two layouts.</div>
-      <div class="fc-desc">Force-directed graph of import edges. Switch between FREE (organic clustering) and LAYERS (architectural tiers) to understand coupling at a glance.</div>
-      <div class="fc-graph-demo">
-        <!-- Simplified graph SVG -->
-        <svg width="100%" height="80" viewBox="0 0 260 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- edges -->
-          <line x1="130" y1="40" x2="60"  y2="20" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-          <line x1="130" y1="40" x2="200" y2="20" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-          <line x1="130" y1="40" x2="50"  y2="62" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-          <line x1="130" y1="40" x2="210" y2="62" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-          <line x1="60"  y1="20" x2="22"  y2="40" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-          <line x1="200" y1="20" x2="238" y2="40" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-          <!-- center node -->
-          <circle cx="130" cy="40" r="14" fill="rgba(10,132,255,0.18)" stroke="rgba(10,132,255,0.35)" stroke-width="0.8"/>
-          <text x="130" y="44" font-size="7" fill="rgba(100,185,255,0.80)" font-family="'Geist Mono',monospace" text-anchor="middle">scanner</text>
-          <!-- critical nodes -->
-          <circle cx="60"  cy="20" r="11" fill="rgba(255,69,58,0.12)"  stroke="rgba(255,69,58,0.28)"  stroke-width="0.8"/>
-          <text x="60"  y="24" font-size="6" fill="rgba(255,120,110,0.75)" font-family="'Geist Mono',monospace" text-anchor="middle">parser</text>
-          <circle cx="200" cy="20" r="10" fill="rgba(255,69,58,0.12)"  stroke="rgba(255,69,58,0.28)"  stroke-width="0.8"/>
-          <text x="200" y="24" font-size="6" fill="rgba(255,120,110,0.75)" font-family="'Geist Mono',monospace" text-anchor="middle">db</text>
-          <!-- healthy nodes -->
-          <circle cx="50"  cy="62" r="9"  fill="rgba(52,199,89,0.08)"  stroke="rgba(52,199,89,0.20)"  stroke-width="0.8"/>
-          <text x="50"  y="66" font-size="6" fill="rgba(100,220,130,0.65)" font-family="'Geist Mono',monospace" text-anchor="middle">utils</text>
-          <circle cx="210" cy="62" r="9"  fill="rgba(52,199,89,0.08)"  stroke="rgba(52,199,89,0.20)"  stroke-width="0.8"/>
-          <text x="210" y="66" font-size="6" fill="rgba(100,220,130,0.65)" font-family="'Geist Mono',monospace" text-anchor="middle">churn</text>
-          <circle cx="22"  cy="40" r="8"  fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="0.8"/>
-          <circle cx="238" cy="40" r="8"  fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="0.8"/>
-        </svg>
-      </div>
-    </div>
+          <!-- Preview: History -->
+          <div class="fw-preview" id="prev-history">
+            <div class="prev-hist-stats">
+              <div class="prev-stat"><div class="prev-stat-label">Current</div><div class="prev-stat-val" style="color:#34c759">18.9<span class="prev-stat-denom">/100</span></div></div>
+              <div class="prev-stat"><div class="prev-stat-label">Average</div><div class="prev-stat-val" style="color:#ff9f0a">26.9<span class="prev-stat-denom">/100</span></div></div>
+              <div class="prev-stat"><div class="prev-stat-label">Best</div><div class="prev-stat-val" style="color:#34c759">0.0<span class="prev-stat-denom">/100</span></div></div>
+              <div class="prev-stat"><div class="prev-stat-label">Worst</div><div class="prev-stat-val" style="color:#ff453a">31.6<span class="prev-stat-denom">/100</span></div></div>
+            </div>
+            <div class="prev-hist-chart">
+              <svg id="fw-hist-svg" width="100%" height="110"></svg>
+            </div>
+            <div class="prev-hist-meta">
+              <span>204 scans · 21/3 → 26/3</span>
+              <span style="color:#34c759">↓ 7.6 since first scan</span>
+            </div>
+            <div id="prev-hist-trends"></div>
+          </div>
 
-    <!-- Card : AI snapshot -->
-    <div class="fc fc-right" style="padding:22px 24px;">
-      <div class="fc-label">AI context · cortex-snapshot.json</div>
-      <div class="fc-title">One file to brief<br>any AI assistant.</div>
-      <div class="fc-desc">After every scan, Cortex writes a structured JSON snapshot of your entire project. Drop it into any conversation — the AI instantly understands your codebase.</div>
-      <div class="fc-snapshot">
-        <div class="fc-snap-block">
-          <span><span class="snap-key">"summary"</span>: { <span class="snap-key">"critical"</span>: <span class="snap-num">5</span>, <span class="snap-key">"avg_score"</span>: <span class="snap-num">54.7</span> },</span><br>
-          <span><span class="snap-key">"hotspots"</span>: [ <span class="snap-str">"parser.ts"</span>, <span class="snap-str">"db.ts"</span> ],</span><br>
-          <span><span class="snap-key">"couplings"</span>: { <span class="snap-str">"scanner↔db"</span>: <span class="snap-num">18</span> },</span><br>
-          <span><span class="snap-key">"trend"</span>: <span class="snap-str">"degrading"</span></span>
+          <!-- Preview: Security -->
+          <div class="fw-preview" id="prev-security">
+            <div class="prev-sec-header">
+              <div class="prev-sec-summary">
+                <span style="color:#ff9f0a">9 Medium</span>
+                <span style="color:rgba(255,255,255,0.32)">31 Low</span>
+                <span style="color:rgba(255,69,58,0.72);font-size:9px">▲ 4 vulnerabilities in dependencies</span>
+              </div>
+              <div class="prev-sec-tabs">
+                <button class="prev-sec-tab fw-tab-active" id="sec-tab-patterns">Patterns · 20</button>
+                <button class="prev-sec-tab" id="sec-tab-deps">Dependencies · 4</button>
+              </div>
+            </div>
+            <div class="prev-sec-list" id="prev-sec-list"></div>
+            <div class="prev-sec-list" id="prev-dep-list" style="display:none"></div>
+          </div>
+
         </div>
       </div>
-    </div>
 
-    <!-- Card : languages -->
-    <div class="fc fc-right" style="padding:22px 24px;">
-      <div class="fc-label">Languages · Adaptive scoring</div>
-      <div class="fc-title">TypeScript, JavaScript,<br>Python. Adaptive.</div>
-      <div class="fc-desc">AST analysis via ts-morph for TS/JS. Regex-based for Python. Thresholds calibrated per file type — a React component is not scored like a parser.</div>
-      <div class="fc-metrics-list" style="margin-top:14px;">
-        <div class="fc-metric-row"><span class="fc-metric-name">.ts / .tsx / .js</span><div class="fc-metric-track"><div class="fc-metric-fill" style="width:100%;background:rgba(10,132,255,0.55);"></div></div><span class="fc-metric-pct">AST</span></div>
-        <div class="fc-metric-row"><span class="fc-metric-name">.jsx / .mjs / .cjs</span><div class="fc-metric-track"><div class="fc-metric-fill" style="width:100%;background:rgba(10,132,255,0.45);"></div></div><span class="fc-metric-pct">AST</span></div>
-        <div class="fc-metric-row"><span class="fc-metric-name">.py</span><div class="fc-metric-track"><div class="fc-metric-fill" style="width:80%;background:rgba(52,199,89,0.50);"></div></div><span class="fc-metric-pct">regex</span></div>
-      </div>
     </div>
-
   </div>
-</div>
+</section>
 
 <!-- ══════════════════════════ HOW IT WORKS ═══════════════════════════════════ -->
-<section class="page-section reveal-section">
+<section class="page-section reveal-section" id="how-it-works">
   <div class="how-inner">
     <div class="section-eyebrow">How it works</div>
     <h2 class="section-title">Up and running<br>in 3 steps.</h2>
@@ -913,7 +1104,7 @@
       <div class="step reveal-child">
         <div class="step-num">01</div>
         <div class="step-title">Clone & install</div>
-        <div class="step-desc">Clone the repo, install dependencies, and start in dev mode — or grab a prebuilt binary from the releases page.</div>
+        <div class="step-desc">Clone the repo, install dependencies, and start in dev mode, or grab a prebuilt binary from the releases page.</div>
         <div class="step-code">
           <span class="code-comment"># Clone the repo</span>
           <span class="code-cmd">git clone github.com/yugz29/Cortex</span>
@@ -926,7 +1117,7 @@
       <div class="step reveal-child">
         <div class="step-num">02</div>
         <div class="step-title">Add your project</div>
-        <div class="step-desc">Click <em>Add project</em> and select a folder. Cortex starts watching and scoring immediately. Switch between projects at any time — no restart needed.</div>
+        <div class="step-desc">Click <em>Add project</em> and select a folder. Cortex starts watching and scoring immediately. Switch between projects at any time. No restart needed.</div>
         <div class="step-tag-row">
           <span class="step-tag">.ts</span>
           <span class="step-tag">.tsx</span>
@@ -943,7 +1134,7 @@
       <div class="step reveal-child">
         <div class="step-num">03</div>
         <div class="step-title">Watch it update</div>
-        <div class="step-desc">Every save triggers a fresh scan. Risk scores, trend graphs, hotspots, security findings — all updated live. No cloud, no AI model required.</div>
+        <div class="step-desc">Every save triggers a fresh scan. Risk scores, trend graphs, hotspots, security findings, all updated live. No cloud, no AI model required.</div>
         <div class="step-live-row">
           <div class="step-live-dot"></div>
           <span class="step-live-label">parser.ts rescanned</span>
@@ -960,20 +1151,20 @@
   <div class="metrics-inner">
     <div class="section-eyebrow">7 weighted metrics</div>
     <h2 class="section-title">Every signal<br>that matters.</h2>
-    <p class="section-sub">Each metric is independently computed, then combined into a single weighted risk score. Thresholds adapt to your project's own distribution — what's normal here stays green.</p>
+    <p class="section-sub">Each metric is independently computed, then combined into a single weighted risk score. Thresholds adapt to your project's own distribution. What's normal here stays green.</p>
     <div class="metrics-grid">
 
       <div class="metric-card reveal-child">
         <div class="metric-header"><div class="metric-weight-bar"><div class="metric-weight-fill" style="width:28%;background:rgba(10,132,255,0.70);"></div></div><span class="metric-weight-label">28%</span></div>
         <div class="metric-name">Cyclomatic Complexity</div>
-        <div class="metric-desc">Counts independent paths through a function. Each branch (if, &&, ||, ternary, case, catch) adds 1. Blended max + mean — one monster function won't sink an otherwise healthy file.</div>
+        <div class="metric-desc">Counts independent paths through a function. Each branch (if, &&, ||, ternary, case, catch) adds 1. Blended max + mean. One monster function won't sink an otherwise healthy file.</div>
         <div class="metric-formula"><span class="formula-label">safe</span> cx ≤ 3 &nbsp;·&nbsp; <span class="formula-label">danger</span> cx ≥ 15</div>
       </div>
 
       <div class="metric-card reveal-child">
         <div class="metric-header"><div class="metric-weight-bar"><div class="metric-weight-fill" style="width:19%;background:rgba(10,132,255,0.60);"></div></div><span class="metric-weight-label">19%</span></div>
         <div class="metric-name">Cognitive Complexity</div>
-        <div class="metric-desc">Measures how hard code is to <em>read</em>. Nesting adds a depth penalty — an if inside 3 loops costs 4 points, not 1. Based on the SonarSource model.</div>
+        <div class="metric-desc">Measures how hard code is to <em>read</em>. Nesting adds a depth penalty. An if inside 3 loops costs 4 points, not 1. Based on the SonarSource model.</div>
         <div class="metric-formula"><span class="formula-label">safe</span> cog ≤ 8 &nbsp;·&nbsp; <span class="formula-label">danger</span> cog ≥ 60</div>
       </div>
 
@@ -987,14 +1178,14 @@
       <div class="metric-card reveal-child">
         <div class="metric-header"><div class="metric-weight-bar"><div class="metric-weight-fill" style="width:14%;background:rgba(10,132,255,0.52);"></div></div><span class="metric-weight-label">14%</span></div>
         <div class="metric-name">Nesting Depth</div>
-        <div class="metric-desc">Maximum block nesting inside any function. Deep nesting is a proxy for entangled logic — conditions inside conditions inside conditions.</div>
+        <div class="metric-desc">Maximum block nesting inside any function. Deep nesting is a proxy for entangled logic, conditions inside conditions inside conditions.</div>
         <div class="metric-formula"><span class="formula-label">safe</span> depth ≤ 2 &nbsp;·&nbsp; <span class="formula-label">danger</span> depth ≥ 6</div>
       </div>
 
       <div class="metric-card reveal-child">
         <div class="metric-header"><div class="metric-weight-bar"><div class="metric-weight-fill" style="width:12%;background:rgba(10,132,255,0.44);"></div></div><span class="metric-weight-label">12%</span></div>
         <div class="metric-name">Churn</div>
-        <div class="metric-desc">Git commit frequency over the last 30 days. Files that change often introduce more regressions — especially when complexity is also high. Churn × complexity = hotspot.</div>
+        <div class="metric-desc">Git commit frequency over the last 30 days. Files that change often introduce more regressions, especially when complexity is also high. Churn × complexity = hotspot.</div>
         <div class="metric-formula"><span class="formula-label">safe</span> ≤ 3 commits &nbsp;·&nbsp; <span class="formula-label">danger</span> ≥ 20 commits</div>
       </div>
 
@@ -1040,8 +1231,8 @@
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="4" width="12" height="8" rx="1.5" stroke="rgba(52,199,89,0.65)" stroke-width="1.1"/><path d="M4.5 4V3a2.5 2.5 0 0 1 5 0v1" stroke="rgba(52,199,89,0.65)" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="8" r="1" fill="rgba(52,199,89,0.65)"/></svg>
           </div>
           <div>
-            <div class="local-feat-title">Zero network requests</div>
-            <div class="local-feat-desc">The app makes no outbound connections. You can verify this with Little Snitch or any network monitor.</div>
+            <div class="local-feat-title">Your code never leaves your machine</div>
+            <div class="local-feat-desc">Static analysis, scoring, and pattern scanning run entirely locally. Dependency audit uses <code class="inline-code">npm audit</code>. Only package names and versions reach the npm registry, never your source code.</div>
           </div>
         </div>
 
@@ -1051,7 +1242,7 @@
           </div>
           <div>
             <div class="local-feat-title">SQLite on disk</div>
-            <div class="local-feat-desc">All scan results stored in a plain SQLite file (<code class="inline-code">pulse.db</code>) in Electron's userData folder. Inspect, export, or delete it anytime.</div>
+            <div class="local-feat-desc">All scan results stored in a plain SQLite file (<code class="inline-code">cortex.db</code>) in Electron's userData folder. Inspect, export, or delete it anytime.</div>
           </div>
         </div>
 
@@ -1070,8 +1261,8 @@
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="rgba(52,199,89,0.65)" stroke-width="1.1"/><path d="M7 4.5v3l2 1.5" stroke="rgba(52,199,89,0.65)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div>
-            <div class="local-feat-title">Works offline, forever</div>
-            <div class="local-feat-desc">No license server, no activation, no subscription. Install once, use forever.</div>
+            <div class="local-feat-title">Works offline</div>
+            <div class="local-feat-desc">No license server, no activation, no subscription. Install once.</div>
           </div>
         </div>
 
@@ -1095,7 +1286,7 @@
             <div class="diagram-arrow-v">↓</div>
             <div class="diagram-box">
               <div class="dbox-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><ellipse cx="6.5" cy="3.5" rx="4.5" ry="1.5" stroke="rgba(255,255,255,0.35)" stroke-width="1"/><path d="M2 3.5v6c0 .83 2.01 1.5 4.5 1.5S11 10.33 11 9.5v-6" stroke="rgba(255,255,255,0.35)" stroke-width="1"/><path d="M2 6.5c0 .83 2.01 1.5 4.5 1.5S11 7.33 11 6.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/></svg></div>
-              <span>pulse.db (Electron userData)</span>
+              <span>cortex.db (Electron userData)</span>
             </div>
           </div>
         </div>
@@ -1108,8 +1299,75 @@
           <div class="diagram-cloud-label">Internet</div>
           <div class="diagram-blocked">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="rgba(255,69,58,0.38)" stroke-width="1.2"/><line x1="4.5" y1="4.5" x2="13.5" y2="13.5" stroke="rgba(255,69,58,0.55)" stroke-width="1.4" stroke-linecap="round"/></svg>
-            <span>No outbound traffic</span>
+            <span>Source code. No outbound</span>
           </div>
+          <div class="diagram-audit">
+            <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M9 3l-3 3M9 3l3 3" stroke="rgba(255,159,10,0.65)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span><code class="inline-code" style="font-size:9px">npm audit</code> · package names only</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════════════════════════════════ EXPORT ══════════════════════════════════ -->
+<section class="page-section reveal-section" id="export">
+  <div class="export-inner">
+
+    <div class="reveal-child">
+      <div class="section-eyebrow">Export</div>
+      <h2 class="section-title-sm">Share the full picture.</h2>
+      <p class="local-desc">One click exports a complete snapshot of your project's health. Markdown for humans, JSON for tools.</p>
+      <div class="export-bullets">
+        <div class="export-bullet">
+          <div class="export-bullet-dot"></div>
+          <div class="export-bullet-text"><strong>Executive summary</strong> : global score, critical files, hotspots, critical hubs.</div>
+        </div>
+        <div class="export-bullet">
+          <div class="export-bullet-dot"></div>
+          <div class="export-bullet-text"><strong>Security findings</strong> included if a scan has been run. Pattern results and dependency audit.</div>
+        </div>
+        <div class="export-bullet">
+          <div class="export-bullet-dot"></div>
+          <div class="export-bullet-text"><strong>AI-ready context block</strong> : priority files formatted to paste directly into Claude, ChatGPT, or any assistant for instant refactoring help.</div>
+        </div>
+        <div class="export-bullet">
+          <div class="export-bullet-dot"></div>
+          <div class="export-bullet-text"><strong>Markdown + JSON</strong> exported simultaneously. One for your team, one for your pipeline.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal-child">
+      <div class="export-preview">
+        <div class="export-preview-bar">
+          <div class="export-preview-dot" style="background:#ff453a"></div>
+          <div class="export-preview-dot" style="background:#ff9f0a"></div>
+          <div class="export-preview-dot" style="background:#34c759"></div>
+          <span class="export-preview-filename">cortex-report-cortex-2026-03-27.md</span>
+        </div>
+        <div class="export-preview-body">
+          <div class="ep-h1"># Cortex Report — cortex — 2026-03-27</div>
+          <div class="ep-muted">Generated by Cortex v1.0</div>
+          <hr class="ep-divider">
+          <div class="ep-h2">## Executive Summary</div>
+          <div><span class="ep-muted">Status</span> &nbsp;<span class="ep-crit">CRITICAL</span> &nbsp;·&nbsp; <span class="ep-muted">Risk</span> &nbsp;<span class="ep-warn">23.4 / 100</span></div>
+          <div class="ep-muted">47 files · 3 critical · 12 stressed · 32 healthy</div>
+          <hr class="ep-divider">
+          <div class="ep-h2">## Critical Files</div>
+          <div class="ep-row"><span class="ep-crit">report.ts</span><span class="ep-muted">50.6 ↑ &nbsp;cx:19 cog:41 81L</span></div>
+          <div class="ep-row"><span class="ep-crit">churn.ts</span><span class="ep-muted">49.3 ↑ &nbsp;cx:14 cog:28 71L</span></div>
+          <div class="ep-row"><span class="ep-warn">scanner.ts</span><span class="ep-muted">47.5 ↑ &nbsp;cx:12 cog:22 68L</span></div>
+          <hr class="ep-divider">
+          <div class="ep-h2">## Security</div>
+          <div class="ep-muted">7 findings · 4 medium · 3 low</div>
+          <div class="ep-row"><span class="ep-warn">MEDIUM</span><span class="ep-muted">front-end/auth.js:63 · Secret</span></div>
+          <hr class="ep-divider">
+          <div class="ep-h2">## AI Context</div>
+          <div class="ep-ai">Paste the following into your AI assistant</div>
+          <div class="ep-ai">to get targeted refactoring suggestions...</div>
         </div>
       </div>
     </div>
@@ -1126,20 +1384,16 @@
       <p class="cta-sub">Free, open source, local-first. No account needed. Works on any TypeScript, JavaScript or Python codebase.</p>
     </div>
     <div class="cta-buttons reveal-child">
-      <a href="https://github.com/yugz29/Cortex/releases" target="_blank" class="btn-cta-main">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3 6.5l3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 11h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-        Download
+      <a href="#how-it-works" class="btn-cta-main">
+        Get started
       </a>
       <a href="https://github.com/yugz29/Cortex" target="_blank" class="btn-cta-gh">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.19c0 4.5 2.87 8.32 6.84 9.67.5.09.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.17-1.11-1.48-1.11-1.48-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.72 0 0 .84-.27 2.75 1.05A9.39 9.39 0 0 1 12 7.03c.85.004 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.49A10.19 10.19 0 0 0 22 12.19C22 6.58 17.52 2 12 2z"/></svg>
-        View on GitHub
+        GitHub
       </a>
     </div>
     <div class="cta-meta reveal-child">
-      <span>Apache-2.0</span><div class="cta-meta-dot"></div>
-      <span>macOS · Windows · Linux</span><div class="cta-meta-dot"></div>
-      <span>Electron · TypeScript · SQLite</span><div class="cta-meta-dot"></div>
-      <span>Free forever</span>
+      <span>macOS · Windows · Linux</span>
     </div>
   </div>
 </section>
@@ -1147,18 +1401,17 @@
 <!-- ════════════════════════════════ FOOTER ═══════════════════════════════════ -->
 <footer class="site-footer">
   <div class="footer-logo">
-    <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" fill="rgba(255,255,255,0.22)"/><circle cx="7" cy="7" r="5.5" stroke="rgba(255,255,255,0.10)" stroke-width="0.8" fill="none"/></svg>
+    <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" fill="rgba(10,132,255,0.90)"/><circle cx="7" cy="7" r="5.5" stroke="rgba(10,132,255,0.40)" stroke-width="0.8" fill="none"/></svg>
     Cortex
   </div>
   <div class="footer-links">
     <a href="https://github.com/yugz29/Cortex" target="_blank">GitHub</a>
-    <a href="https://github.com/yugz29/Cortex/releases" target="_blank">Releases</a>
     <a href="https://github.com/yugz29/Cortex/blob/main/LICENSE" target="_blank">License</a>
-    <a href="https://github.com/yugz29/Cortex/issues" target="_blank">Issues</a>
   </div>
   <div class="footer-copy">© 2025 Cortex · Apache-2.0</div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
 // ─── Dataset de la preview ────────────────────────────────────────────────────
 const SNAPSHOTS = [
@@ -1844,14 +2097,30 @@ window.addEventListener('DOMContentLoaded', () => {
   
   window.addEventListener('scroll', updateSidebarPositions);
   
+  const TAB_TO_PREVIEW = {
+    overview: 'prev-scoring',
+    graph:    'prev-graph',
+    history:  'prev-history',
+    security: 'prev-security',
+  };
+
   document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', (e) => {
+    tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => {
         t.classList.remove('active');
         t.classList.add('inactive');
       });
       tab.classList.remove('inactive');
       tab.classList.add('active');
+
+      const targetId = TAB_TO_PREVIEW[tab.dataset.tab];
+      const targetItem = document.querySelector(`.fw-item[data-preview="${targetId}"]`);
+      if (targetItem) {
+        // Scroll to features section
+        document.getElementById('features')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Activate the matching panel after scroll settles
+        setTimeout(() => activatePanel(targetItem), 500);
+      }
     });
   });
   
@@ -1865,6 +2134,782 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
   document.querySelectorAll('.reveal-section').forEach(el => revealObserver.observe(el));
+
+  // ─── Active nav link on scroll ────────────────────────────────────────────
+  const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+  const navSections = Array.from(navLinks).map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function updateActiveNav() {
+    const scrollY = window.scrollY + 80;
+    let current = navSections[0]?.id ?? '';
+    navSections.forEach(s => { if (s.offsetTop <= scrollY) current = s.id; });
+    navLinks.forEach(a => a.classList.toggle('nav-active', a.getAttribute('href') === `#${current}`));
+  }
+  window.addEventListener('scroll', updateActiveNav, { passive: true });
+  updateActiveNav();
+
+  // ─── Core-link: only clickable inside hero ──────────────────────────────────
+  const coreLink = document.querySelector('.core-link');
+  const heroEl   = document.querySelector('.hero');
+  function updateCoreLink() {
+    if (!coreLink || !heroEl) return;
+    const heroBottom = heroEl.getBoundingClientRect().bottom;
+    coreLink.style.pointerEvents = heroBottom > 0 ? 'auto' : 'none';
+  }
+  window.addEventListener('scroll', updateCoreLink, { passive: true });
+  updateCoreLink();
+
+  // ─── Feature walkthrough. Sticky scroll ────────────────────────────────────
+  (function () {
+
+    // ── Scoring preview ───────────────────────────────────────────────────────
+    function scoreColor(s) { return s >= 50 ? '#ff453a' : s >= 20 ? '#ff9f0a' : '#34c759'; }
+    function metricColor(s) { return s >= 60 ? '#ff453a' : s >= 30 ? '#ff9f0a' : '#34c759'; }
+    const LAYER_STYLE = {
+      UI:     { bg: 'rgba(74,158,255,0.12)',  col: '#4a9eff',  border: 'rgba(74,158,255,0.28)' },
+      CORE:   { bg: 'rgba(160,160,168,0.10)', col: '#a0a0a8',  border: 'rgba(160,160,168,0.24)' },
+      DB:     { bg: 'rgba(34,197,94,0.10)',   col: '#22c55e',  border: 'rgba(34,197,94,0.24)' },
+      CONFIG: { bg: 'rgba(139,92,246,0.10)',  col: '#8b5cf6',  border: 'rgba(139,92,246,0.24)' },
+    };
+    const SCORE_FILES = [
+      { name: 'report.ts',        score: 50.6, layer: 'CORE', trend: '↑',
+        path: 'src/cortex/report.ts', history: [44.2, 47.4, 50.6],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 68.6, raw: 'max 19', desc: 'Number of independent paths through the code. A score ≥ 10 means every change risks breaking an untested path.', warn: 'Max complexity of 19. Split this function into smaller pieces.' },
+          { l: 'Cognitive complexity',  s: 63.5, raw: 'max 41', desc: 'How hard the code is to read. Penalizes deep nesting and non-linear flow more than cyclomatic.', warn: 'Score of 41. Reviewers will struggle. Flatten and extract.' },
+          { l: 'Function size',         s: 65.0, raw: '81L',    desc: 'Lines in the largest function. Over 50 lines usually means a function is doing too many things.', warn: '81 lines. This function does too much. Apply single-responsibility.' },
+          { l: 'Churn',                 s:  0.0, raw: '2 commits', desc: 'Commits touching this file in the last 30 days. High churn signals instability or poor design.' },
+        ]},
+      { name: 'churn.ts',         score: 49.3, layer: 'CORE', trend: '↑',
+        path: 'src/cortex/churn.ts', history: [42.1, 45.8, 49.3],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 55.2, raw: 'max 14', desc: 'Number of independent paths through the code.', warn: 'Max complexity of 14. Split this function into smaller pieces.' },
+          { l: 'Cognitive complexity',  s: 42.1, raw: 'max 28', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 28. Complex to review, consider simplifying.' },
+          { l: 'Function size',         s: 58.0, raw: '71L',    desc: 'Lines in the largest function.', warn: '71 lines. This function does too much. Apply single-responsibility.' },
+          { l: 'Churn',                 s: 80.4, raw: '24 commits', desc: 'Commits touching this file in the last 30 days.', warn: '24 commits. Highly unstable. Consider splitting responsibilities.' },
+        ]},
+      { name: 'SecurityView.tsx', score: 49.0, layer: 'UI',   trend: '↑',
+        path: 'src/app/renderer/components/SecurityView.tsx', history: [40.5, 44.2, 49.0],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 30.1, raw: 'max 8',  desc: 'Number of independent paths through the code.', warn: 'Growing complexity. Keep an eye on branching.' },
+          { l: 'Cognitive complexity',  s: 52.4, raw: 'max 33', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 33. Reviewers will struggle. Flatten and extract.' },
+          { l: 'Function size',         s: 61.0, raw: '76L',    desc: 'Lines in the largest function.', warn: '76 lines. This function does too much. Apply single-responsibility.' },
+          { l: 'Churn',                 s: 48.2, raw: '14 commits', desc: 'Commits touching this file in the last 30 days.', warn: '14 commits. Frequent changes, consider stability refactor.' },
+        ]},
+      { name: 'CortexView.tsx',   score: 48.3, layer: 'UI',   trend: '↑',
+        path: 'src/app/renderer/components/CortexView.tsx', history: [38.0, 42.8, 48.3],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 42.0, raw: 'max 11', desc: 'Number of independent paths through the code.', warn: 'Complexity growing. Approaching danger threshold.' },
+          { l: 'Cognitive complexity',  s: 38.5, raw: 'max 24', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 24. Becoming hard to review.' },
+          { l: 'Function size',         s: 55.0, raw: '68L',    desc: 'Lines in the largest function.', warn: '68 lines. This function does too much.' },
+          { l: 'Churn',                 s: 62.1, raw: '18 commits', desc: 'Commits touching this file in the last 30 days.', warn: '18 commits in 30 days. High instability.' },
+        ]},
+      { name: 'scanner.ts',       score: 47.5, layer: 'CORE', trend: '↑',
+        path: 'src/cortex/scanner.ts', history: [39.2, 43.1, 47.5],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 62.3, raw: 'max 17', desc: 'Number of independent paths through the code.', warn: 'Max complexity of 17. Split this function into smaller pieces.' },
+          { l: 'Cognitive complexity',  s: 58.1, raw: 'max 38', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 38. Reviewers will struggle. Flatten and extract.' },
+          { l: 'Function size',         s: 44.0, raw: '55L',    desc: 'Lines in the largest function.', warn: '55 lines. Approaching single-responsibility limit.' },
+          { l: 'Churn',                 s: 35.5, raw: '10 commits', desc: 'Commits touching this file in the last 30 days.', warn: '10 commits. Moderate instability.' },
+        ]},
+      { name: 'CodeView.tsx',     score: 45.1, layer: 'UI',   trend: '↔',
+        path: 'src/app/renderer/components/CodeView.tsx', history: [44.5, 45.3, 45.1],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 40.2, raw: 'max 10', desc: 'Number of independent paths through the code.', warn: 'Approaching danger zone. Monitor closely.' },
+          { l: 'Cognitive complexity',  s: 48.5, raw: 'max 30', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 30. Reviewers may struggle.' },
+          { l: 'Function size',         s: 52.0, raw: '65L',    desc: 'Lines in the largest function.', warn: '65 lines. This function does too much.' },
+          { l: 'Churn',                 s: 28.3, raw: '8 commits', desc: 'Commits touching this file in the last 30 days.' },
+        ]},
+      { name: 'index.ts',         score: 37.0, layer: 'CORE', trend: '↔',
+        path: 'src/cortex/index.ts', history: [36.2, 37.4, 37.0],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 30.5, raw: 'max 8',  desc: 'Number of independent paths through the code.', warn: 'Moderate complexity. Keep an eye on growth.' },
+          { l: 'Cognitive complexity',  s: 38.2, raw: 'max 24', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 24. Becoming hard to review.' },
+          { l: 'Function size',         s: 40.0, raw: '50L',    desc: 'Lines in the largest function.', warn: '50 lines. At the single-responsibility boundary.' },
+          { l: 'Churn',                 s: 32.4, raw: '9 commits', desc: 'Commits touching this file in the last 30 days.', warn: '9 commits. Moderate churn.' },
+        ]},
+      { name: 'App.tsx',          score: 33.7, layer: 'UI',   trend: '↔',
+        path: 'src/app/renderer/App.tsx', history: [34.1, 33.2, 33.7],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 25.1, raw: 'max 6',  desc: 'Number of independent paths through the code.' },
+          { l: 'Cognitive complexity',  s: 28.4, raw: 'max 18', desc: 'How hard the code is to read. Penalizes deep nesting.' },
+          { l: 'Function size',         s: 38.0, raw: '47L',    desc: 'Lines in the largest function.', warn: '47 lines. Approaching the single-responsibility boundary.' },
+          { l: 'Churn',                 s: 42.2, raw: '12 commits', desc: 'Commits touching this file in the last 30 days.', warn: '12 commits. Consider whether this file is too central.' },
+        ]},
+      { name: 'parser.ts',        score: 28.2, layer: 'CORE', trend: '↑',
+        path: 'src/cortex/parser.ts', history: [22.5, 25.4, 28.2],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 38.5, raw: 'max 9',  desc: 'Number of independent paths through the code.', warn: 'Approaching danger zone. Monitor closely.' },
+          { l: 'Cognitive complexity',  s: 22.4, raw: 'max 14', desc: 'How hard the code is to read.' },
+          { l: 'Function size',         s: 30.0, raw: '37L',    desc: 'Lines in the largest function.', warn: 'Getting long. Watch for growth.' },
+          { l: 'Churn',                 s: 18.5, raw: '5 commits', desc: 'Commits touching this file in the last 30 days.' },
+        ]},
+      { name: 'db.ts',            score: 20.8, layer: 'DB',   trend: '↔',
+        path: 'src/cortex/db.ts', history: [20.2, 21.0, 20.8],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 18.2, raw: 'max 4',  desc: 'Number of independent paths through the code.' },
+          { l: 'Cognitive complexity',  s: 12.4, raw: 'max 8',  desc: 'How hard the code is to read.' },
+          { l: 'Function size',         s: 35.0, raw: '43L',    desc: 'Lines in the largest function.', warn: 'Getting long. Watch for growth.' },
+          { l: 'Churn',                 s: 22.1, raw: '6 commits', desc: 'Commits touching this file in the last 30 days.' },
+        ]},
+      { name: 'MetricBar.tsx',    score: 19.9, layer: 'UI',   trend: '↓',
+        path: 'src/app/renderer/components/shared/MetricBar.tsx', history: [28.4, 23.6, 19.9],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 12.3, raw: 'max 3',  desc: 'Number of independent paths through the code.' },
+          { l: 'Cognitive complexity',  s:  8.5, raw: 'max 5',  desc: 'How hard the code is to read.' },
+          { l: 'Function size',         s: 28.0, raw: '35L',    desc: 'Lines in the largest function.' },
+          { l: 'Churn',                 s: 15.4, raw: '4 commits', desc: 'Commits touching this file in the last 30 days.' },
+        ]},
+      { name: 'HistoryView.tsx',  score: 19.1, layer: 'UI',   trend: '↓',
+        path: 'src/app/renderer/components/HistoryView.tsx', history: [26.8, 22.3, 19.1],
+        metrics: [
+          { l: 'Cyclomatic complexity', s: 15.2, raw: 'max 3',  desc: 'Number of independent paths through the code.' },
+          { l: 'Cognitive complexity',  s: 10.8, raw: 'max 7',  desc: 'How hard the code is to read.' },
+          { l: 'Function size',         s: 32.0, raw: '40L',    desc: 'Lines in the largest function.', warn: 'Getting long. Watch for growth.' },
+          { l: 'Churn',                 s: 12.1, raw: '3 commits', desc: 'Commits touching this file in the last 30 days.' },
+        ]},
+    ];
+
+    function initScoring() {
+      const list   = document.getElementById('prev-scoring-list');
+      const detail = document.getElementById('prev-score-detail');
+      if (!list || list.children.length) return;
+
+      function drawMiniChart(svgEl, data, col) {
+        const W = svgEl.parentElement.clientWidth - 24 || 180, H = 44;
+        const PAD = { t: 6, r: 4, b: 14, l: 0 };
+        svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svgEl.setAttribute('width', W); svgEl.setAttribute('height', H);
+        const ns = 'http://www.w3.org/2000/svg';
+        const minV = Math.min(...data) - 2, maxV = Math.max(...data) + 2;
+        const xS = i => PAD.l + (i / (data.length - 1)) * (W - PAD.l - PAD.r);
+        const yS = v => PAD.t + (1 - (v - minV) / (maxV - minV)) * (H - PAD.t - PAD.b);
+        const pts = data.map((v, i) => [xS(i).toFixed(1), yS(v).toFixed(1)]);
+        const lineD = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join('');
+        const fillD = lineD + ` L${pts.at(-1)[0]},${H - PAD.b} L${PAD.l},${H - PAD.b} Z`;
+        const mk = tag => document.createElementNS(ns, tag);
+        const defs = mk('defs');
+        defs.innerHTML = `<linearGradient id="pdg${col.replace('#','')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.18"/><stop offset="100%" stop-color="${col}" stop-opacity="0.01"/></linearGradient>`;
+        svgEl.appendChild(defs);
+        const fill = mk('path'); fill.setAttribute('d', fillD); fill.setAttribute('fill', `url(#pdg${col.replace('#','')})`); svgEl.appendChild(fill);
+        const line = mk('path'); line.setAttribute('d', lineD); line.setAttribute('fill', 'none'); line.setAttribute('stroke', col); line.setAttribute('stroke-width', '1.5'); line.setAttribute('stroke-linejoin', 'round'); line.setAttribute('opacity', '0.85'); svgEl.appendChild(line);
+        const dot = mk('circle'); dot.setAttribute('cx', pts.at(-1)[0]); dot.setAttribute('cy', pts.at(-1)[1]); dot.setAttribute('r', '2.5'); dot.setAttribute('fill', col); svgEl.appendChild(dot);
+        // Dashed vertical at last point
+        const dash = mk('line'); dash.setAttribute('x1', pts.at(-1)[0]); dash.setAttribute('y1', pts.at(-1)[1]); dash.setAttribute('x2', pts.at(-1)[0]); dash.setAttribute('y2', H - PAD.b); dash.setAttribute('stroke', 'rgba(255,255,255,0.12)'); dash.setAttribute('stroke-width', '0.8'); dash.setAttribute('stroke-dasharray', '2 2'); svgEl.appendChild(dash);
+        const dateEl = mk('text'); dateEl.setAttribute('x', pts.at(-1)[0]); dateEl.setAttribute('y', H - 1); dateEl.setAttribute('text-anchor', 'end'); dateEl.setAttribute('font-size', '7'); dateEl.setAttribute('fill', 'rgba(255,255,255,0.22)'); dateEl.setAttribute('font-family', "'Geist Mono',monospace"); dateEl.textContent = '26/3'; svgEl.appendChild(dateEl);
+      }
+
+      function renderDetail(f) {
+        const col  = scoreColor(f.score);
+        const ls   = LAYER_STYLE[f.layer] ?? LAYER_STYLE.CORE;
+        const tCol = f.trend === '↑' ? '#ff453a' : f.trend === '↓' ? '#34c759' : 'rgba(255,255,255,0.38)';
+        const label = f.score >= 50 ? 'tension' : f.score >= 20 ? 'stressed' : 'healthy';
+
+        const metricsHTML = f.metrics.map(m => {
+          const mc = metricColor(m.s);
+          return `<div>
+            <div class="pd-metric-head">
+              <span class="pd-metric-label">${m.l.toUpperCase()}</span>
+              <span class="pd-metric-val" style="color:${mc}">${m.s.toFixed(1)}</span>
+            </div>
+            <div class="pd-metric-bar-bg"><div class="pd-metric-bar" style="width:${m.s.toFixed(1)}%;background:${mc}"></div></div>
+          </div>`;
+        }).join('');
+
+        detail.innerHTML = `
+          <div class="pd-header">
+            <span class="pd-fname">${f.name}</span>
+          </div>
+          <div class="pd-path">${f.path}</div>
+          <div class="pd-meta">
+            <span class="pd-badge" style="background:${ls.bg};color:${ls.col};border:0.5px solid ${ls.border}">${f.layer}</span>
+            <div class="pd-score-row">
+              <span class="pd-score-num" style="color:${col}">${f.score.toFixed(1)}</span>
+              <span class="pd-score-label">${label}</span>
+              <span class="pd-score-trend" style="color:${tCol}">${f.trend}</span>
+            </div>
+          </div>
+          <div class="pd-tabs">
+            <div class="pd-tab pd-tab-on">METRICS</div>
+            <div class="pd-tab">FUNCTIONS</div>
+          </div>
+          <div class="pd-section">
+            <div class="pd-section-head"><span>HISTORY</span><span>${f.history.length} points</span></div>
+            <svg class="pd-mini-chart" id="pd-mini-svg"></svg>
+          </div>
+          <div class="pd-section-head" style="padding:10px 12px 8px;margin-bottom:0"><span>BREAKDOWN</span></div>
+          <div class="pd-metrics">${metricsHTML}</div>`;
+
+        // Draw chart after DOM is updated
+        requestAnimationFrame(() => {
+          const svg = document.getElementById('pd-mini-svg');
+          if (svg) drawMiniChart(svg, f.history, col);
+        });
+      }
+
+      SCORE_FILES.forEach((f, i) => {
+        const col  = scoreColor(f.score);
+        const tCol = f.trend === '↑' ? '#ff453a' : f.trend === '↓' ? '#34c759' : 'rgba(255,255,255,0.28)';
+        const row  = document.createElement('div');
+        row.className = 'prev-score-row' + (i === 0 ? ' ps-active' : '');
+        row.innerHTML =
+          `<span class="prev-score-dot" style="background:${col}"></span>` +
+          `<span class="prev-score-name">${f.name}</span>` +
+          `<span class="prev-score-val" style="color:${col}">${f.score.toFixed(1)}</span>` +
+          `<span class="prev-score-trend" style="color:${tCol}">${f.trend}</span>`;
+        row.addEventListener('click', () => {
+          list.querySelectorAll('.prev-score-row').forEach((r, j) => r.classList.toggle('ps-active', j === i));
+          renderDetail(f);
+        });
+        list.appendChild(row);
+      });
+
+      renderDetail(SCORE_FILES[0]);
+    }
+
+    // ── Graph preview (D3) ────────────────────────────────────────────────────
+    let graphInited = false;
+    function initGraph() {
+      if (graphInited) return;
+      if (typeof d3 === 'undefined') { setTimeout(initGraph, 300); return; }
+      graphInited = true;
+
+      const container = document.getElementById('prev-graph');
+      if (!container) return;
+      const W = container.clientWidth || 520, H = 419;
+
+      // Exact layer colors/labels from the real app (utils.ts)
+      const LAYER_COLOR = { ui: '#4a9eff', core: '#a0a0a8', db: '#22c55e', config: '#8b5cf6' };
+      const LAYER_LABEL = { ui: 'UI', core: 'CORE', db: 'DATABASE', config: 'CONFIG' };
+
+      // 4-quadrant layout. Clusters well apart so ellipses never overlap
+      const CLUSTER_POS = {
+        ui:     { x: Math.round(W * 0.25), y: Math.round(H * 0.27) },
+        core:   { x: Math.round(W * 0.73), y: Math.round(H * 0.30) },
+        db:     { x: Math.round(W * 0.26), y: Math.round(H * 0.76) },
+        config: { x: Math.round(W * 0.73), y: Math.round(H * 0.76) },
+      };
+
+      const LINKS_DEF = [
+        { from: 'App.tsx',        to: 'CortexView.tsx'   },
+        { from: 'App.tsx',        to: 'scanner.ts'       },
+        { from: 'CortexView.tsx', to: 'SecurityView.tsx' },
+        { from: 'CortexView.tsx', to: 'CodeView.tsx'     },
+        { from: 'scanner.ts',     to: 'parser.ts'        },
+        { from: 'scanner.ts',     to: 'patternScanner.ts'},
+        { from: 'scanner.ts',     to: 'db.ts'            },
+        { from: 'parser.ts',      to: 'db.ts'            },
+        { from: 'report.ts',      to: 'scanner.ts'       },
+        { from: 'report.ts',      to: 'db.ts'            },
+        { from: 'db.ts',          to: 'utils.ts'         },
+        { from: 'App.tsx',        to: 'types.ts'         },
+        { from: 'CortexView.tsx', to: 'useLocale.tsx'    },
+      ];
+
+      // fanIn per node (exact formula from graphLayout.ts: r = max(6, min(16, 6+fanIn*0.9)))
+      const fanIn = {};
+      ['App.tsx','CortexView.tsx','SecurityView.tsx','CodeView.tsx','useLocale.tsx',
+       'scanner.ts','parser.ts','report.ts','patternScanner.ts','db.ts','types.ts','utils.ts',
+      ].forEach(id => { fanIn[id] = 0; });
+      LINKS_DEF.forEach(l => { if (fanIn[l.to] !== undefined) fanIn[l.to]++; });
+
+      const RAW = [
+        { id: 'App.tsx',           score: 33.7, layer: 'ui'     },
+        { id: 'CortexView.tsx',    score: 48.3, layer: 'ui'     },
+        { id: 'SecurityView.tsx',  score: 49.0, layer: 'ui'     },
+        { id: 'CodeView.tsx',      score: 45.1, layer: 'ui'     },
+        { id: 'useLocale.tsx',     score:  4.2, layer: 'ui'     },
+        { id: 'scanner.ts',        score: 47.5, layer: 'core'   },
+        { id: 'parser.ts',         score: 28.2, layer: 'core'   },
+        { id: 'report.ts',         score: 50.6, layer: 'core'   },
+        { id: 'patternScanner.ts', score: 30.1, layer: 'core'   },
+        { id: 'db.ts',             score: 20.8, layer: 'db'     },
+        { id: 'types.ts',          score:  5.0, layer: 'config' },
+        { id: 'utils.ts',          score:  8.0, layer: 'config' },
+      ];
+
+      // ── Fermat spiral layout. Same algorithm as graphLayout.ts ─────────────
+      // GOLDEN = π*(3-√5), SPACING = 22 (scaled for this canvas size)
+      const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+      const SPACING = 22;
+      const byLayer = {};
+      RAW.forEach(n => { (byLayer[n.layer] = byLayer[n.layer] ?? []).push(n.id); });
+
+      const nodes = RAW.map(n => ({
+        ...n, color: scoreColor(n.score),
+        r: Math.max(6, Math.min(16, 6 + (fanIn[n.id] ?? 0) * 0.9)),
+        x: 0, y: 0,
+      }));
+      const nodeById = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+      Object.entries(byLayer).forEach(([layer, ids]) => {
+        const c = CLUSTER_POS[layer];
+        ids.forEach((id, i) => {
+          const n = nodeById[id];
+          if (i === 0) { n.x = c.x; n.y = c.y; return; }
+          const angle = i * GOLDEN, radius = SPACING * Math.sqrt(i);
+          n.x = c.x + radius * Math.cos(angle);
+          n.y = c.y + radius * Math.sin(angle);
+        });
+      });
+
+      // ── Build SVG ─────────────────────────────────────────────────────────────
+      const svg = d3.select('#fw-graph-svg')
+        .attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+
+      // Cluster ellipses (PAD=32, sized to hug nodes. Like the real app with PAD=48 scaled down)
+      const PAD = 32;
+      Object.keys(CLUSTER_POS).forEach(layer => {
+        const ln = nodes.filter(n => n.layer === layer);
+        if (!ln.length) return;
+        const xs = ln.map(n => n.x), ys = ln.map(n => n.y);
+        const minX = Math.min(...xs) - PAD, maxX = Math.max(...xs) + PAD;
+        const minY = Math.min(...ys) - PAD, maxY = Math.max(...ys) + PAD;
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const rx = Math.max(26, (maxX - minX) / 2);
+        const ry = Math.max(26, (maxY - minY) / 2);
+        const col = LAYER_COLOR[layer];
+        svg.append('ellipse')
+          .attr('cx', cx).attr('cy', cy).attr('rx', rx).attr('ry', ry)
+          .attr('fill', col).attr('fill-opacity', 0.06)
+          .attr('stroke', col).attr('stroke-width', 1)
+          .attr('stroke-opacity', 0.25).attr('stroke-dasharray', '6,4');
+        // Label above ellipse, clamped so it stays on screen
+        svg.append('text')
+          .attr('x', cx).attr('y', Math.max(13, minY - 6))
+          .attr('text-anchor', 'middle').attr('font-size', 10)
+          .attr('font-family', "'Geist Mono','Menlo',monospace")
+          .attr('font-weight', 700).attr('letter-spacing', '0.10em')
+          .attr('fill', col).attr('fill-opacity', 0.88)
+          .text(LAYER_LABEL[layer]);
+      });
+
+      // ALL edges visible by default (cross-layer brighter, same-layer subtle)
+      const linkEls = svg.append('g').selectAll('line').data(LINKS_DEF).join('line')
+        .attr('x1', d => nodeById[d.from].x).attr('y1', d => nodeById[d.from].y)
+        .attr('x2', d => nodeById[d.to].x)  .attr('y2', d => nodeById[d.to].y)
+        .attr('stroke',       d => LAYER_COLOR[nodeById[d.from].layer] ?? 'rgba(255,255,255,0.2)')
+        .attr('stroke-width', 0.8)
+        .attr('opacity',      d => nodeById[d.from].layer !== nodeById[d.to].layer ? 0.30 : 0.12);
+
+      // ── Interaction state ───────────────────────────────────────────────────
+      let selectedId = null, hoveredId = null;
+      const tooltip = document.getElementById('graph-tooltip');
+
+      const nodeEls = svg.append('g').selectAll('g').data(nodes).join('g')
+        .style('cursor', 'pointer');
+
+      const haloEls   = nodeEls.append('circle')
+        .attr('cx', d => d.x).attr('cy', d => d.y)
+        .attr('fill', d => d.color).attr('r', d => d.r + 8).attr('opacity', 0);
+
+      const circleEls = nodeEls.append('circle')
+        .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.r)
+        .attr('fill', d => d.color).attr('opacity', 0.65)
+        .attr('stroke', d => d.color).attr('stroke-width', 0.5).attr('stroke-opacity', 0.4);
+
+      // Labels above node. Hidden until hover/select
+      const labelEls = nodeEls.append('text')
+        .attr('x', d => d.x).attr('y', d => d.y - d.r - 5)
+        .attr('text-anchor', 'middle').attr('font-size', 9)
+        .attr('font-family', "'Geist Mono','Menlo',monospace")
+        .attr('pointer-events', 'none')
+        .text(d => d.id.replace(/\.(ts|tsx)$/, ''))
+        .attr('fill', 'rgba(255,255,255,0.72)').attr('opacity', 0);
+
+      function getConn(id) {
+        const s = new Set([id]);
+        LINKS_DEF.forEach(l => { if (l.from === id) s.add(l.to); if (l.to === id) s.add(l.from); });
+        return s;
+      }
+
+      function applyState() {
+        const fid  = selectedId ?? hoveredId;
+        const conn = fid ? getConn(fid) : null;
+
+        circleEls
+          .attr('r',            d => fid && d.id === fid && selectedId ? d.r + 2 : d.r)
+          .attr('opacity',      d => !conn ? 0.65 : d.id === fid ? 1 : conn.has(d.id) ? 0.72 : 0.10)
+          .attr('stroke',       d => fid && d.id === fid && selectedId ? 'rgba(255,255,255,0.88)' : d.color)
+          .attr('stroke-width', d => fid && d.id === fid && selectedId ? 1.5 : 0.5);
+
+        haloEls
+          .attr('r',       d => fid && d.id === fid && selectedId ? d.r + 8 : d.r + 6)
+          .attr('opacity', d => {
+            if (fid && d.id === fid && selectedId) return 0.15;
+            if (fid && d.id === fid && !selectedId) return 0.10;
+            return 0;
+          });
+
+        labelEls
+          .attr('opacity',     d => !conn ? 0 : conn.has(d.id) ? (d.id === fid ? 1 : 0.68) : 0)
+          .attr('fill',        d => fid && d.id === fid && selectedId ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.62)')
+          .attr('font-weight', d => fid && d.id === fid ? 600 : 400);
+
+        linkEls
+          .attr('stroke', d => {
+            if (!fid) return LAYER_COLOR[nodeById[d.from].layer] ?? 'rgba(255,255,255,0.2)';
+            return (d.from === fid || d.to === fid) ? scoreColor(nodeById[d.from].score) : 'rgba(255,255,255,0.06)';
+          })
+          .attr('stroke-width',     d => fid && (d.from === fid || d.to === fid) ? 1.5 : 0.8)
+          .attr('stroke-dasharray', d => fid && d.to === fid ? '5 3' : null)
+          .attr('opacity', d => {
+            if (!fid) return nodeById[d.from].layer !== nodeById[d.to].layer ? 0.30 : 0.12;
+            return (d.from === fid || d.to === fid) ? 0.90 : 0.04;
+          });
+      }
+
+      svg.on('click', () => {
+        selectedId = null; hoveredId = null;
+        if (tooltip) tooltip.style.opacity = '0';
+        applyState();
+      });
+
+      nodeEls
+        .on('click', (ev, d) => {
+          ev.stopPropagation();
+          selectedId = selectedId === d.id ? null : d.id;
+          if (tooltip) tooltip.style.opacity = '0';
+          applyState();
+        })
+        .on('mouseenter', (ev, d) => {
+          if (!selectedId) { hoveredId = d.id; applyState(); }
+          if (!selectedId && tooltip) {
+            const rect = container.getBoundingClientRect();
+            tooltip.style.opacity = '1';
+            tooltip.style.left = `${ev.clientX - rect.left + 12}px`;
+            tooltip.style.top  = `${ev.clientY - rect.top  - 36}px`;
+            tooltip.innerHTML  = `<span style="color:${d.color}">${d.id}</span>&nbsp;<span style="opacity:.45">${d.score.toFixed(1)}</span>`;
+          }
+        })
+        .on('mousemove', (ev) => {
+          if (!selectedId && tooltip && tooltip.style.opacity === '1') {
+            const rect = container.getBoundingClientRect();
+            tooltip.style.left = `${ev.clientX - rect.left + 12}px`;
+            tooltip.style.top  = `${ev.clientY - rect.top  - 36}px`;
+          }
+        })
+        .on('mouseleave', () => {
+          hoveredId = null;
+          if (tooltip) tooltip.style.opacity = '0';
+          applyState();
+        });
+
+      // Legend (bottom-left, solid dots like the real app)
+      const ly = H - 9; let lx = 12;
+      Object.entries(LAYER_LABEL).forEach(([key, label]) => {
+        const col = LAYER_COLOR[key];
+        svg.append('circle').attr('cx', lx + 3.5).attr('cy', ly - 3).attr('r', 3.5)
+          .attr('fill', col).attr('opacity', 0.65);
+        svg.append('text').attr('x', lx + 11).attr('y', ly)
+          .attr('font-size', 8.5).attr('fill', 'rgba(255,255,255,0.38)')
+          .attr('font-family', "'Geist Mono','Menlo',monospace").text(label);
+        lx += label.length * 5.2 + 18;
+      });
+      svg.append('text').attr('x', lx).attr('y', ly)
+        .attr('font-size', 8.5).attr('fill', 'rgba(255,255,255,0.18)')
+        .attr('font-family', "'Geist Mono','Menlo',monospace").text('· couleur = risque');
+
+    }
+
+    // ── History preview ───────────────────────────────────────────────────────
+    let histInited = false;
+    function initHistory() {
+      if (histInited) return;
+      histInited = true;
+      const svgEl = document.getElementById('fw-hist-svg');
+      if (!svgEl) return;
+
+      const data = [32,31.5,30.8,29.4,28.1,27.0,26.5,25.8,25.1,24.3,23.5,22.8,22.0,21.5,20.9,20.4,19.8,19.5,19.1,18.8,24.2,31.6,29.3,27.1,24.8,21.5,20.2,19.4,18.9,18.9];
+      const W = svgEl.parentElement.clientWidth - 32 || 380, H = 110;
+      const PAD = { t: 12, r: 8, b: 20, l: 30 };
+      svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+      const minV = Math.min(...data) - 2, maxV = Math.max(...data) + 3;
+      const xS = i  => PAD.l + (i / (data.length - 1)) * (W - PAD.l - PAD.r);
+      const yS = v  => PAD.t + (1 - (v - minV) / (maxV - minV)) * (H - PAD.t - PAD.b);
+
+      const ns = 'http://www.w3.org/2000/svg';
+      const mk = tag => document.createElementNS(ns, tag);
+
+      // Grid
+      [16, 24, 32].forEach(v => {
+        if (v < minV || v > maxV) return;
+        const y = yS(v).toFixed(1);
+        const l = mk('line');
+        l.setAttribute('x1', PAD.l); l.setAttribute('y1', y);
+        l.setAttribute('x2', W - PAD.r); l.setAttribute('y2', y);
+        l.setAttribute('stroke', 'rgba(255,255,255,0.05)'); l.setAttribute('stroke-width', '0.5');
+        svgEl.appendChild(l);
+        const t = mk('text');
+        t.setAttribute('x', PAD.l - 4); t.setAttribute('y', (parseFloat(y) + 3).toFixed(1));
+        t.setAttribute('font-size', '8'); t.setAttribute('fill', 'rgba(255,255,255,0.20)');
+        t.setAttribute('font-family', "'Geist Mono',monospace"); t.setAttribute('text-anchor', 'end');
+        t.textContent = v;
+        svgEl.appendChild(t);
+      });
+
+      const pts = data.map((v, i) => [xS(i), yS(v)]);
+      const lineD = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+      const fillD = lineD + ` L${pts[pts.length-1][0].toFixed(1)},${H - PAD.b} L${PAD.l},${H - PAD.b} Z`;
+
+      const defs = mk('defs');
+      defs.innerHTML = `<linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#34c759" stop-opacity="0.14"/><stop offset="100%" stop-color="#34c759" stop-opacity="0.01"/></linearGradient>`;
+      svgEl.appendChild(defs);
+
+      const fill = mk('path');
+      fill.setAttribute('d', fillD); fill.setAttribute('fill', 'url(#hg)');
+      svgEl.appendChild(fill);
+
+      const line = mk('path');
+      line.setAttribute('d', lineD); line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', '#34c759'); line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-linejoin', 'round'); line.setAttribute('opacity', '0.85');
+      svgEl.appendChild(line);
+
+      const dot = mk('circle');
+      dot.setAttribute('cx', pts[pts.length-1][0].toFixed(1));
+      dot.setAttribute('cy', pts[pts.length-1][1].toFixed(1));
+      dot.setAttribute('r', '3'); dot.setAttribute('fill', '#34c759');
+      svgEl.appendChild(dot);
+
+      try {
+        const len = line.getTotalLength();
+        line.style.strokeDasharray = len;
+        line.style.strokeDashoffset = len;
+        line.style.transition = 'stroke-dashoffset 2.2s cubic-bezier(0.2,0.9,0.4,1)';
+        requestAnimationFrame(() => requestAnimationFrame(() => { line.style.strokeDashoffset = '0'; }));
+      } catch(e) { /* fallback: just show */ }
+
+      // ── File trends (mirrors HistoryView.tsx) ─────────────────────────────
+      const TREND_FILES = [
+        { name: 'report.ts',         score: 50.6, trend: '↑' },
+        { name: 'churn.ts',          score: 49.3, trend: '↑' },
+        { name: 'SecurityView.tsx',  score: 49.0, trend: '↑' },
+        { name: 'scanner.ts',        score: 47.5, trend: '↑' },
+        { name: 'parser.ts',         score: 28.2, trend: '↑' },
+        { name: 'useLocale.tsx',     score:  4.2, trend: '↓' },
+        { name: 'utils.ts',          score:  8.0, trend: '↓' },
+        { name: 'types.ts',          score:  5.0, trend: '↓' },
+        { name: 'db.ts',             score: 20.8, trend: '↓' },
+      ];
+
+      const newCritical = TREND_FILES.filter(f => f.score >= 50 && f.trend === '↑').slice(0, 3);
+      const degrading   = TREND_FILES.filter(f => f.score <  50 && f.trend === '↑').slice(0, 3);
+      const improving   = TREND_FILES.filter(f => f.trend === '↓').slice(0, 3);
+
+      const trendsEl = document.getElementById('prev-hist-trends');
+      if (!trendsEl) return;
+
+      const makeRow = (f, color) => {
+        const row = document.createElement('div');
+        row.className = 'prev-trend-row';
+        row.style.background = `${color}08`;
+        row.style.borderColor = color;
+        row.style.borderLeftColor = color;
+        row.style.cssText += `background:${color}08;border:0.5px solid ${color}20;border-left:2px solid ${color};border-radius:6px;`;
+        row.innerHTML =
+          `<span class="prev-trend-name">${f.name}</span>` +
+          `<span class="prev-trend-score" style="color:${color}">${f.score.toFixed(1)}</span>` +
+          `<span class="prev-trend-arrow" style="color:${color}">${f.trend}</span>`;
+        return row;
+      };
+
+      const makeGroup = (title, color, files, iconSvg) => {
+        const g = document.createElement('div');
+        const h = document.createElement('div');
+        h.className = 'prev-trend-group-title';
+        h.style.color = color;
+        h.innerHTML = (iconSvg || '') + title;
+        const rows = document.createElement('div');
+        rows.className = 'prev-trend-rows';
+        files.forEach(f => rows.appendChild(makeRow(f, color)));
+        g.appendChild(h); g.appendChild(rows);
+        return g;
+      };
+
+      if (newCritical.length) {
+        const icon = `<svg width="10" height="10" viewBox="0 0 11 11" fill="none"><path d="M5.5 1L10 10H1L5.5 1Z" stroke="#ff453a" stroke-width="1.2" stroke-linejoin="round"/><line x1="5.5" y1="4.5" x2="5.5" y2="7" stroke="#ff453a" stroke-width="1.2" stroke-linecap="round"/><circle cx="5.5" cy="8.5" r="0.6" fill="#ff453a"/></svg>`;
+        trendsEl.appendChild(makeGroup('New critical', '#ff453a', newCritical, icon));
+      }
+
+      if (degrading.length || improving.length) {
+        const grid = document.createElement('div');
+        grid.className = 'prev-trend-grid';
+        if (degrading.length && !improving.length) grid.style.gridTemplateColumns = '1fr';
+        if (improving.length && !degrading.length) grid.style.gridTemplateColumns = '1fr';
+        if (degrading.length) grid.appendChild(makeGroup('Degrading', '#ff9f0a', degrading));
+        if (improving.length) grid.appendChild(makeGroup('Improving', '#34c759', improving));
+        trendsEl.appendChild(grid);
+      }
+    }
+
+    // ── Security preview ──────────────────────────────────────────────────────
+    const SEC_FINDINGS = [
+      { sev: 'MEDIUM', type: 'S', typeLabel: 'Secret', file: 'front-end/home/home.js', line: ':115', msg: 'Potentially sensitive data logged to console.' },
+      { sev: 'MEDIUM', type: 'C', typeLabel: 'Crypto', file: 'src/controllers/play.controller.js', line: ':79', msg: 'Math.random() is not cryptographically secure.' },
+      { sev: 'MEDIUM', type: 'S', typeLabel: 'Secret', file: 'front-end/support/auth.js', line: ':28', msg: 'Potentially sensitive data logged to console.' },
+      { sev: 'MEDIUM', type: 'C', typeLabel: 'Crypto', file: 'src/controllers/play.controller.js', line: ':120', msg: 'Math.random() is not cryptographically secure.' },
+      { sev: 'MEDIUM', type: 'S', typeLabel: 'Secret', file: 'front-end/support/auth.js', line: ':63', msg: 'Potentially sensitive data logged to console.' },
+      { sev: 'LOW',    type: 'X', typeLabel: 'XSS',    file: 'src/utils/dice.js', line: ':6', msg: 'innerHTML assignment may allow XSS injection.' },
+      { sev: 'MEDIUM', type: 'C', typeLabel: 'Crypto', file: 'src/controllers/play.controller.js', line: ':162', msg: 'Math.random() is not cryptographically secure.' },
+    ];
+
+    function initSecurity() {
+      const list = document.getElementById('prev-sec-list');
+      if (!list || list.children.length) return;
+      const typeColor = { S: 'rgba(100,185,255,0.85)', C: 'rgba(255,185,80,0.85)', X: 'rgba(255,120,110,0.85)' };
+      const sevStyle = {
+        MEDIUM: { bg: 'rgba(255,159,10,0.10)', col: 'rgba(255,185,80,0.90)', border: 'rgba(255,159,10,0.22)' },
+        LOW:    { bg: 'rgba(255,255,255,0.06)', col: 'rgba(255,255,255,0.40)', border: 'rgba(255,255,255,0.10)' },
+      };
+      SEC_FINDINGS.forEach(f => {
+        const s = sevStyle[f.sev];
+        const row = document.createElement('div');
+        row.className = 'prev-sec-row';
+        row.innerHTML = `
+          <span class="prev-sec-badge" style="background:${s.bg};color:${s.col};border:0.5px solid ${s.border}">${f.sev}</span>
+          <div class="prev-sec-info">
+            <div class="prev-sec-file">${f.type} · ${f.file}<span style="color:rgba(255,255,255,0.22)">${f.line}</span> · <span style="color:${typeColor[f.type]}">${f.typeLabel}</span></div>
+            <div class="prev-sec-msg">${f.msg}</div>
+          </div>`;
+        list.appendChild(row);
+      });
+    }
+
+    // ── Dependencies tab data ─────────────────────────────────────────────────
+    const AUDIT_VULNS = [
+      { name: 'lodash',       severity: 'HIGH',     range: '<4.17.21', via: ['prototype-pollution'], fixAvailable: true,  cves: ['CVE-2021-23337'] },
+      { name: 'axios',        severity: 'MEDIUM',   range: '<1.6.0',   via: ['axios'],               fixAvailable: true,  cves: ['CVE-2023-45857'] },
+      { name: 'semver',       severity: 'MEDIUM',   range: '<5.7.2',   via: ['node-gyp > semver'],   fixAvailable: false, cves: [] },
+      { name: 'tough-cookie', severity: 'MEDIUM',   range: '<4.1.3',   via: ['request > tough-cookie'], fixAvailable: true, cves: ['CVE-2023-26136'] },
+    ];
+
+    function initDeps() {
+      const list = document.getElementById('prev-dep-list');
+      if (!list || list.children.length) return;
+      const sevStyle = {
+        HIGH:   { bg: 'rgba(255,69,58,0.10)',    col: '#ff453a',           border: 'rgba(255,69,58,0.22)' },
+        MEDIUM: { bg: 'rgba(255,159,10,0.10)',   col: 'rgba(255,185,80,0.90)', border: 'rgba(255,159,10,0.22)' },
+        LOW:    { bg: 'rgba(255,255,255,0.06)',  col: 'rgba(255,255,255,0.40)', border: 'rgba(255,255,255,0.10)' },
+      };
+      AUDIT_VULNS.forEach(v => {
+        const s = sevStyle[v.severity] ?? sevStyle.LOW;
+        const row = document.createElement('div');
+        row.className = 'prev-dep-row';
+        row.innerHTML =
+          `<span class="prev-sec-badge" style="background:${s.bg};color:${s.col};border:0.5px solid ${s.border}">${v.severity}</span>` +
+          `<div class="prev-sec-info">` +
+          `  <div class="prev-sec-file" style="color:rgba(255,255,255,0.65)">${v.name}</div>` +
+          `  <div class="prev-dep-meta">` +
+          `range: ${v.range}` +
+          (v.via.length ? ` · via: ${v.via.join(', ')}` : '') +
+          (v.cves.length ? ` · <span style="color:rgba(255,100,90,0.60)">${v.cves[0]}</span>` : '') +
+          `</div>` +
+          (v.fixAvailable ? `<div class="prev-dep-fix">→ npm audit fix</div>` : '') +
+          `</div>`;
+        list.appendChild(row);
+      });
+    }
+
+    let depActivated = false;
+    function activateDeps() {
+      if (depActivated) return;
+      depActivated = true;
+      document.querySelectorAll('#prev-dep-list .prev-dep-row').forEach((row, i) => {
+        setTimeout(() => row.classList.add('visible'), i * 120);
+      });
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    const tabPatterns = document.getElementById('sec-tab-patterns');
+    const tabDeps     = document.getElementById('sec-tab-deps');
+    const listPatterns = document.getElementById('prev-sec-list');
+    const listDeps     = document.getElementById('prev-dep-list');
+
+    if (tabPatterns && tabDeps) {
+      tabPatterns.addEventListener('click', () => {
+        tabPatterns.classList.add('fw-tab-active');
+        tabDeps.classList.remove('fw-tab-active');
+        listPatterns.style.display = '';
+        listDeps.style.display = 'none';
+      });
+      tabDeps.addEventListener('click', () => {
+        tabDeps.classList.add('fw-tab-active');
+        tabPatterns.classList.remove('fw-tab-active');
+        listPatterns.style.display = 'none';
+        listDeps.style.display = '';
+        initDeps();
+        activateDeps();
+      });
+    }
+
+    let secActivated = false;
+    function activateSecurity() {
+      if (secActivated) return;
+      secActivated = true;
+      document.querySelectorAll('#prev-sec-list .prev-sec-row').forEach((row, i) => {
+        setTimeout(() => row.classList.add('visible'), i * 110);
+      });
+    }
+
+    // ── Panel switcher ────────────────────────────────────────────────────────
+    const PANELS = {
+      'prev-scoring':  { init: initScoring,  activate: () => {} },
+      'prev-graph':    { init: () => {},      activate: initGraph },
+      'prev-history':  { init: () => {},      activate: initHistory },
+      'prev-security': { init: initSecurity,  activate: activateSecurity },
+    };
+
+    // Init panels that are safe to run at load
+    initScoring();
+    initSecurity();
+
+    const items = document.querySelectorAll('.fw-item[data-preview]');
+    if (!items.length) return;
+    let currentPanel = null;
+
+    const wrap = document.querySelector('.fw-screen-wrap');
+    const FIT_CONTENT_PANELS = new Set(['prev-security']);
+
+    function activatePanel(item) {
+      if (currentPanel === item) return;
+      currentPanel = item;
+      items.forEach(i => i.classList.remove('fw-active'));
+      item.classList.add('fw-active');
+      const id = item.dataset.preview;
+      document.querySelectorAll('.fw-preview').forEach(p => p.classList.remove('fw-prev-active'));
+      const panel = document.getElementById(id);
+      if (panel) {
+        panel.classList.add('fw-prev-active');
+        PANELS[id]?.activate();
+      }
+      if (wrap) wrap.classList.toggle('fw-wrap-fit', FIT_CONTENT_PANELS.has(id));
+    }
+
+    // Click to switch panel
+    items.forEach(item => {
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => activatePanel(item));
+    });
+
+    // Scroll: activate the item whose center is closest to the viewport middle
+    function updateFwActive() {
+      const mid = window.innerHeight / 2;
+      let best = null, bestDist = Infinity;
+      items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        if (rect.bottom < 80 || rect.top > window.innerHeight) return;
+        const dist = Math.abs((rect.top + rect.bottom) / 2 - mid);
+        if (dist < bestDist) { bestDist = dist; best = item; }
+      });
+      if (best) activatePanel(best);
+    }
+
+    if (items[0]) activatePanel(items[0]);
+    window.addEventListener('scroll', updateFwActive, { passive: true });
+    updateFwActive();
+
+  })();
 
   requestAnimationFrame(animate);
 });
