@@ -11,6 +11,8 @@ export interface FileFiltersResult {
   viewMode:       'list' | 'tree';
   ignoredFiles:   string[];
   ignoredSet:     Set<string>;
+  excludedFiles:  string[];
+  excludedSet:    Set<string>;
   // Computed
   sorted:         Scan[];
   visible:        Scan[];
@@ -22,18 +24,21 @@ export interface FileFiltersResult {
   setShowZeroScore:  (v: boolean | ((prev: boolean) => boolean)) => void;
   setViewMode:       (v: 'list' | 'tree') => void;
   setIgnoredFiles:   (v: string[]) => void;
+  setExcludedFiles:  (v: string[]) => void;
   clearFilters:      () => void;
 }
 
-export function useFileFilters(scans: Scan[], projectPath: string): FileFiltersResult {
+export function useFileFilters(scans: Scan[], projectPath: string, externalExcluded?: string[]): FileFiltersResult {
   const [search,        setSearch]        = useState('');
   const [activeFilter,  setActiveFilter]  = useState<FilterKey>(null);
   const [showZeroScore, setShowZeroScore] = useState(false);
   const [viewMode,      setViewMode]      = useState<'list' | 'tree'>('list');
   const [ignoredFiles,  setIgnoredFiles]  = useState<string[]>([]);
+  const [excludedFiles, setExcludedFiles] = useState<string[]>([]);
 
   useEffect(() => {
     window.api.getIgnoredFiles().then(setIgnoredFiles);
+    if (!externalExcluded) window.api.getExcludedFiles().then(setExcludedFiles);
   }, [projectPath]);
 
   const sorted = [...scans].sort((a, b) => b.globalScore - a.globalScore);
@@ -49,10 +54,15 @@ export function useFileFilters(scans: Scan[], projectPath: string): FileFiltersR
     ? afterFilter.filter(s => s.filePath.toLowerCase().includes(search.toLowerCase()))
     : afterFilter;
 
-  const ignoredSet  = new Set(ignoredFiles);
-  const afterIgnore = afterSearch.filter(s => !ignoredSet.has(s.filePath));
-  const zeroCount   = afterIgnore.filter(s => s.globalScore === 0).length;
-  const visible     = afterIgnore.filter(s => showZeroScore || s.globalScore > 0);
+  const ignoredSet   = new Set(ignoredFiles);
+  const effectiveExcluded = externalExcluded ?? excludedFiles;
+  const excludedSet  = new Set(effectiveExcluded);
+  // ignoredFiles = complètement cachés ; excludedFiles = grisés en fin de liste
+  const active       = afterSearch.filter(s => !ignoredSet.has(s.filePath) && !excludedSet.has(s.filePath));
+  const excluded     = afterSearch.filter(s => !ignoredSet.has(s.filePath) && excludedSet.has(s.filePath));
+  const zeroCount    = active.filter(s => s.globalScore === 0).length;
+  const activeShown  = active.filter(s => showZeroScore || s.globalScore > 0);
+  const visible      = [...activeShown, ...excluded];
 
   const nameCounts = new Map<string, number>();
   sorted.forEach(s => {
@@ -67,8 +77,9 @@ export function useFileFilters(scans: Scan[], projectPath: string): FileFiltersR
 
   return {
     search, activeFilter, showZeroScore, viewMode, ignoredFiles, ignoredSet,
+    excludedFiles: effectiveExcluded, excludedSet,
     sorted, visible, zeroCount, nameCounts,
-    setSearch, setActiveFilter, setShowZeroScore, setViewMode, setIgnoredFiles,
+    setSearch, setActiveFilter, setShowZeroScore, setViewMode, setIgnoredFiles, setExcludedFiles,
     clearFilters,
   };
 }

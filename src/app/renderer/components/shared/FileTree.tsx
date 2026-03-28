@@ -226,7 +226,7 @@ function FileRow({ node, depth, selected, onSelect, onIgnore }: {
       }}
     >
       <div style={{
-        width: 2, height: 12, borderRadius: 1, flexShrink: 0,
+        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
         background: s.globalScore === 0 ? 'var(--border)' : hex,
         opacity: s.globalScore === 0 ? 0.3 : 0.85,
       }} />

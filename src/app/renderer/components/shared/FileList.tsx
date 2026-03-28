@@ -7,11 +7,13 @@ interface Props {
   selected:      Scan | null;
   nameCounts:    Map<string, number>;
   search:        string;
+  ignoredSet:    Set<string>;
   onSelect:      (s: Scan | null) => void;
   onIgnore:      (filePath: string) => void;
+  onUnignore:    (filePath: string) => void;
 }
 
-export default function FileList({ visible, selected, nameCounts, search, onSelect, onIgnore }: Props) {
+export default function FileList({ visible, selected, nameCounts, search, ignoredSet, onSelect, onIgnore, onUnignore }: Props) {
   const { t } = useLocale();
 
   if (visible.length === 0) {
@@ -25,7 +27,8 @@ export default function FileList({ visible, selected, nameCounts, search, onSele
   return (
     <>
       {visible.map(s => {
-        const c          = scoreColor(s.globalScore);
+        const isIgnored  = ignoredSet.has(s.filePath);
+        const c          = isIgnored ? 'var(--text-ghost)' : scoreColor(s.globalScore);
         const isSelected = selected?.filePath === s.filePath;
         const name       = s.filePath.split('/').pop() ?? s.filePath;
         const isDup      = (nameCounts.get(name) ?? 0) > 1;
@@ -34,34 +37,27 @@ export default function FileList({ visible, selected, nameCounts, search, onSele
 
         return (
           <div key={s.filePath}
-            onClick={() => onSelect(isSelected ? null : s)}
+            onClick={() => !isIgnored && onSelect(isSelected ? null : s)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
               borderBottom: '0.5px solid var(--border)',
-              cursor: 'pointer', transition: 'background 0.1s',
+              cursor: isIgnored ? 'default' : 'pointer', transition: 'background 0.1s',
               background: isSelected ? 'var(--bg-active)' : 'transparent',
+              opacity: isIgnored ? 0.4 : 1,
               position: 'relative',
             }}
-            onMouseEnter={e => {
-              if (!isSelected) e.currentTarget.style.background = 'var(--bg-hover)';
-              const btn = e.currentTarget.querySelector('.ignore-btn') as HTMLElement | null;
-              if (btn) btn.style.opacity = '1';
-            }}
-            onMouseLeave={e => {
-              if (!isSelected) e.currentTarget.style.background = 'transparent';
-              const btn = e.currentTarget.querySelector('.ignore-btn') as HTMLElement | null;
-              if (btn) btn.style.opacity = '0';
-            }}
+            onMouseEnter={e => { if (!isSelected && !isIgnored) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
           >
-            {/* Barre de couleur risque */}
-            <div style={{ width: 2, height: 14, background: c, borderRadius: 1, flexShrink: 0, opacity: s.globalScore === 0 ? 0.15 : 0.85 }} />
+            {/* Point de couleur risque */}
+            <div style={{ width: 6, height: 6, background: c, borderRadius: '50%', flexShrink: 0, opacity: s.globalScore === 0 ? 0.15 : 0.85 }} />
 
             {/* Nom + dossier parent si doublon */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 fontFamily: "'SF Mono','Menlo',monospace",
-                color: s.globalScore === 0 ? 'var(--text-faint)' : isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                color: isIgnored ? 'var(--text-ghost)' : s.globalScore === 0 ? 'var(--text-faint)' : isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}>
                 {name}
               </div>
@@ -73,7 +69,7 @@ export default function FileList({ visible, selected, nameCounts, search, onSele
             </div>
 
             {/* Score */}
-            {s.globalScore > 0 && (
+            {s.globalScore > 0 && !isIgnored && (
               <span style={{
                 fontFamily: "'SF Mono','Menlo',monospace", fontSize: 11, flexShrink: 0,
                 color: isSelected ? c : 'var(--text-secondary)', fontWeight: isSelected ? 600 : 400,
@@ -83,7 +79,7 @@ export default function FileList({ visible, selected, nameCounts, search, onSele
             )}
 
             {/* Trend */}
-            {s.globalScore > 0 && (
+            {s.globalScore > 0 && !isIgnored && (
               <span style={{
                 fontFamily: "'SF Mono','Menlo',monospace", fontSize: 10, flexShrink: 0, width: 12, textAlign: 'center',
                 color: s.trend === '↑' ? '#ff453a' : s.trend === '↓' ? '#34c759' : 'var(--text-ghost)',
@@ -92,21 +88,27 @@ export default function FileList({ visible, selected, nameCounts, search, onSele
               </span>
             )}
 
-            {/* Ignorer (hover) */}
+            {/* Bouton ignore / unignore — toujours visible */}
             <button
-              className="ignore-btn"
-              onClick={e => { e.stopPropagation(); onIgnore(s.filePath); }}
-              title="Ignorer ce fichier"
+              onClick={e => { e.stopPropagation(); isIgnored ? onUnignore(s.filePath) : onIgnore(s.filePath); }}
+              title={isIgnored ? 'Réactiver ce fichier' : 'Ignorer ce fichier'}
               style={{
-                opacity: 0, transition: 'opacity 0.15s',
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--text-muted)', fontSize: 14, lineHeight: 1,
-                padding: '0 2px', flexShrink: 0,
+                background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
+                color: isIgnored ? 'var(--text-muted)' : 'var(--text-ghost)',
+                fontSize: 13, lineHeight: 1, padding: '0 2px',
+                opacity: isIgnored ? 1 : 0.45,
+                transition: 'color 0.15s, opacity 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#ff453a'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.color = isIgnored ? '#34c759' : '#ff453a';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.opacity = isIgnored ? '1' : '0.45';
+                e.currentTarget.style.color = isIgnored ? 'var(--text-muted)' : 'var(--text-ghost)';
+              }}
             >
-              Ø
+              {isIgnored ? '↺' : 'Ø'}
             </button>
           </div>
         );
