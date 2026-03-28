@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { Scan, Edge, SecurityScanResult } from '../types';
 import { scoreColor, scoreColorHex, projectHealthStatus } from '../utils';
 import { useLocale } from '../hooks/useLocale';
@@ -22,8 +22,11 @@ interface Props {
   onSelectScan:    (scan: Scan) => void;
   onFilterChange:  (filter: FilterKey) => void;
   onGoToSecurity:  () => void;
+  onGoToActivity:  () => void;
   onSwitchProject: (path: string) => void;
   onAddProject:    () => void;
+  onExport:        () => void;
+  exporting:       boolean;
 }
 
 type T = (key: TranslationKey, vars?: Record<string, string | number>) => string;
@@ -87,57 +90,71 @@ function fmtRelTime(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-// ── Trend sparkline (pleine largeur, un peu plus haute que le mini) ────────────
+// ── Trend sparkline ──────────────────────────────────────────────────────────
 function TrendSparkline({ history }: { history: { date: string; score: number }[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(400);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   if (history.length < 2) return null;
-  const W = 560, H = 56, pad = { t: 6, r: 4, b: 14, l: 36 };
+
+  const H = 90, pad = { t: 8, r: 8, b: 26, l: 30 };
   const iW = W - pad.l - pad.r;
   const iH = H - pad.t - pad.b;
   const scores = history.map(h => h.score);
-  const min    = Math.max(0,   Math.min(...scores) - 5);
-  const max    = Math.min(100, Math.max(...scores) + 5);
+  const min    = Math.max(0,   Math.min(...scores) - 3);
+  const max    = Math.min(100, Math.max(...scores) + 3);
   const range  = max - min || 1;
   const px = (i: number) => pad.l + (i / (scores.length - 1)) * iW;
   const py = (s: number) => pad.t + (1 - (s - min) / range) * iH;
   const col     = scoreColorHex(scores[scores.length - 1] ?? 0);
   const pts     = scores.map((s, i) => `${px(i)},${py(s)}`).join(' ');
-  const first   = history[0]!;
-  const last    = history[history.length - 1]!;
   const fmtDate = (iso: string) => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}`; };
   const yMid    = (min + max) / 2;
+  const first   = history[0]!;
+  const last    = history[history.length - 1]!;
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
-      {/* Y gridlines */}
-      {[min, yMid, max].map((v, i) => (
-        <g key={i}>
-          <line x1={pad.l} y1={py(v)} x2={W - pad.r} y2={py(v)} stroke="var(--border)" strokeWidth="0.5" />
-          <text x={pad.l - 5} y={py(v) + 3} fontSize="7" fill="var(--text-ghost)" textAnchor="end" fontFamily="'SF Mono','Menlo',monospace">
-            {v.toFixed(0)}
-          </text>
-        </g>
-      ))}
-      {/* Area fill */}
-      <defs>
-        <linearGradient id="og-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={col} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={col} stopOpacity="0.01" />
-        </linearGradient>
-      </defs>
-      <path
-        d={`M ${px(0)},${py(scores[0]!)} ${scores.map((s, i) => `L ${px(i)},${py(s)}`).join(' ')} L ${px(scores.length - 1)},${H - pad.b} L ${px(0)},${H - pad.b} Z`}
-        fill="url(#og-grad)"
-      />
-      {/* Line */}
-      <polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.9" />
-      {/* End dot */}
-      <circle cx={px(scores.length - 1)} cy={py(scores[scores.length - 1]!)} r="3" fill={col} opacity="0.95" />
-      {/* Baseline */}
-      <line x1={pad.l} y1={H - pad.b} x2={W - pad.r} y2={H - pad.b} stroke="var(--border)" strokeWidth="0.5" />
-      {/* X labels */}
-      <text x={px(0)}               y={H - 2} fontSize="7" fill="var(--text-ghost)" textAnchor="start"  fontFamily="'SF Mono','Menlo',monospace">{fmtDate(first.date)}</text>
-      <text x={px(scores.length-1)} y={H - 2} fontSize="7" fill="var(--text-ghost)" textAnchor="end"    fontFamily="'SF Mono','Menlo',monospace">{fmtDate(last.date)}</text>
-    </svg>
+    <div ref={containerRef} style={{ width: '100%' }}>
+      <svg width={W} height={H} style={{ display: 'block', overflow: 'hidden' }}>
+        <defs>
+          <linearGradient id="og-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={col} stopOpacity="0.20" />
+            <stop offset="100%" stopColor={col} stopOpacity="0.01" />
+          </linearGradient>
+        </defs>
+        {/* Y gridlines */}
+        {[min, yMid, max].map((v, i) => (
+          <g key={i}>
+            <line x1={pad.l} y1={py(v)} x2={W - pad.r} y2={py(v)} stroke="var(--border)" strokeWidth="0.5" />
+            <text x={pad.l - 4} y={py(v) + 3.5} fontSize="8" fill="var(--text-ghost)" textAnchor="end" fontFamily="'SF Mono','Menlo',monospace">
+              {v.toFixed(0)}
+            </text>
+          </g>
+        ))}
+        {/* First / last date labels */}
+        <text x={px(0)}               y={H - 8} fontSize="8" fill="var(--text-ghost)" textAnchor="start" fontFamily="'SF Mono','Menlo',monospace">{fmtDate(first.date)}</text>
+        <text x={px(scores.length-1)} y={H - 8} fontSize="8" fill="var(--text-ghost)" textAnchor="end"   fontFamily="'SF Mono','Menlo',monospace">{fmtDate(last.date)}</text>
+        {/* Area + line */}
+        <path
+          d={`M ${px(0)},${py(scores[0]!)} ${scores.map((s, i) => `L ${px(i)},${py(s)}`).join(' ')} L ${px(scores.length - 1)},${H - pad.b} L ${px(0)},${H - pad.b} Z`}
+          fill="url(#og-grad)"
+        />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.9" />
+        <circle cx={px(scores.length - 1)} cy={py(scores[scores.length - 1]!)} r="3" fill={col} opacity="0.95" />
+        {/* Baseline */}
+        <line x1={pad.l} y1={H - pad.b} x2={W - pad.r} y2={H - pad.b} stroke="var(--border)" strokeWidth="0.5" />
+      </svg>
+    </div>
   );
 }
 
@@ -146,34 +163,43 @@ function TrendSparkline({ history }: { history: { date: string; score: number }[
 export default function OverviewView({
   scans, projectHistory, currentScore, projectPath,
   projects, projectsHealth,
-  securityResult, onSelectScan, onFilterChange, onGoToSecurity,
-  onSwitchProject, onAddProject,
+  securityResult, onSelectScan, onFilterChange, onGoToSecurity, onGoToActivity,
+  onSwitchProject, onAddProject, onExport, exporting,
 }: Props) {
 
   // ── Badges sécurité ──────────────────────────────────────────────────────────
+  type Badge = { label: string; color: string; bg: string; border: string };
   const securityBadges = (() => {
     if (!securityResult) return null;
-    const patterns = securityResult.findings ?? [];
-    const critPat  = patterns.filter(f => f.severity === 'critical').length;
-    const highPat  = patterns.filter(f => f.severity === 'high').length;
-    const medPat   = patterns.filter(f => f.severity === 'medium').length;
-    const total    = patterns.length;
-    const counts   = securityResult.audit.status === 'ok' ? securityResult.audit.counts : null;
-    const critDep  = counts?.critical ?? 0;
-    const highDep  = counts?.high     ?? 0;
-    const modDep   = counts?.moderate ?? 0;
-    const totalDep = counts?.total    ?? 0;
-    const badgeFor = (n: number, label: string, critN: number, highN: number, modN: number) => {
-      if (n === 0) return { label: `✓ ${label}`, color: '#34c759', bg: 'rgba(52,199,89,0.08)', border: 'rgba(52,199,89,0.25)' };
-      if (critN > 0) return { label: `${critN} critical · ${label}`, color: '#ff453a', bg: 'rgba(255,69,58,0.10)', border: 'rgba(255,69,58,0.30)' };
+
+    const findings = securityResult.findings ?? [];
+    const critPat  = findings.filter(f => f.severity === 'critical').length;
+    const highPat  = findings.filter(f => f.severity === 'high').length;
+    const medPat   = findings.filter(f => f.severity === 'medium').length;
+    const total    = findings.length;
+
+    const badgeFor = (n: number, label: string, critN: number, highN: number, modN: number): Badge => {
+      if (n === 0)   return { label: `✓ ${label}`, color: '#34c759', bg: 'rgba(52,199,89,0.08)', border: 'rgba(52,199,89,0.25)' };
+      if (critN > 0) return { label: `${critN} critical · ${label}`, color: '#ff453a', bg: 'rgba(255,69,58,0.10)',  border: 'rgba(255,69,58,0.30)'  };
       if (highN > 0) return { label: `${highN} high · ${label}`,     color: '#ff6b35', bg: 'rgba(255,107,53,0.10)', border: 'rgba(255,107,53,0.30)' };
       if (modN  > 0) return { label: `${modN} moderate · ${label}`,  color: '#ff9f0a', bg: 'rgba(255,159,10,0.10)', border: 'rgba(255,159,10,0.30)' };
       return { label: `${n} low · ${label}`, color: '#a8c5da', bg: 'rgba(168,197,218,0.08)', border: 'rgba(168,197,218,0.25)' };
     };
-    return {
-      patterns: badgeFor(total,    'patterns', critPat, highPat, medPat),
-      deps:     counts ? badgeFor(totalDep, 'deps', critDep, highDep, modDep) : null,
-    };
+
+    const patternsBadge = badgeFor(total, 'Patterns', critPat, highPat, medPat);
+
+    const auditStatus = securityResult.audit.status;
+    let depsBadge: Badge;
+    if (auditStatus === 'ok') {
+      const c = securityResult.audit.counts;
+      depsBadge = badgeFor(c.total, 'Deps', c.critical, c.high, c.moderate);
+    } else if (auditStatus === 'error') {
+      depsBadge = { label: 'Deps — error', color: '#ff9f0a', bg: 'rgba(255,159,10,0.08)', border: 'rgba(255,159,10,0.25)' };
+    } else {
+      depsBadge = { label: 'Deps — skipped', color: 'var(--text-faint)', bg: 'var(--bg-hover)', border: 'var(--border)' };
+    }
+
+    return { patterns: patternsBadge, deps: depsBadge };
   })();
 
   const { t } = useLocale();
@@ -230,6 +256,26 @@ export default function OverviewView({
               </span>
             )}
           </div>
+          <div style={{ marginTop: 6, marginBottom: 12 }}>
+            <button onClick={onExport} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '2px 9px', borderRadius: 20, cursor: 'pointer',
+              background: exporting ? 'rgba(52,199,89,0.08)' : 'var(--bg-hover)',
+              border: `0.5px solid ${exporting ? 'rgba(52,199,89,0.25)' : 'var(--border)'}`,
+              color: exporting ? '#34c759' : 'var(--text-muted)',
+              fontSize: 10, fontWeight: 500, letterSpacing: '0.03em',
+              fontFamily: 'inherit', transition: 'all 0.15s',
+            }}
+              onMouseEnter={e => { if (!exporting) { e.currentTarget.style.background = 'rgba(10,132,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(10,132,255,0.25)'; e.currentTarget.style.color = 'var(--blue)'; } }}
+              onMouseLeave={e => { if (!exporting) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; } }}
+            >
+              <svg width="9" height="10" viewBox="0 0 9 10" fill="none">
+                <path d="M4.5 1v5.5M2 4.5l2.5 2.5 2.5-2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 8.5h7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+              </svg>
+              {exporting ? t('topbar.exported') : t('topbar.export')}
+            </button>
+          </div>
           {scans.length > 0 && (
             <div style={{ display: 'flex', height: 3, borderRadius: 2, overflow: 'hidden', gap: 1, marginBottom: 10, maxWidth: 420 }}>
               {critical.length > 0 && <div style={{ flex: critical.length, background: '#ff453a' }} />}
@@ -260,7 +306,7 @@ export default function OverviewView({
           </div>
           {securityBadges && (
             <div style={{ marginTop: 10, display: 'flex', gap: 5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              {[securityBadges.patterns, securityBadges.deps].filter(Boolean).map((b, i) => (
+              {[securityBadges.patterns, securityBadges.deps].map((b, i) => (
                 <button key={i} onClick={onGoToSecurity} style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
@@ -271,11 +317,13 @@ export default function OverviewView({
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                 >
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0 }}>
-                    <path d="M4.5 0.5L8.5 8.5H0.5L4.5 0.5Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
-                    <line x1="4.5" y1="3.5" x2="4.5" y2="5.8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                    <circle cx="4.5" cy="7.2" r="0.5" fill="currentColor"/>
-                  </svg>
+                  {!b!.label.startsWith('✓') && (
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M4.5 0.5L8.5 8.5H0.5L4.5 0.5Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
+                      <line x1="4.5" y1="3.5" x2="4.5" y2="5.8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                      <circle cx="4.5" cy="7.2" r="0.5" fill="currentColor"/>
+                    </svg>
+                  )}
                   {b!.label}
                 </button>
               ))}
@@ -312,13 +360,15 @@ export default function OverviewView({
 
       {/* ── Trend sparkline ── */}
       {projectHistory.length >= 2 && (
-        <div style={{ marginBottom: 24, background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div onClick={onGoToActivity} style={{ marginBottom: 24, background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px 6px' }}>
             <span style={{ fontSize: 10, letterSpacing: '0.10em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Trend
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>
-              {projectHistory.length} scans
+              {projectHistory.length} scans →
             </span>
           </div>
           <TrendSparkline history={projectHistory} />
