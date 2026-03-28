@@ -42,6 +42,10 @@ export default function App() {
   const [isFullscreen,   setIsFullscreen]   = useState(false);
 
   useEffect(() => {
+    window.api.getSettings().then(s => {
+      const noTransp = !s.windowTransparency;
+      document.documentElement.classList.toggle('no-transparency', noTransp);
+    });
     window.api.getProjectPath().then(setProjectPath);
     window.api.getProjects().then(setProjects);
     window.api.getProjectsHealth().then(setProjectsHealth);
@@ -212,25 +216,54 @@ export default function App() {
             </svg>
           </button>
 
+          <button
+            onClick={() => { if (!scanStatus) window.api.runScan(); }}
+            title={t('topbar.scan')}
+            style={{
+              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+              border: `0.5px solid ${scanStatus ? 'rgba(10,132,255,0.4)' : 'var(--border)'}`,
+              background: scanStatus ? 'rgba(10,132,255,0.12)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: scanStatus ? 'default' : 'pointer', transition: 'all 0.15s',
+              color: scanStatus ? 'var(--blue)' : 'var(--text-muted)',
+              WebkitAppRegion: 'no-drag' as any,
+            }}
+            onMouseEnter={e => { if (!scanStatus) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+            onMouseLeave={e => { if (!scanStatus) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; } }}
+          >
+            {scanStatus ? (
+              <div style={{ position: 'relative', width: 18, height: 18 }}>
+                {[0, 1].map(i => (
+                  <div key={i} style={{
+                    position: 'absolute', inset: 0, margin: 'auto',
+                    width: 7, height: 7, borderRadius: '50%',
+                    border: '1px solid #0a84ff',
+                    animation: 'cx-scan-load 1.8s ease-out infinite',
+                    animationDelay: `${i * 0.9}s`,
+                    animationFillMode: 'both',
+                  }} />
+                ))}
+                <div style={{
+                  position: 'absolute', inset: 0, margin: 'auto',
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: '#0a84ff',
+                  boxShadow: '0 0 6px rgba(10,132,255,0.8)',
+                }} />
+              </div>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 27 27" fill="none">
+                <circle cx="13.5" cy="13.5" r="5" fill="currentColor"/>
+                <circle cx="13.5" cy="13.5" r="10.5" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.4" fill="none"/>
+                <circle cx="13.5" cy="13.5" r="7" stroke="currentColor" strokeWidth="2.8" strokeOpacity="0.22" fill="none"/>
+              </svg>
+            )}
+          </button>
+
           {scanStatus && (
             <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.04em' }}>{scanStatus}</span>
           )}
 
           <div style={{ flex: 1 }} />
-
-          <button
-            onClick={handleExport}
-            style={{
-              fontSize: 11, fontWeight: 500, padding: '5px 13px', borderRadius: 6,
-              background: exporting ? 'rgba(52,199,89,0.15)' : 'rgba(10,132,255,0.15)',
-              color:      exporting ? 'var(--green)' : 'var(--blue)',
-              border:     `0.5px solid ${exporting ? 'rgba(52,199,89,0.3)' : 'rgba(10,132,255,0.3)'}`,
-              cursor: 'pointer', letterSpacing: '0.02em', transition: 'all 0.2s',
-              WebkitAppRegion: 'no-drag' as any,
-            }}
-          >
-            {exporting ? t('topbar.exported') : t('topbar.export')}
-          </button>
 
           <button
             onClick={() => setSettingsOpen(o => !o)}
@@ -283,6 +316,8 @@ export default function App() {
               onOpenSettings={() => setSettingsOpen(o => !o)}
               settingsOpen={settingsOpen}
               sidebarOpen={sidebarOpen}
+              onExport={handleExport}
+              exporting={exporting}
             />
           </div>
 
@@ -295,14 +330,7 @@ export default function App() {
               flexDirection: 'column', gap: 16,
               animation: 'cx-fade-in 0.15s ease',
             }}>
-              <style>{`
-                @keyframes cx-fade-in { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes cx-scan-load {
-                  0%   { transform: scale(0.3); opacity: 0.6; }
-                  80%  { opacity: 0.12; }
-                  100% { transform: scale(3); opacity: 0; }
-                }
-              `}</style>
+
               <div style={{ position: 'relative', width: 48, height: 48 }}>
                 {[0, 1, 2].map(i => (
                   <div key={i} style={{
