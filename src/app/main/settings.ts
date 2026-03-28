@@ -19,8 +19,10 @@ export interface AppSettings {
     };
     ignore:        string[];
     ignoredFiles:       string[];
+    excludedFiles:      string[];
     locale:             'fr' | 'en';
     autoSecurityScan:   boolean;
+    windowTransparency: boolean;
 }
 
 // ── DEFAULTS ──────────────────────────────────────────────────────────────────
@@ -34,8 +36,10 @@ const DEFAULTS: AppSettings = {
     },
     ignore:            ['node_modules', '.git', 'dist', 'build', 'out', '.vite', 'vendor', '__pycache__', 'assets', 'venv', '.venv', 'env', 'site-packages', 'migrations'],
     ignoredFiles:      [],
-    locale:            'fr',
-    autoSecurityScan:  true,
+    excludedFiles:     [],
+    locale:             'fr',
+    autoSecurityScan:   true,
+    windowTransparency: false,
 };
 
 // ── I/O ───────────────────────────────────────────────────────────────────────
@@ -67,9 +71,11 @@ export function loadSettings(): AppSettings {
             ...raw,
             ignore:           mergedIgnore,
             ignoredFiles:     raw.ignoredFiles ?? [],
+            excludedFiles:    raw.excludedFiles ?? [],
             locale:           raw.locale  === 'en'    ? 'en'    : 'fr',
             thresholds:       { ...DEFAULTS.thresholds, ...(raw.thresholds ?? {}) },
-            autoSecurityScan: raw.autoSecurityScan !== false,
+            autoSecurityScan:   raw.autoSecurityScan !== false,
+            windowTransparency: raw.windowTransparency === true,
         };
     } catch {
         return { ...DEFAULTS };
@@ -119,4 +125,13 @@ export function ignoreFile(settings: AppSettings, filePath: string): AppSettings
 
 export function unignoreFile(settings: AppSettings, filePath: string): AppSettings {
     return { ...settings, ignoredFiles: settings.ignoredFiles.filter(f => f !== filePath) };
+}
+
+export function excludeFile(settings: AppSettings, filePath: string): AppSettings {
+    if (settings.excludedFiles.includes(filePath)) return settings;
+    return { ...settings, excludedFiles: [...settings.excludedFiles, filePath] };
+}
+
+export function includeFile(settings: AppSettings, filePath: string): AppSettings {
+    return { ...settings, excludedFiles: settings.excludedFiles.filter(f => f !== filePath) };
 }

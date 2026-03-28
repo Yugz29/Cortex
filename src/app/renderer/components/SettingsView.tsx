@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLocale } from '../hooks/useLocale';
 
 interface Props {
-  onClose: () => void;
+  excludedFiles: string[];
+  onIncludeFile: (fp: string) => void;
 }
 
 const DEFAULT_DIRS = [
@@ -11,28 +12,41 @@ const DEFAULT_DIRS = [
   'site-packages', 'migrations',
 ];
 
-export default function SettingsView({ onClose }: Props) {
+export default function SettingsView({ excludedFiles, onIncludeFile }: Props) {
   const { locale, toggle: toggleLocale, t } = useLocale();
 
-  const [ignoreDirs,       setIgnoreDirs]       = useState<string[]>([]);
-  const [ignoredFiles,     setIgnoredFiles]     = useState<string[]>([]);
-  const [newDir,           setNewDir]           = useState('');
-  const [saved,            setSaved]            = useState(false);
-  const [autoSecurityScan, setAutoSecurityScan] = useState(true);
+  const [ignoreDirs,        setIgnoreDirs]        = useState<string[]>([]);
+  const [ignoredFiles,      setIgnoredFiles]      = useState<string[]>([]);
+  const [newDir,            setNewDir]            = useState('');
+  const [saved,             setSaved]             = useState(false);
+  const [autoSecurityScan,  setAutoSecurityScan]  = useState(true);
+  const [transparency,      setTransparency]      = useState(false);
+  const [platform,          setPlatform]          = useState('');
 
   useEffect(() => {
-    Promise.all([window.api.getSettings(), window.api.getIgnoredFiles()])
-      .then(([settings, files]) => {
-        setIgnoreDirs(settings.ignore ?? DEFAULT_DIRS);
-        setIgnoredFiles(files);
-        setAutoSecurityScan(settings.autoSecurityScan !== false);
-      });
+    Promise.all([
+      window.api.getSettings(),
+      window.api.getIgnoredFiles(),
+      window.api.getPlatform(),
+    ]).then(([settings, files, plt]) => {
+      setIgnoreDirs(settings.ignore ?? DEFAULT_DIRS);
+      setIgnoredFiles(files);
+      setAutoSecurityScan(settings.autoSecurityScan !== false);
+      setTransparency(settings.windowTransparency === true);
+      setPlatform(plt);
+    }).catch(console.error);
   }, []);
 
   async function toggleAutoSecurity(val: boolean) {
     setAutoSecurityScan(val);
     const settings = await window.api.getSettings();
     await window.api.saveSettings({ ...settings, autoSecurityScan: val });
+  }
+
+  async function toggleTransparency(val: boolean) {
+    setTransparency(val);
+    document.documentElement.classList.toggle('no-transparency', !val);
+    await window.api.setWindowTransparency(val);
   }
 
   async function saveDirs(dirs: string[]) {
@@ -53,6 +67,10 @@ export default function SettingsView({ onClose }: Props) {
   async function unignoreFile(fp: string) {
     const list = await window.api.unignoreFile(fp);
     setIgnoredFiles(list);
+  }
+
+  function includeFile(fp: string) {
+    onIncludeFile(fp);
   }
 
   const customDirs = ignoreDirs.filter(d => !DEFAULT_DIRS.includes(d));
@@ -89,17 +107,45 @@ export default function SettingsView({ onClose }: Props) {
         </div>
       </section>
 
+      {/* ── Apparence ── */}
+      {platform !== '' && (
+        <section style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '14px 18px' }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>
+            {t('settings.appearance')}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{t('settings.transparency')}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.6 }}>
+                {t('settings.transparencyDesc')}
+              </div>
+            </div>
+            <button onClick={() => toggleTransparency(!transparency)} style={{
+              flexShrink: 0, width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: transparency ? 'var(--blue)' : 'var(--bg-hover)',
+              position: 'relative', transition: 'background 0.2s',
+            }}>
+              <span style={{
+                position: 'absolute', top: 3, left: transparency ? 18 : 3,
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', display: 'block',
+              }} />
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* ── Security ── */}
       <section style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '14px 18px' }}>
         <div style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>
-          Security
+          {t('settings.security')}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Automatic scan on first visit</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{t('settings.autoScanLabel')}</div>
             <div style={{ fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.6 }}>
-              Runs pattern analysis + dependency audit when opening the Security tab.{' '}
-              <span style={{ color: 'var(--orange)' }}>Dependency audit requires a network connection.</span>
+              {t('settings.autoScanDesc')}{' '}
+              <span style={{ color: 'var(--orange)' }}>{t('settings.autoScanNetwork')}</span>
             </div>
           </div>
           <button
@@ -180,27 +226,28 @@ export default function SettingsView({ onClose }: Props) {
           {saved && <div style={{ fontSize: 10, color: '#34c759', marginTop: 6 }}>{t('settings.saved')}</div>}
         </div>
 
+        {/* ── Fichiers exclus du scoring (bouton Ø sidebar) ── */}
         <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              {t('settings.ignoredFiles')}
+              {t('settings.excludedFiles')}
               <span style={{ fontSize: 10, color: 'var(--text-ghost)', marginLeft: 6 }}>
-                ({t('settings.ignoredFilesHint')})
+                ({t('settings.excludedFilesHint')})
               </span>
             </div>
-            {count > 0 && (
+            {excludedFiles.length > 0 && (
               <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0 }}>
-                {t('settings.files', { n: count, s: count > 1 ? 's' : '' })}
+                {t('settings.files', { n: excludedFiles.length, s: excludedFiles.length > 1 ? 's' : '' })}
               </span>
             )}
           </div>
-          {count === 0 ? (
+          {excludedFiles.length === 0 ? (
             <div style={{ fontSize: 11, color: 'var(--text-ghost)', fontStyle: 'italic' }}>
-              {t('settings.noIgnoredFiles')}
+              {t('settings.noExcludedFiles')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {ignoredFiles.map(fp => {
+              {excludedFiles.map(fp => {
                 const name   = fp.split('/').pop() ?? fp;
                 const parent = fp.split('/').slice(-3, -1).join('/');
                 return (
@@ -213,7 +260,7 @@ export default function SettingsView({ onClose }: Props) {
                       <div style={{ ...mono, fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
                       <div style={{ ...mono, fontSize: 9, color: 'var(--text-faint)', marginTop: 1 }}>…/{parent}/</div>
                     </div>
-                    <button onClick={() => unignoreFile(fp)} style={{
+                    <button onClick={() => includeFile(fp)} style={{
                       padding: '3px 10px', borderRadius: 5, fontSize: 10,
                       cursor: 'pointer', border: '0.5px solid rgba(52,199,89,0.3)',
                       background: 'rgba(52,199,89,0.08)', color: '#34c759',

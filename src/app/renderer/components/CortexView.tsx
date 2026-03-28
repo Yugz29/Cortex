@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Scan, Edge, FunctionDetail } from '../types';
 import { projectHealthStatus } from '../utils';
 import { useLocale } from '../hooks/useLocale';
+import { useLocalPref } from '../hooks/useLocalPref';
 import ResizeHandle from './shared/ResizeHandle';
 import Sidebar from './shared/Sidebar';
 import ProjectTrendGraph from './shared/ProjectTrendGraph';
@@ -33,11 +34,13 @@ interface Props {
   onOpenSettings:  () => void;
   settingsOpen:    boolean;
   sidebarOpen:     boolean;
+  onExport:        () => void;
+  exporting:       boolean;
 }
 
 export default function CortexView({
   scans, edges, projectPath, projectHistory, events, selected, projects, projectsHealth,
-  onSelectScan, onSwitchProject, onAddProject, onOpenSettings, settingsOpen, sidebarOpen,
+  onSelectScan, onSwitchProject, onAddProject, onOpenSettings, settingsOpen, sidebarOpen, onExport, exporting,
 }: Props) {
   const { t } = useLocale();
 
@@ -53,7 +56,10 @@ export default function CortexView({
   const [securityScanning, setSecurityScanning] = useState(false);
 
   // Filtre actif (piloté depuis Sidebar, utilisé par OverviewView)
-  const [activeFilter, setActiveFilter] = useState<'critical' | 'stressed' | 'healthy' | 'hotspot' | null>(null);
+  const [activeFilter,   setActiveFilter]   = useState<'critical' | 'stressed' | 'healthy' | 'hotspot' | null>(null);
+  const [excludedFiles,  setExcludedFiles]  = useState<string[]>([]);
+
+  useEffect(() => { window.api.getExcludedFiles().then(setExcludedFiles); }, [projectPath]);
 
   const handleFocusFunction = (fn: FunctionDetail, filePath: string) => {
     setPreviousView('overview');
@@ -114,8 +120,8 @@ export default function CortexView({
   }, [settingsOpen]);
 
   // ── Layout — largeurs des panneaux ──────────────────────────────────────────
-  const [leftWidth,      setLeftWidth]      = useState(260);
-  const [rightWidth,     setRightWidth]     = useState(308);
+  const [leftWidth,      setLeftWidth]      = useLocalPref('pref.sidebarWidth', 260);
+  const [rightWidth,     setRightWidth]     = useLocalPref('pref.rightWidth', 308);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const leftWidthRef  = useRef(leftWidth);
   const rightWidthRef = useRef(rightWidth);
@@ -167,8 +173,10 @@ export default function CortexView({
         width={leftWidth}
         isOpen={sidebarOpen}
         externalFilter={activeFilter}
+        excludedFiles={excludedFiles}
         onSelect={onSelectScan}
         onFilterChange={setActiveFilter}
+        onExcludedChange={setExcludedFiles}
       />
 
       <ResizeHandle
@@ -289,11 +297,17 @@ export default function CortexView({
             onAddProject={onAddProject}
             onFilterChange={filter => setActiveFilter(filter)}
             onGoToSecurity={() => setCenterView('security')}
+            onGoToActivity={() => setCenterView('history')}
+            onExport={onExport}
+            exporting={exporting}
           />
         )}
         {centerView === 'graph'   && <GraphView   scans={scans} edges={edges} onSelect={onSelectScan} selectedPath={selected?.filePath ?? null} />}
         {centerView === 'history' && <HistoryView projectHistory={projectHistory} projectPath={projectPath} scans={scans} onSelectScan={s => { onSelectScan(scans.find(sc => sc.filePath === s) ?? null); }} />}
-        {centerView === 'settings'  && <SettingsView onClose={() => { setCenterView('overview'); onOpenSettings(); }} />}
+        {centerView === 'settings'  && <SettingsView
+          excludedFiles={excludedFiles}
+          onIncludeFile={fp => window.api.includeFile(fp).then(setExcludedFiles)}
+        />}
         {centerView === 'security'  && (
           <SecurityView
             projectPath={projectPath}

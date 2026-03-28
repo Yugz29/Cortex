@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld('api', {
   getProjectHistoryByDay: (): Promise<{ date: string; score: number; healthPct: number }[]> =>
     ipcRenderer.invoke('get-project-history-day'),
 
+  getSnapshotDetail: (date: string): Promise<any> =>
+    ipcRenderer.invoke('get-snapshot-detail', date),
+
+  getSnapshotDetailForDay: (day: string): Promise<any> =>
+    ipcRenderer.invoke('get-snapshot-detail-for-day', day),
+
   // ── Events ────────────────────────────────────────────────────────────────
   onScanComplete: (cb: () => void): void => {
     ipcRenderer.removeAllListeners('scan-complete');
@@ -89,6 +95,18 @@ contextBridge.exposeInMainWorld('api', {
   getIgnoredFiles: (): Promise<string[]> =>
     ipcRenderer.invoke('get-ignored-files'),
 
+  excludeFile:     (filePath: string): Promise<string[]> =>
+    ipcRenderer.invoke('exclude-file', filePath),
+
+  includeFile:     (filePath: string): Promise<string[]> =>
+    ipcRenderer.invoke('include-file', filePath),
+
+  getExcludedFiles: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-excluded-files'),
+
+  runScan: (): Promise<void> =>
+    ipcRenderer.invoke('run-scan'),
+
   readFile: (filePath: string): Promise<{ ok: boolean; content: string }> =>
     ipcRenderer.invoke('read-file', filePath),
 
@@ -100,5 +118,11 @@ contextBridge.exposeInMainWorld('api', {
 
   getLastSecurityResult: (projectPath: string): Promise<any | null> =>
     ipcRenderer.invoke('get-last-security-result', projectPath),
+
+  getPlatform: (): Promise<string> =>
+    ipcRenderer.invoke('get-platform'),
+
+  setWindowTransparency: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke('set-window-transparency', enabled),
 
 });

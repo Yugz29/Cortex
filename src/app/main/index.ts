@@ -6,14 +6,14 @@ import {
   initDb, getLatestScans, getFunctions, cleanDeletedFiles, purgeIgnoredFromDb,
   getScoreHistory,
   getProjectScoreHistory, getProjectSummary,
-  saveProjectSnapshot, getProjectHistory, getProjectHistoryByDay,
+  saveProjectSnapshot, getProjectHistory, getProjectHistoryByDay, getSnapshotDetail, getSnapshotDetailForDay,
 } from '../../database/db.js';
 import { scanProject } from './scanner.js';
 import { scanProjectForPatterns } from '../../cortex/security/patternScanner.js';
 import type { SecurityScanResult } from '../../cortex/security/patternScanner.js';
 import { execFile } from 'node:child_process';
 import type { FileEdge } from './scanner.js';
-import { loadSettings, saveSettings, addProject, removeProject, setActiveProject, ignoreFile, unignoreFile, type AppSettings } from './settings.js';
+import { loadSettings, saveSettings, addProject, removeProject, setActiveProject, ignoreFile, unignoreFile, excludeFile, includeFile, type AppSettings } from './settings.js';
 import { startWatcher } from '../../cortex/watcher/watcher.js';
 import { buildReport } from './report.js';
 import { getDb } from '../../database/db.js';
@@ -122,6 +122,14 @@ function getActiveProjectPath(): string {
 }
 
 function createWindow(): void {
+  const isMac        = process.platform === 'darwin';
+  const isLinux      = process.platform === 'linux';
+  const settings     = loadSettings();
+  // macOS: toujours transparent pour permettre la vibrancy dynamique
+  // Linux/Windows: jamais transparent (problèmes de rendu)
+  const transparent  = isMac;
+  const blurEnabled  = isMac && settings.windowTransparency;
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -130,10 +138,9 @@ function createWindow(): void {
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 14, y: 15 },
     title: 'Cortex',
-    transparent: true,
-    backgroundColor: '#00000000',
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
+    transparent,
+    backgroundColor: transparent ? '#00000000' : '#0d0d0f',
+    ...(blurEnabled ? { vibrancy: 'under-window', visualEffectState: 'active' } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
     },
@@ -242,7 +249,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('get-score-history',       (_e, filePath: string) => getScoreHistory(filePath));
   ipcMain.handle('get-project-score-history', () => getProjectScoreHistory(getActiveProjectPath()));
   ipcMain.handle('get-project-history',     () => getProjectHistory(getActiveProjectPath()));
-  ipcMain.handle('get-project-history-day', () => getProjectHistoryByDay(getActiveProjectPath()));
+  ipcMain.handle('get-project-history-day',   () => getProjectHistoryByDay(getActiveProjectPath()));
+  ipcMain.handle('get-snapshot-detail',         (_e, date: string) => getSnapshotDetail(getActiveProjectPath(), date));
+  ipcMain.handle('get-snapshot-detail-for-day', (_e, day: string)  => getSnapshotDetailForDay(getActiveProjectPath(), day));
   ipcMain.handle('get-settings', () => loadSettings());
   ipcMain.handle('save-settings', (_e, s) => saveSettings(s));
 
@@ -299,6 +308,22 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('get-ignored-files', () => loadSettings().ignoredFiles);
+
+  ipcMain.handle('exclude-file', (_e, filePath: string) => {
+    const updated = excludeFile(loadSettings(), filePath);
+    saveSettings(updated);
+    return updated.excludedFiles;
+  });
+
+  ipcMain.handle('include-file', (_e, filePath: string) => {
+    const updated = includeFile(loadSettings(), filePath);
+    saveSettings(updated);
+    return updated.excludedFiles;
+  });
+
+  ipcMain.handle('get-excluded-files', () => loadSettings().excludedFiles);
+
+  ipcMain.handle('run-scan', () => { runScan(); });
 
   ipcMain.handle('run-security-scan', async (_e, projectPath: string): Promise<SecurityScanResult> => {
     const getSecurityCachePath = (projPath: string) => {
@@ -415,6 +440,16 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('open-external', (_e, url: string) => shell.openExternal(url));
 
+  ipcMain.handle('get-platform', () => process.platform);
+
+  ipcMain.handle('set-window-transparency', (_e, enabled: boolean) => {
+    const s = loadSettings();
+    saveSettings({ ...s, windowTransparency: enabled });
+    if (mainWindow && process.platform === 'darwin') {
+      mainWindow.setVibrancy(enabled ? 'under-window' : null);
+    }
+  });
+
   ipcMain.handle('get-last-security-result', (_e, projectPath: string) => {
     try {
       const key       = projectPath.replace(/[^a-zA-Z0-9]/g, '_').slice(-60);
@@ -516,12 +551,23 @@ app.whenReady().then(async () => {
   });
   let scanTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  const debouncedScan = (path: string, eventType: string) => {
-    const file = path.split('/').pop();
+  const PKG_FILES = new Set(['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']);
+
+  const debouncedScan = (filePath: string, eventType: string) => {
+    const file = filePath.split('/').pop() ?? '';
     mainWindow?.webContents.send('cortex-event', {
-      type: eventType, file, filePath: path, message: `${file} · ${eventType}`,
+      type: eventType, file, filePath, message: `${file} · ${eventType}`,
       level: 'info', ts: Date.now(),
     });
+    // Invalider le cache sécurité si un fichier de dépendances change
+    if (PKG_FILES.has(file)) {
+      try {
+        const projPath = getActiveProjectPath();
+        const key      = projPath.replace(/[^a-zA-Z0-9]/g, '_').slice(-60);
+        const cache    = join(app.getPath('userData'), `security_${key}.json`);
+        if (fs.existsSync(cache)) { fs.unlinkSync(cache); console.log('[Cortex] Security cache invalidated (pkg file changed)'); }
+      } catch { /* non-fatal */ }
+    }
     if (scanTimeout) clearTimeout(scanTimeout);
     scanTimeout = setTimeout(() => runScan(), 1500);
   };
