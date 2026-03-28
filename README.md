@@ -107,7 +107,7 @@ This makes Cortex useful as a **context generator for AI assistants**. You work 
 
 ```bash
 # Clone
-git clone https://github.com/yourname/cortex.git
+git clone https://github.com/yugz29/cortex.git
 cd cortex
 
 # Install dependencies
@@ -121,6 +121,21 @@ npm run build && npm start
 ```
 
 On first launch, click **Add project** and select a folder. Cortex will start watching and scoring immediately.
+
+### Linux — system dependencies
+
+Electron requires several system libraries that may not be installed by default. If the app fails to launch, install them first:
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+  libnspr4 libnss3 \
+  libatk1.0-0 libatk-bridge2.0-0 \
+  libcups2 libdrm2 libgbm1 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+  libasound2t64
+```
+
+> On older Ubuntu/Debian versions, replace `libasound2t64` with `libasound2`.
 
 ---
 
