@@ -57,6 +57,18 @@ declare global {
       getProjectScoreHistory: () => Promise<{ date: string; score: number }[]>;
       getProjectHistory:       () => Promise<{ date: string; score: number; healthPct: number }[]>;
       getProjectHistoryByDay:   () => Promise<{ date: string; score: number; healthPct: number }[]>;
+      getSnapshotDetailForDay:  (day: string) => Promise<{
+        date: string; prevDate: string | null;
+        degraded: { filePath: string; prev: number; curr: number; delta: number }[];
+        improved: { filePath: string; prev: number; curr: number; delta: number }[];
+        newFiles: { filePath: string; score: number }[];
+      }>;
+      getSnapshotDetail:        (date: string) => Promise<{
+        date: string; prevDate: string | null;
+        degraded: { filePath: string; prev: number; curr: number; delta: number }[];
+        improved: { filePath: string; prev: number; curr: number; delta: number }[];
+        newFiles: { filePath: string; score: number }[];
+      }>;
       onScanComplete:         (cb: () => void) => void;
       onEvent:                (cb: (e: any) => void) => void;
       onFocusFile:            (cb: (filePath: string) => void) => (() => void);
@@ -72,10 +84,16 @@ declare global {
       ignoreFile:           (filePath: string) => Promise<string[]>;
       unignoreFile:         (filePath: string) => Promise<string[]>;
       getIgnoredFiles:      () => Promise<string[]>;
+      excludeFile:          (filePath: string) => Promise<string[]>;
+      includeFile:          (filePath: string) => Promise<string[]>;
+      getExcludedFiles:     () => Promise<string[]>;
+      runScan:              () => Promise<void>;
       readFile:             (filePath: string) => Promise<{ ok: boolean; content: string }>;
       runSecurityScan:         (projectPath: string) => Promise<SecurityScanResult>;
       openExternal:             (url: string) => Promise<void>;
       getLastSecurityResult:    (projectPath: string) => Promise<SecurityScanResult | null>;
+      getPlatform:              () => Promise<string>;
+      setWindowTransparency:    (enabled: boolean) => Promise<void>;
     };
   }
 }

@@ -41,18 +41,21 @@ After each scan, Cortex writes a structured JSON snapshot of your project — sc
 | Feature | Description |
 |---------|-------------|
 | **Real-time watcher** | Monitors `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.py` — debounced, exclusion-aware |
+| **Manual scan** | Trigger a full rescan on demand from the topbar |
 | **AST analysis** | TS/JS via ts-morph — cyclomatic complexity, cognitive complexity, function size, nesting depth, parameter count |
 | **Git churn** | Commit frequency per file over the last 30 days |
 | **Import graph** | Fan-in (who depends on this file) and fan-out (what this file depends on) |
 | **Adaptive scoring** | Per-file-type thresholds + project-wide percentile baselines |
 | **Language multipliers** | TSX/JSX scoring accounts for style ternaries that inflate complexity metrics |
-| **Score history** | Per-file trend graphs and project health curve over time |
+| **Score history** | Per-file trend graphs and project health curve — by scan or by day |
 | **Hotspot detection** | Files that are both complex and frequently modified |
-
 | **Multi-project** | Switch between projects without restarting |
-| **Graph view** | Force-directed dependency graph — FREE layout or LAYERS (architectural clusters) |
+| **Graph view** | Force-directed dependency graph — Layers (architectural clusters) or All Links |
+| **Security scan** | Pattern-based secret/injection detection + `npm audit` dependency vulnerability check |
+| **File ignore** | Exclude files from scoring via sidebar (greyed) or from scanning entirely via Settings |
+| **UI preferences** | Sidebar width, activity panel height, graph mode and granularity persist across sessions |
 | **AI snapshot** | `cortex-snapshot.json` written after every scan — structured context for any LLM |
-| **Export** | JSON report for sharing or archiving |
+| **Export** | JSON report available from the Overview tab |
 
 ---
 
@@ -107,7 +110,7 @@ This makes Cortex useful as a **context generator for AI assistants**. You work 
 
 ```bash
 # Clone
-git clone https://github.com/yourname/cortex.git
+git clone https://github.com/yugz29/cortex.git
 cd cortex
 
 # Install dependencies
@@ -121,6 +124,21 @@ npm run build && npm start
 ```
 
 On first launch, click **Add project** and select a folder. Cortex will start watching and scoring immediately.
+
+### Linux — system dependencies
+
+Electron requires several system libraries that may not be installed by default. If the app fails to launch, install them first:
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+  libnspr4 libnss3 \
+  libatk1.0-0 libatk-bridge2.0-0 \
+  libcups2 libdrm2 libgbm1 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+  libasound2t64
+```
+
+> On older Ubuntu/Debian versions, replace `libasound2t64` with `libasound2`.
 
 ---
 
@@ -139,7 +157,7 @@ src/
 │       │   ├── GraphView      # Dependency graph (FREE / LAYERS)
 │       │   ├── HistoryView    # Score trends over time
 │       │   └── Detail         # Per-file breakdown — metrics, functions, history
-│       ├── hooks/             # useFileFilters, useLocale, useTheme
+│       ├── hooks/             # useFileFilters, useLocale, useLocalPref
 │       ├── graphLayout.ts     # Force layout algorithms (pure, testable)
 │       └── utils.ts           # Scoring colors, layer classification, health status
 ├── cortex/

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { SecurityScanResult, SecurityFinding, AuditVuln, Severity, Category } from '../types';
 import SectionLabel from './shared/SectionLabel';
+import { useLocale } from '../hooks/useLocale';
+import type { TranslationKey } from '../i18n';
 
 // ── COULEURS & LABELS ─────────────────────────────────────────────────────────
 
@@ -46,6 +48,8 @@ const CAT_LABEL: Record<Category, string> = {
 
 // ── COMPOSANTS ────────────────────────────────────────────────────────────────
 
+type TFn = (key: TranslationKey) => string;
+
 function SevBadge({ severity }: { severity: Severity }) {
     return (
         <span style={{
@@ -62,10 +66,11 @@ function SevBadge({ severity }: { severity: Severity }) {
     );
 }
 
-function FindingRow({ finding, projectPath, onViewInCode }: {
+function FindingRow({ finding, projectPath, onViewInCode, t }: {
     finding:      SecurityFinding;
     projectPath:  string;
     onViewInCode: (filePath: string, line: number, rule: string, finding: SecurityFinding) => void;
+    t:            TFn;
 }) {
     const [expanded, setExpanded] = useState(false);
     const rel = finding.filePath.replace(projectPath + '/', '');
@@ -103,7 +108,6 @@ function FindingRow({ finding, projectPath, onViewInCode }: {
                 </span>
             </div>
 
-            {/* Méta-infos + bouton View in code sur la même ligne */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 10, fontFamily: "'SF Mono','Menlo',monospace" }}>
                 <span style={{ color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{rel}</span>
                 <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>:{finding.line}</span>
@@ -119,7 +123,7 @@ function FindingRow({ finding, projectPath, onViewInCode }: {
                     onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,132,255,0.08)'}
                     onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
                 >
-                    View in code
+                    {t('security.viewInCode')}
                 </button>
             </div>
 
@@ -138,7 +142,7 @@ function FindingRow({ finding, projectPath, onViewInCode }: {
     );
 }
 
-function VulnRow({ vuln }: { vuln: AuditVuln }) {
+function VulnRow({ vuln, t }: { vuln: AuditVuln; t: TFn }) {
     const [expanded, setExpanded] = useState(false);
     const sev = (vuln.severity === ('moderate' as any) ? 'medium' : vuln.severity) as Severity;
 
@@ -168,7 +172,7 @@ function VulnRow({ vuln }: { vuln: AuditVuln }) {
                         padding: '2px 6px', borderRadius: 3,
                         letterSpacing: '0.06em', flexShrink: 0,
                     }}>
-                        FIX AVAILABLE
+                        {t('security.fixAvailable')}
                     </span>
                 )}
                 <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0, marginLeft: 4 }}>
@@ -200,7 +204,7 @@ function VulnRow({ vuln }: { vuln: AuditVuln }) {
                         </span>
                     )}
                     {vuln.fixAvailable && (
-                        <span style={{ color: 'var(--green)', marginTop: 2 }}>Run: npm audit fix</span>
+                        <span style={{ color: 'var(--green)', marginTop: 2 }}>{t('security.runAuditFix')}</span>
                     )}
                 </div>
             )}
@@ -219,6 +223,7 @@ interface Props {
 }
 
 export default function SecurityView({ projectPath, result, onResultChange, onViewInCode, externalLoading = false }: Props) {
+    const { t } = useLocale();
     const [loading,   setLoading]   = useState(false);
     const isLoading = loading || externalLoading;
     const [catFilter, setCatFilter] = useState<Category | 'all'>('all');
@@ -263,10 +268,10 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
-                            Security
+                            {t('security.title')}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>
-                            Static pattern analysis · Dependency audit (requires network)
+                            {t('security.subtitle')}
                         </div>
                     </div>
                     <button
@@ -281,7 +286,7 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                             transition: 'all 0.15s', fontFamily: 'inherit',
                         }}
                     >
-                        {isLoading ? 'Scanning…' : result ? 'Re-scan' : 'Run scan'}
+                        {isLoading ? t('security.scanning') : result ? t('security.rescan') : t('security.runScan')}
                     </button>
                 </div>
 
@@ -300,11 +305,10 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                 );
                             })}
                             {findings.length === 0 && (
-                                <span style={{ fontSize: 10, color: 'var(--green)' }}>✓ No patterns detected</span>
+                                <span style={{ fontSize: 10, color: 'var(--green)' }}>{t('security.noPatterns')}</span>
                             )}
                         </div>
 
-                        {/* Vulns de dépendances — affiché dans le header */}
                         {result.audit.status === 'ok' && result.audit.counts.total > 0 && (
                             <div
                                 onClick={() => setActiveTab('audit')}
@@ -329,12 +333,12 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                     onMouseEnter={e => (e.currentTarget as HTMLSpanElement).style.opacity = '0.75'}
                                     onMouseLeave={e => (e.currentTarget as HTMLSpanElement).style.opacity = '1'}
                                 >
-                                    {result.audit.counts.total} {result.audit.counts.total === 1 ? 'vulnerability' : 'vulnerabilities'} found in dependencies
+                                    {result.audit.counts.total} {result.audit.counts.total === 1 ? t('security.vulnFound1') : t('security.vulnFoundN')}
                                 </span>
                             </div>
                         )}
                         {result.audit.status === 'ok' && result.audit.counts.total === 0 && findings.length === 0 && (
-                            <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 4 }}>✓ No dependency vulnerabilities either.</div>
+                            <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 4 }}>{t('security.noDepVulns')}</div>
                         )}
                     </div>
                 )}
@@ -342,10 +346,10 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                 {/* Tabs */}
                 <div style={{ display: 'flex' }}>
                     <button style={tabStyle('patterns')} onClick={() => setActiveTab('patterns')}>
-                        PATTERNS {result ? `· ${findings.length}` : ''}
+                        {t('security.tabPatterns')} {result ? `· ${findings.length}` : ''}
                     </button>
                     <button style={tabStyle('audit')} onClick={() => setActiveTab('audit')}>
-                        DEPENDENCIES {(result?.audit.counts.total ?? 0) > 0 ? `· ${result!.audit.counts.total}` : ''}
+                        {t('security.tabDeps')} {(result?.audit.counts.total ?? 0) > 0 ? `· ${result!.audit.counts.total}` : ''}
                     </button>
                 </div>
             </div>
@@ -355,17 +359,16 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
 
                 {!result && !isLoading && (
                     <div style={{ padding: '56px 24px', textAlign: 'center' }}>
-    
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>No scan run yet.</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>{t('security.noScanYet')}</div>
                         <div style={{ fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.7, maxWidth: 320, margin: '0 auto' }}>
-                            Pattern analysis is fully local and instant. Dependency audit queries the npm advisory database and requires network access.
+                            {t('security.noScanDesc')}
                         </div>
                     </div>
                 )}
 
                 {isLoading && (
                     <div style={{ padding: '48px 24px', textAlign: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
-                        Scanning files…
+                        {t('security.scanningFiles')}
                     </div>
                 )}
 
@@ -390,7 +393,7 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                                 cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
                                             }}
                                         >
-                                            {cat === 'all' ? `All · ${count}` : `${CAT_LABEL[cat as Category]} · ${count}`}
+                                            {cat === 'all' ? `${t('security.filterAll')} · ${count}` : `${CAT_LABEL[cat as Category]} · ${count}`}
                                         </button>
                                     );
                                 })}
@@ -398,10 +401,10 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                         )}
                         {filtered.length === 0 ? (
                             <div style={{ padding: '32px 24px', textAlign: 'center', fontSize: 11, color: 'var(--green)' }}>
-                                ✓ No patterns detected.
+                                {t('security.noPatternsMsg')}
                             </div>
                         ) : (
-                            filtered.map((f, i) => <FindingRow key={i} finding={f} projectPath={projectPath} onViewInCode={onViewInCode} />)
+                            filtered.map((f, i) => <FindingRow key={i} finding={f} projectPath={projectPath} onViewInCode={onViewInCode} t={t} />)
                         )}
                     </>
                 )}
@@ -411,15 +414,15 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                     <>
                         {result.audit.status === 'not_run' && (
                             <div style={{ padding: '32px 24px', textAlign: 'center' }}>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Dependency audit not available.</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{t('security.auditNotAvail')}</div>
                                 <div style={{ fontSize: 10, color: 'var(--text-faint)', maxWidth: 340, margin: '0 auto', lineHeight: 1.7 }}>
-                                    {result.audit.reason ?? 'No compatible Node.js project found.'}
+                                    {result.audit.reason ?? t('security.auditNoProject')}
                                 </div>
                             </div>
                         )}
                         {result.audit.status === 'error' && (
                             <div style={{ padding: '32px 24px' }}>
-                                <div style={{ fontSize: 11, color: 'var(--red)', marginBottom: 8 }}>Audit failed.</div>
+                                <div style={{ fontSize: 11, color: 'var(--red)', marginBottom: 8 }}>{t('security.auditFailed')}</div>
                                 {result.audit.error && (
                                     <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace", lineHeight: 1.6 }}>
                                         {result.audit.error}
@@ -431,7 +434,7 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                             <>
                                 {result.audit.counts.total === 0 ? (
                                     <div style={{ padding: '32px 24px', textAlign: 'center', fontSize: 11, color: 'var(--green)' }}>
-                                        ✓ No known vulnerabilities in dependencies.
+                                        {t('security.noVulns')}
                                     </div>
                                 ) : (
                                     <>
@@ -447,9 +450,9 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                                 );
                                             })}
                                         </div>
-                                        {result.audit.vulns.map((v, i) => <VulnRow key={i} vuln={v} />)}
+                                        {result.audit.vulns.map((v, i) => <VulnRow key={i} vuln={v} t={t} />)}
                                         <div style={{ padding: '10px 16px', fontSize: 10, color: 'var(--text-faint)', borderTop: '0.5px solid var(--border)' }}>
-                                            Source: npm advisory database · {new Date(result.scannedAt).toLocaleString()}
+                                            {t('security.npmSource')} {new Date(result.scannedAt).toLocaleString()}
                                         </div>
                                     </>
                                 )}

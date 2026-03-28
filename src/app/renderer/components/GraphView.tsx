@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Scan, Edge } from '../types';
 import { scoreColor, scoreColorHex, classifyLayer, LAYER_LABELS, LAYER_COLORS, LAYER_ORDER } from '../utils';
 import { useLocale } from '../hooks/useLocale';
-import { buildLayerLayout, buildEdgePairs, canonKey, type NodeLayout } from '../graphLayout';
+import { useLocalPref } from '../hooks/useLocalPref';
+import { buildLayerLayout, buildForceLayout, buildEdgePairs, canonKey, type NodeLayout } from '../graphLayout';
 
 interface Props {
   scans:        Scan[];
@@ -21,12 +22,18 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
   const lastMouse                     = useRef({ x: 0, y: 0 });
   const [tooltip, setTooltip]         = useState<{ x: number; y: number; scan: Scan } | null>(null);
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+  const [graphMode, setGraphMode]     = useLocalPref<'layers' | 'all'>('pref.graphMode', 'layers');
   const { t } = useLocale();
 
-  const layout = useMemo(
+  const layerLayout = useMemo(
     () => scans.length > 0 ? buildLayerLayout(scans) : new Map<string, NodeLayout>(),
     [scans],
   );
+  const forceLayout = useMemo(
+    () => scans.length > 0 ? buildForceLayout(scans, edges) : new Map<string, NodeLayout>(),
+    [scans, edges],
+  );
+  const layout = graphMode === 'all' ? forceLayout : layerLayout;
   const sizeRef = useRef(size);
   useEffect(() => { sizeRef.current = size; }, [size]);
 
@@ -58,10 +65,13 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
     const maxX = Math.max(...ns.map(n => n.x + n.r));
     const minY = Math.min(...ns.map(n => n.y - n.r));
     const maxY = Math.max(...ns.map(n => n.y + n.r));
-    const pad  = 32;
-    const k    = Math.min(2.5, Math.max(0.05, Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2) / (maxY - minY || 1))));
+    const padH  = 32;
+    const padVT = 72; // dégager les labels de cluster (~PAD48 + text10 + marge)
+    const padVB = 52; // dégager la légende du bas (~40px)
+    const availH = h - padVT - padVB;
+    const k    = Math.min(2.5, Math.max(0.05, Math.min((w - padH * 2) / (maxX - minX || 1), availH / (maxY - minY || 1))));
     if (animated) startAnim();
-    setTransform({ x: w / 2 - k * (minX + maxX) / 2, y: h / 2 - k * (minY + maxY) / 2, k });
+    setTransform({ x: w / 2 - k * (minX + maxX) / 2, y: padVT + availH / 2 - k * (minY + maxY) / 2, k });
   }, [layout, size, startAnim]);
 
   // fitAll après que layout ET size soient tous les deux non-nuls
@@ -185,7 +195,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
         }}>
 
           {/* ── Zones de layer ── */}
-          {LAYER_ORDER.map(l => {
+          {graphMode === 'layers' && LAYER_ORDER.map(l => {
             const layerNodes = [...layout.values()].filter(n => classifyLayer(n.id) === l);
             if (!layerNodes.length) return null;
             const col  = LAYER_COLORS[l];
@@ -224,7 +234,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
             const isFocused    = focusEdgeIdxs.has(i);
             const isCrossLayer = classifyLayer(e.from) !== classifyLayer(e.to);
             if (hasFocus && !isFocused) return null;
-            if (!hasFocus && !isCrossLayer) return null;
+            if (!hasFocus && graphMode === 'layers' && !isCrossLayer) return null;
 
             const isOut  = e.from === focusPath;
             const colHex = isFocused
@@ -269,7 +279,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
                   d={pathD} fill="none"
                   stroke={colHex}
                   strokeWidth={(isFocused ? 1.5 : 0.8) / transform.k}
-                  opacity={isFocused ? 0.9 : isCrossLayer ? 0.2 : 0.3}
+                  opacity={isFocused ? 0.9 : graphMode === 'all' ? (isCrossLayer ? 0.18 : 0.10) : (isCrossLayer ? 0.2 : 0.3)}
                   strokeDasharray={!isOut && isFocused ? `${4 / transform.k},${3 / transform.k}` : undefined}
                 />
                 {isFocused && (
@@ -373,13 +383,51 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
           </span>
         ))}
         <span style={{ color: 'var(--border-hover)' }}>·</span>
-        <span>couleur = risque</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="18" height="8" viewBox="0 0 18 8" fill="none" style={{ display: 'inline-block' }}>
+            <line x1="0" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.2" />
+            <polygon points="13,4 9,2 9,6" fill="currentColor" />
+          </svg>
+          {t('graph.imports')}
+        </span>
+        <span style={{ color: 'var(--border-hover)' }}>·</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="18" height="8" viewBox="0 0 18 8" fill="none" style={{ display: 'inline-block' }}>
+            <line x1="0" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3,2" />
+            <polygon points="13,4 9,2 9,6" fill="currentColor" />
+          </svg>
+          {t('graph.importedBy')}
+        </span>
         <span style={{ color: 'var(--border-hover)' }}>·</span>
         <span>{t('graph.hint')}</span>
       </div>
 
-      {/* FIT */}
+      {/* FIT + mode toggle */}
       <div style={{ position: 'absolute', bottom: 14, right: 20, display: 'flex', gap: 6, alignItems: 'center' }}>
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '0.5px solid var(--border)' }}>
+          {(['layers', 'all'] as const).map(mode => {
+            const active = graphMode === mode;
+            return (
+              <button
+                key={mode}
+                onClick={() => setGraphMode(mode)}
+                style={{
+                  background: active ? 'rgba(10,132,255,0.15)' : 'var(--bg-card)',
+                  color: active ? 'var(--blue)' : 'var(--text-muted)',
+                  border: 'none', borderRight: mode === 'layers' ? '0.5px solid var(--border)' : 'none',
+                  fontSize: 10, padding: '4px 10px',
+                  cursor: active ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-muted)'; }}}
+              >
+                {mode === 'layers' ? t('graph.modeLayers') : t('graph.modeAll')}
+              </button>
+            );
+          })}
+        </div>
+
         <button
           onClick={() => fitAll(true)}
           style={{

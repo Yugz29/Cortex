@@ -8,21 +8,24 @@ import FileTree from './FileTree';
 import ActivityPanel from './ActivityPanel';
 
 interface Props {
-  scans:          Scan[];
-  projectPath:    string;
-  selected:       Scan | null;
-  events:         { message: string; level: string; type: string; ts: number; filePath?: string | null }[];
-  width:          number;
-  isOpen:         boolean;
-  externalFilter?: FilterKey;
-  onSelect:       (scan: Scan | null) => void;
-  onFilterChange: (filter: FilterKey) => void;
+  scans:            Scan[];
+  projectPath:      string;
+  selected:         Scan | null;
+  events:           { message: string; level: string; type: string; ts: number; filePath?: string | null }[];
+  width:            number;
+  isOpen:           boolean;
+  externalFilter?:  FilterKey;
+  excludedFiles:    string[];
+  onSelect:         (scan: Scan | null) => void;
+  onFilterChange:   (filter: FilterKey) => void;
+  onExcludedChange: (list: string[]) => void;
 }
 
 export default function Sidebar({
-  scans, projectPath, selected, events, width, isOpen, externalFilter, onSelect, onFilterChange,
+  scans, projectPath, selected, events, width, isOpen, externalFilter,
+  excludedFiles, onSelect, onFilterChange, onExcludedChange,
 }: Props) {
-  const filters = useFileFilters(scans, projectPath);
+  const filters = useFileFilters(scans, projectPath, excludedFiles);
 
   // Remonte le filtre actif vers CortexView (pour OverviewView)
   useEffect(() => { onFilterChange(filters.activeFilter); }, [filters.activeFilter]);
@@ -81,10 +84,14 @@ export default function Sidebar({
             selected={selected}
             nameCounts={filters.nameCounts}
             search={filters.search}
+            ignoredSet={filters.excludedSet}
             onSelect={onSelect}
-            onIgnore={fp => window.api.ignoreFile(fp).then(list => {
-              filters.setIgnoredFiles(list);
+            onIgnore={fp => window.api.excludeFile(fp).then(list => {
+              onExcludedChange(list);
               if (selected?.filePath === fp) onSelect(null);
+            })}
+            onUnignore={fp => window.api.includeFile(fp).then(list => {
+              onExcludedChange(list);
             })}
           />
         </div>

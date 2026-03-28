@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocale } from '../../hooks/useLocale';
+import { useLocalPref } from '../../hooks/useLocalPref';
+import { scoreColorHex } from '../../utils';
 import type { Scan } from '../../types';
 
 interface Event { message: string; level: string; type: string; ts: number; filePath?: string | null; }
@@ -18,8 +20,8 @@ const levelColor = (lvl: string) =>
   : 'var(--text-ghost)';
 
 // ── Icône par type d'event ────────────────────────────────────────────────────
-function EventIcon({ type, level }: { type: string; level: string }) {
-  const col = levelColor(level);
+function EventIcon({ type, level, color }: { type: string; level: string; color?: string }) {
+  const col = color ?? levelColor(level);
   if (type === 'scan-done' || type === 'scan-start') {
     return (
       <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ flexShrink: 0, marginTop: 3 }}>
@@ -126,8 +128,8 @@ function dedup(events: Event[]): Event[] {
 export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
   const { t }               = useLocale();
   const [open,   setOpen]   = useState(true);
-  const [height, setHeight] = useState(160);
-  const heightRef           = useRef(160);
+  const [height, setHeight] = useLocalPref('pref.activityPanelHeight', 160);
+  const heightRef           = useRef(height);
   const listRef             = useRef<HTMLDivElement>(null);
   const prevCountRef        = useRef(0);
   const [tick, setTick]     = useState(0); // pour rafraîchir les timestamps
@@ -246,6 +248,7 @@ export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
                            : null;
               const scan = ev.filePath ? scans.find(s => s.filePath === ev.filePath) ?? null : null;
               const isClickable = !!scan;
+              const fileColor = scan ? scoreColorHex(scan.globalScore) : levelColor(ev.level);
 
               return (
                 <div
@@ -255,7 +258,7 @@ export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
                     animation: i >= visible.length - 3 ? 'cx-ev-in 0.2s ease' : 'none',
                   }}
                 >
-                  <EventIcon type={ev.type} level={ev.level} />
+                  <EventIcon type={ev.type} level={ev.level} color={fileColor} />
 
                   {/* Message : nom de fichier cliquable + action + compteur */}
                   <span style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: 10, lineHeight: 1.55, minWidth: 0 }}>
@@ -265,11 +268,9 @@ export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
                           onClick={() => scan && onSelectScan(scan)}
                           title={ev.filePath ?? ''}
                           style={{
-                            color: isClickable ? 'var(--blue)' : 'var(--text-secondary)',
+                            color: fileColor,
                             cursor: isClickable ? 'pointer' : 'default',
-                            textDecoration: isClickable ? 'underline' : 'none',
-                            textUnderlineOffset: 2,
-                            textDecorationColor: 'rgba(10,132,255,0.4)',
+                            textDecoration: 'none',
                             transition: 'opacity 0.12s',
                           }}
                           onMouseEnter={e => { if (isClickable) (e.currentTarget as HTMLElement).style.opacity = '0.7'; }}
