@@ -1,7 +1,15 @@
-import { app, BrowserWindow, ipcMain, dialog, Notification, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Notification, shell, nativeImage } from 'electron';
 import { join } from 'node:path';
 import path from 'node:path';
+
 import fs from 'node:fs';
+
+// Nom et icône corrects en mode dev (electron-vite lance le binaire Electron brut)
+app.setName('Cortex');
+if (process.platform === 'darwin' && app.dock) {
+  const iconPath = join(app.getAppPath(), 'assets', 'images', 'favicon.png');
+  if (fs.existsSync(iconPath)) app.dock.setIcon(nativeImage.createFromPath(iconPath));
+}
 import {
   initDb, getLatestScans, getFunctions, cleanDeletedFiles, purgeIgnoredFromDb,
   getScoreHistory,
