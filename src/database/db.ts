@@ -311,7 +311,7 @@ export function saveProjectSnapshot(projectPath: string, avgScore: number, fileC
     `).get(projectPath) as { avg_score: number; day: string } | undefined;
 
     const isNewDay     = !last || last.day !== today;
-    const scoreChanged = !last || Math.abs(last.avg_score - rounded) >= 0.1;
+    const scoreChanged = !last || Math.abs(last.avg_score - rounded) >= 0.05;
 
     if (!isNewDay && !scoreChanged) return;
 
@@ -354,6 +354,160 @@ export function getProjectHistoryByDay(projectPath: string): HistoryPoint[] {
     `).all(projectPath) as { date: string; score: number; healthPct: number }[];
 
     return rows;
+}
+
+export interface SnapshotFileDelta {
+    filePath: string;
+    prev:     number;
+    curr:     number;
+    delta:    number;
+}
+export interface SnapshotDetail {
+    date:      string;
+    prevDate:  string | null;
+    degraded:  SnapshotFileDelta[];
+    improved:  SnapshotFileDelta[];
+    newFiles:  { filePath: string; score: number }[];
+}
+
+/**
+ * Détail d'un snapshot : quels fichiers ont changé entre ce point et le précédent.
+ * Utilisé pour le panel "qu'est-ce qui s'est passé" dans l'historique.
+ */
+export function getSnapshotDetail(projectPath: string, snapshotDate: string): SnapshotDetail {
+    const db = getDb();
+
+    // Trouver le snapshot précédent
+    const prevRow = db.prepare(`
+        SELECT scanned_at FROM project_snapshots
+        WHERE project_path = ? AND scanned_at < ?
+        ORDER BY scanned_at DESC LIMIT 1
+    `).get(projectPath, snapshotDate) as { scanned_at: string } | undefined;
+
+    const prevDate = prevRow?.scanned_at ?? null;
+
+    // Scores par fichier au moment du snapshot courant (dernier scan avant ou égal à la date)
+    const currScans = db.prepare(`
+        SELECT s.file_path, s.global_score
+        FROM scans s
+        INNER JOIN (
+            SELECT file_path, MAX(scanned_at) as max_at
+            FROM scans
+            WHERE project_path = ? AND scanned_at <= ?
+            GROUP BY file_path
+        ) latest ON s.file_path = latest.file_path AND s.scanned_at = latest.max_at
+        WHERE s.project_path = ?
+    `).all(projectPath, snapshotDate, projectPath) as { file_path: string; global_score: number }[];
+
+    if (!prevDate) {
+        return { date: snapshotDate, prevDate: null, degraded: [], improved: [], newFiles: [] };
+    }
+
+    // Scores par fichier au snapshot précédent
+    const prevScans = db.prepare(`
+        SELECT s.file_path, s.global_score
+        FROM scans s
+        INNER JOIN (
+            SELECT file_path, MAX(scanned_at) as max_at
+            FROM scans
+            WHERE project_path = ? AND scanned_at <= ?
+            GROUP BY file_path
+        ) latest ON s.file_path = latest.file_path AND s.scanned_at = latest.max_at
+        WHERE s.project_path = ?
+    `).all(projectPath, prevDate, projectPath) as { file_path: string; global_score: number }[];
+
+    const prevMap = new Map(prevScans.map(s => [s.file_path, s.global_score]));
+
+    const degraded: SnapshotFileDelta[] = [];
+    const improved: SnapshotFileDelta[] = [];
+    const newFiles: { filePath: string; score: number }[] = [];
+
+    for (const curr of currScans) {
+        const prev = prevMap.get(curr.file_path);
+        if (prev === undefined) {
+            if (curr.global_score >= 1) newFiles.push({ filePath: curr.file_path, score: curr.global_score });
+            continue;
+        }
+        const delta = Math.round((curr.global_score - prev) * 10) / 10;
+        if (Math.abs(delta) < 0.5) continue;
+        const entry = { filePath: curr.file_path, prev, curr: curr.global_score, delta };
+        if (delta > 0) degraded.push(entry);
+        else           improved.push(entry);
+    }
+
+    degraded.sort((a, b) => b.delta - a.delta);
+    improved.sort((a, b) => a.delta - b.delta);
+
+    return {
+        date:     snapshotDate,
+        prevDate,
+        degraded: degraded.slice(0, 8),
+        improved: improved.slice(0, 8),
+        newFiles: newFiles.slice(0, 5),
+    };
+}
+
+/**
+ * Variante jour : compare les scores de fin de journée entre deux jours calendaires.
+ * @param dayStr  YYYY-MM-DD
+ */
+export function getSnapshotDetailForDay(projectPath: string, dayStr: string): SnapshotDetail {
+    const db = getDb();
+    const currEnd  = dayStr + 'T23:59:59.999Z';
+    const prevEnd  = (() => {
+        const d = new Date(dayStr);
+        d.setUTCDate(d.getUTCDate() - 1);
+        return d.toISOString().slice(0, 10) + 'T23:59:59.999Z';
+    })();
+
+    function scansAt(upTo: string) {
+        return db.prepare(`
+            SELECT s.file_path, s.global_score
+            FROM scans s
+            INNER JOIN (
+                SELECT file_path, MAX(scanned_at) as max_at
+                FROM scans
+                WHERE project_path = ? AND scanned_at <= ?
+                GROUP BY file_path
+            ) latest ON s.file_path = latest.file_path AND s.scanned_at = latest.max_at
+            WHERE s.project_path = ?
+        `).all(projectPath, upTo, projectPath) as { file_path: string; global_score: number }[];
+    }
+
+    const currScans = scansAt(currEnd);
+    const prevScans = scansAt(prevEnd);
+
+    if (currScans.length === 0) return { date: dayStr, prevDate: null, degraded: [], improved: [], newFiles: [] };
+
+    const prevMap = new Map(prevScans.map(s => [s.file_path, s.global_score]));
+
+    const degraded: SnapshotFileDelta[] = [];
+    const improved: SnapshotFileDelta[] = [];
+    const newFiles: { filePath: string; score: number }[] = [];
+
+    for (const curr of currScans) {
+        const prev = prevMap.get(curr.file_path);
+        if (prev === undefined) {
+            if (curr.global_score >= 1) newFiles.push({ filePath: curr.file_path, score: curr.global_score });
+            continue;
+        }
+        const delta = Math.round((curr.global_score - prev) * 10) / 10;
+        if (Math.abs(delta) < 0.5) continue;
+        const entry = { filePath: curr.file_path, prev, curr: curr.global_score, delta };
+        if (delta > 0) degraded.push(entry);
+        else           improved.push(entry);
+    }
+
+    degraded.sort((a, b) => b.delta - a.delta);
+    improved.sort((a, b) => a.delta - b.delta);
+
+    return {
+        date:     dayStr,
+        prevDate: prevEnd,
+        degraded: degraded.slice(0, 8),
+        improved: improved.slice(0, 8),
+        newFiles: newFiles.slice(0, 5),
+    };
 }
 
 export function getProjectSummary(projectPath: string): { avgScore: number | null; fileCount: number } {
