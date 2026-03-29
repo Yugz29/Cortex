@@ -140,8 +140,8 @@ export const LANGUAGE_MULTIPLIERS: Record<string, LanguageMultipliers> = {
     // JSX : même problème, légèrement atténué (moins de style inline en pratique)
     jsx: { ...NEUTRAL, complexity: 0.85, cognitiveComplexity: 0.80 },
 
-    // Python : complexité cognitive approximative via indentation — légère réduction
-    py:  { ...NEUTRAL, cognitiveComplexity: 0.90 },
+    // Python : complexité cognitive via AST tree-sitter — plus d'approximation, multiplicateur neutre
+    py:  NEUTRAL,
 
     // TypeScript/JavaScript purs : pas d'ajustement — les seuils absolus suffisent
     ts:  NEUTRAL,

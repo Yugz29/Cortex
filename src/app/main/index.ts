@@ -1,7 +1,15 @@
-import { app, BrowserWindow, ipcMain, dialog, Notification, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Notification, shell, nativeImage } from 'electron';
 import { join } from 'node:path';
 import path from 'node:path';
+
 import fs from 'node:fs';
+
+// Nom et icône corrects en mode dev (electron-vite lance le binaire Electron brut)
+app.setName('Cortex');
+if (process.platform === 'darwin' && app.dock) {
+  const iconPath = join(app.getAppPath(), 'assets', 'images', 'favicon.png');
+  if (fs.existsSync(iconPath)) app.dock.setIcon(nativeImage.createFromPath(iconPath));
+}
 import {
   initDb, getLatestScans, getFunctions, cleanDeletedFiles, purgeIgnoredFromDb,
   getScoreHistory,
@@ -464,6 +472,15 @@ app.whenReady().then(async () => {
       return { ok: true, content: fs.readFileSync(filePath, 'utf-8') };
     } catch (err) {
       return { ok: false, content: '' };
+    }
+  });
+
+  ipcMain.handle('write-file', (_e, filePath: string, content: string) => {
+    try {
+      fs.writeFileSync(filePath, content, 'utf-8');
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err) };
     }
   });
 

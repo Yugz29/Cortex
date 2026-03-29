@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import type { RiskScoreResult } from '../cortex/risk-score/riskScore.js';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, renameSync } from 'node:fs';
 import { app } from 'electron';
 import type { FunctionMetrics } from '../cortex/analyzer/parser.js';
 import type { FileCoupling } from '../cortex/analyzer/churn.js';
@@ -9,12 +9,20 @@ import { runMigrations } from './migrations.js';
 
 let _db: InstanceType<typeof Database> | null = null;
 
+function _migrateDbNameIfNeeded(userDataPath: string): void {
+    const oldPath = join(userDataPath, 'pulse.db');
+    const newPath = join(userDataPath, 'cortex.db');
+    if (!existsSync(newPath) && existsSync(oldPath)) {
+        renameSync(oldPath, newPath);
+        console.log(`[Cortex] Migrated DB: pulse.db → cortex.db`);
+    }
+}
+
 export function getDb(): InstanceType<typeof Database> {
     if (_db) return _db;
-    // Le fichier s'appelle pulse.db pour des raisons historiques — ne pas renommer sans migration.
-    const dbPath = app?.getPath
-        ? join(app.getPath('userData'), 'pulse.db')
-        : join(process.cwd(), 'pulse.db');
+    const userDataPath = app?.getPath ? app.getPath('userData') : process.cwd();
+    _migrateDbNameIfNeeded(userDataPath);
+    const dbPath = join(userDataPath, 'cortex.db');
     console.log(`[Cortex] Opening DB at: ${dbPath}`);
     _db = new Database(dbPath);
     return _db;

@@ -726,7 +726,7 @@
   .fw-intro { margin-bottom: 64px; }
   .fw-layout {
     display: grid;
-    grid-template-columns: 1fr 1.45fr;
+    grid-template-columns: 1fr 1.1fr;
     gap: 60px;
     align-items: start;
   }
@@ -795,6 +795,7 @@
   #prev-graph    { height: 420px; }
   #prev-history  { height: 418px; }
   #prev-security { height: 338px; }
+  #prev-code     { height: 390px; }
   @keyframes fw-fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
   /* Scoring */
@@ -879,6 +880,45 @@
   .prev-sec-info { flex: 1; min-width: 0; }
   .prev-sec-file { font-size: 9.5px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.50); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .prev-sec-msg { font-size: 9px; color: rgba(255,255,255,0.25); font-family: 'Geist Mono', monospace; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Code editor preview */
+  #prev-code.fw-prev-active { display: flex; }
+  .prev-code-hdr { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.07); font-family: 'Geist Mono', monospace; font-size: 10px; flex-shrink: 0; background: rgba(255,255,255,0.015); }
+  .prev-code-path { color: rgba(255,255,255,0.28); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prev-code-sep { color: rgba(255,255,255,0.14); font-size: 9px; }
+  .prev-code-fn-name { color: rgba(10,132,255,0.85); }
+  .prev-code-range { color: rgba(255,255,255,0.18); margin-left: 2px; }
+  .prev-code-edit-btn { font-size: 9px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.28); padding: 1px 8px; border-radius: 3px; border: 0.5px solid rgba(255,255,255,0.10); background: transparent; cursor: default; flex-shrink: 0; }
+  .prev-code-body { flex: 1; overflow: hidden; padding: 8px 0; font-family: 'Geist Mono', monospace; font-size: 10.5px; line-height: 19px; }
+  .pcl { display: flex; }
+  .pcl-fnstart { background: rgba(10,132,255,0.06); border-left: 2px solid rgba(10,132,255,0.82); }
+  .pcl-fn      { background: rgba(10,132,255,0.06); border-left: 2px solid rgba(10,132,255,0.22); }
+  .pcl-out     { border-left: 2px solid transparent; }
+  .pcl-n { width: 36px; flex-shrink: 0; text-align: right; padding-right: 10px; user-select: none; font-size: 9.5px; }
+  .pcl-n-out   { color: rgba(255,255,255,0.14); }
+  .pcl-n-fn    { color: rgba(10,132,255,0.50); }
+  .pcl-n-first { color: rgba(10,132,255,0.85); }
+  .pcl-s { flex: 1; padding-right: 14px; white-space: pre; color: rgba(255,255,255,0.50); }
+  .tk-kw   { color: rgba(10,132,255,0.85); }
+  .tk-str  { color: #a8ff78; }
+  .tk-cmt  { color: rgba(255,255,255,0.22); }
+  .tk-num  { color: #f5a623; }
+  .tk-type { color: rgba(255,255,255,0.72); }
+  .tk-fn   { color: rgba(255,255,255,0.82); }
+  /* Fn detail mini panel */
+  .prev-fndet-back { display: flex; align-items: center; gap: 4px; padding: 7px 11px; font-size: 9px; font-family: 'Geist', sans-serif; color: rgba(255,255,255,0.22); border-bottom: 0.5px solid rgba(255,255,255,0.06); cursor: default; flex-shrink: 0; }
+  .prev-fndet-head { padding: 8px 11px; border-bottom: 0.5px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+  .prev-fndet-name { font-size: 11px; font-weight: 600; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.78); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prev-fndet-meta { font-size: 8.5px; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.24); display: flex; gap: 8px; margin-bottom: 6px; }
+  .prev-fndet-score { display: flex; align-items: baseline; gap: 5px; }
+  .prev-fndet-snum { font-size: 26px; font-weight: 200; letter-spacing: -1.5px; line-height: 1; font-family: 'Geist', sans-serif; }
+  .prev-fndet-slabel { font-size: 8px; color: rgba(255,255,255,0.20); align-self: flex-end; padding-bottom: 2px; }
+  .prev-fndet-metrics { padding: 8px 11px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .prev-fnm-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .prev-fnm-label { font-size: 7.5px; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Geist Mono', monospace; color: rgba(255,255,255,0.24); }
+  .prev-fnm-val { font-size: 9.5px; font-family: 'Geist Mono', monospace; font-weight: 600; }
+  .prev-fnm-bar-bg { height: 2px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .prev-fnm-bar { height: 100%; border-radius: 2px; }
 
   /* Graph */
   #prev-graph { position: relative; }
@@ -1003,10 +1043,10 @@
         <div class="fw-item" data-preview="prev-graph">
           <div class="fw-item-eyebrow">Graph</div>
           <h3 class="fw-item-title">See the architecture,<br>see the risk.</h3>
-          <p class="fw-item-desc">Interactive force-directed graph of your import edges. Nodes colored by risk, sized by fan-in. Drag them, explore the coupling, spot the dangerous files before they cause a regression.</p>
+          <p class="fw-item-desc">Interactive dependency graph of your import edges. Nodes colored by risk, sized by fan-in. Pan, zoom, explore the coupling, spot the dangerous files before they cause a regression.</p>
           <div class="fw-tags">
-            <span class="fw-tag">force-directed</span>
-            <span class="fw-tag">draggable</span>
+            <span class="fw-tag">LAYERS · ALL LINKS</span>
+            <span class="fw-tag">pan &amp; zoom</span>
             <span class="fw-tag">coupling analysis</span>
           </div>
         </div>
@@ -1027,9 +1067,20 @@
           <h3 class="fw-item-title">20 patterns.<br>Dep audit included.</h3>
           <p class="fw-item-desc">Static pattern scan for secrets, XSS vectors, unsafe crypto, eval usage, and more. Plus npm advisory integration to catch vulnerable dependencies, without leaving the app.</p>
           <div class="fw-tags">
-            <span class="fw-tag">40+ rules</span>
+            <span class="fw-tag">20 patterns</span>
             <span class="fw-tag">npm audit</span>
             <span class="fw-tag">XSS · Secrets · Crypto</span>
+          </div>
+        </div>
+
+        <div class="fw-item" data-preview="prev-code">
+          <div class="fw-item-eyebrow">Code</div>
+          <h3 class="fw-item-title">See it, fix it,<br>without leaving Cortex.</h3>
+          <p class="fw-item-desc">Open any function directly from the detail panel. Read it with syntax highlighting, then switch to edit mode. Powered by CodeMirror 6. Save triggers an instant rescan so you see the impact immediately.</p>
+          <div class="fw-tags">
+            <span class="fw-tag">CodeMirror 6</span>
+            <span class="fw-tag">TS · JS · Python</span>
+            <span class="fw-tag">save → rescan</span>
           </div>
         </div>
 
@@ -1072,6 +1123,63 @@
               <span style="color:#34c759">↓ 7.6 since first scan</span>
             </div>
             <div id="prev-hist-trends"></div>
+          </div>
+
+          <!-- Preview: Code -->
+          <div class="fw-preview" id="prev-code">
+            <div style="flex:1;display:flex;height:100%;overflow:hidden;">
+              <!-- Code view -->
+              <div style="flex:1;min-width:0;border-right:0.5px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;overflow:hidden;">
+                <div class="prev-code-hdr">
+                  <span class="prev-code-path">parser.ts</span>
+                  <span class="prev-code-sep">/</span>
+                  <span class="prev-code-fn-name">tokenize</span>
+                  <span class="prev-code-range">l.16–32</span>
+                  <div style="flex:1"></div>
+                  <span class="prev-code-edit-btn">Edit</span>
+                </div>
+                <div class="prev-code-body">
+                  <div class="pcl pcl-out"><span class="pcl-n pcl-n-out">14</span><span class="pcl-s"><span class="tk-cmt">// Tokenize source to token stream</span></span></div>
+                  <div class="pcl pcl-out"><span class="pcl-n pcl-n-out">15</span><span class="pcl-s"> </span></div>
+                  <div class="pcl pcl-fnstart"><span class="pcl-n pcl-n-first">16</span><span class="pcl-s"><span class="tk-kw">export</span> <span class="tk-kw">function</span> <span class="tk-fn">tokenize</span>(</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">17</span><span class="pcl-s">  source: <span class="tk-type">string</span>,</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">18</span><span class="pcl-s">  lang: <span class="tk-str">'js'</span> | <span class="tk-str">'py'</span>,</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">19</span><span class="pcl-s">): <span class="tk-type">Token</span>[] {</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">20</span><span class="pcl-s">  <span class="tk-kw">const</span> tokens: <span class="tk-type">Token</span>[] = [];</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">21</span><span class="pcl-s">  <span class="tk-kw">let</span> i = <span class="tk-num">0</span>;</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">22</span><span class="pcl-s"> </span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">23</span><span class="pcl-s">  <span class="tk-kw">while</span> (i &lt; source.length) {</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">24</span><span class="pcl-s">    <span class="tk-kw">if</span> (source[i] === <span class="tk-str">'#'</span>) {</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">25</span><span class="pcl-s">      tokens.push({ type: <span class="tk-str">'comment'</span> });</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">26</span><span class="pcl-s">      i++; <span class="tk-kw">continue</span>;</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">27</span><span class="pcl-s">    }</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">28</span><span class="pcl-s">    tokens.push({ type: <span class="tk-str">'plain'</span>, text: source[i++] });</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">29</span><span class="pcl-s">  }</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">30</span><span class="pcl-s"> </span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">31</span><span class="pcl-s">  <span class="tk-kw">return</span> tokens;</span></div>
+                  <div class="pcl pcl-fn"><span class="pcl-n pcl-n-fn">32</span><span class="pcl-s">}</span></div>
+                </div>
+              </div>
+              <!-- Fn detail panel -->
+              <div style="flex:0 0 155px;display:flex;flex-direction:column;overflow:hidden;">
+                <div class="prev-fndet-back">← tokenize</div>
+                <div class="prev-fndet-head">
+                  <div class="prev-fndet-name">tokenize</div>
+                  <div class="prev-fndet-meta"><span>l.16</span><span>17L</span></div>
+                  <div class="prev-fndet-score">
+                    <span class="prev-fndet-snum" style="color:#ff9f0a">68</span>
+                    <span class="prev-fndet-slabel">top signal</span>
+                  </div>
+                </div>
+                <div class="prev-fndet-metrics">
+                  <div class="prev-fndet-metric"><div class="prev-fnm-head"><span class="prev-fnm-label">Cyclomatic</span><span class="prev-fnm-val" style="color:#ff9f0a">8</span></div><div class="prev-fnm-bar-bg"><div class="prev-fnm-bar" style="width:55%;background:#ff9f0a"></div></div></div>
+                  <div class="prev-fndet-metric"><div class="prev-fnm-head"><span class="prev-fnm-label">Cognitive</span><span class="prev-fnm-val" style="color:#ff9f0a">14</span></div><div class="prev-fnm-bar-bg"><div class="prev-fnm-bar" style="width:42%;background:#ff9f0a"></div></div></div>
+                  <div class="prev-fndet-metric"><div class="prev-fnm-head"><span class="prev-fnm-label">Size</span><span class="prev-fnm-val" style="color:#34c759">17L</span></div><div class="prev-fnm-bar-bg"><div class="prev-fnm-bar" style="width:12%;background:#34c759"></div></div></div>
+                  <div class="prev-fndet-metric"><div class="prev-fnm-head"><span class="prev-fnm-label">Depth</span><span class="prev-fnm-val" style="color:#34c759">2</span></div><div class="prev-fnm-bar-bg"><div class="prev-fnm-bar" style="width:8%;background:#34c759"></div></div></div>
+                  <div class="prev-fndet-metric"><div class="prev-fnm-head"><span class="prev-fnm-label">Params</span><span class="prev-fnm-val" style="color:#34c759">2</span></div><div class="prev-fnm-bar-bg"><div class="prev-fnm-bar" style="width:5%;background:#34c759"></div></div></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Preview: Security -->
@@ -2180,7 +2288,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
     const SCORE_FILES = [
       { name: 'report.ts',        score: 50.6, layer: 'CORE', trend: '↑',
-        path: 'src/cortex/report.ts', history: [44.2, 47.4, 50.6],
+        path: 'src/cortex/report.ts', history: [28.4, 31.2, 35.8, 37.6, 40.1, 42.8, 44.2, 46.5, 48.9, 50.6],
         metrics: [
           { l: 'Cyclomatic complexity', s: 68.6, raw: 'max 19', desc: 'Number of independent paths through the code. A score ≥ 10 means every change risks breaking an untested path.', warn: 'Max complexity of 19. Split this function into smaller pieces.' },
           { l: 'Cognitive complexity',  s: 63.5, raw: 'max 41', desc: 'How hard the code is to read. Penalizes deep nesting and non-linear flow more than cyclomatic.', warn: 'Score of 41. Reviewers will struggle. Flatten and extract.' },
@@ -2188,7 +2296,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s:  0.0, raw: '2 commits', desc: 'Commits touching this file in the last 30 days. High churn signals instability or poor design.' },
         ]},
       { name: 'churn.ts',         score: 49.3, layer: 'CORE', trend: '↑',
-        path: 'src/cortex/churn.ts', history: [42.1, 45.8, 49.3],
+        path: 'src/cortex/churn.ts', history: [25.3, 28.8, 32.4, 36.1, 38.5, 41.2, 43.8, 45.4, 47.6, 49.3],
         metrics: [
           { l: 'Cyclomatic complexity', s: 55.2, raw: 'max 14', desc: 'Number of independent paths through the code.', warn: 'Max complexity of 14. Split this function into smaller pieces.' },
           { l: 'Cognitive complexity',  s: 42.1, raw: 'max 28', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 28. Complex to review, consider simplifying.' },
@@ -2196,7 +2304,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 80.4, raw: '24 commits', desc: 'Commits touching this file in the last 30 days.', warn: '24 commits. Highly unstable. Consider splitting responsibilities.' },
         ]},
       { name: 'SecurityView.tsx', score: 49.0, layer: 'UI',   trend: '↑',
-        path: 'src/app/renderer/components/SecurityView.tsx', history: [40.5, 44.2, 49.0],
+        path: 'src/app/renderer/components/SecurityView.tsx', history: [22.1, 26.4, 30.8, 34.2, 37.5, 40.1, 42.8, 45.2, 47.4, 49.0],
         metrics: [
           { l: 'Cyclomatic complexity', s: 30.1, raw: 'max 8',  desc: 'Number of independent paths through the code.', warn: 'Growing complexity. Keep an eye on branching.' },
           { l: 'Cognitive complexity',  s: 52.4, raw: 'max 33', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 33. Reviewers will struggle. Flatten and extract.' },
@@ -2204,7 +2312,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 48.2, raw: '14 commits', desc: 'Commits touching this file in the last 30 days.', warn: '14 commits. Frequent changes, consider stability refactor.' },
         ]},
       { name: 'CortexView.tsx',   score: 48.3, layer: 'UI',   trend: '↑',
-        path: 'src/app/renderer/components/CortexView.tsx', history: [38.0, 42.8, 48.3],
+        path: 'src/app/renderer/components/CortexView.tsx', history: [18.5, 22.3, 26.8, 30.4, 34.1, 37.8, 40.5, 43.2, 46.1, 48.3],
         metrics: [
           { l: 'Cyclomatic complexity', s: 42.0, raw: 'max 11', desc: 'Number of independent paths through the code.', warn: 'Complexity growing. Approaching danger threshold.' },
           { l: 'Cognitive complexity',  s: 38.5, raw: 'max 24', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 24. Becoming hard to review.' },
@@ -2212,7 +2320,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 62.1, raw: '18 commits', desc: 'Commits touching this file in the last 30 days.', warn: '18 commits in 30 days. High instability.' },
         ]},
       { name: 'scanner.ts',       score: 47.5, layer: 'CORE', trend: '↑',
-        path: 'src/cortex/scanner.ts', history: [39.2, 43.1, 47.5],
+        path: 'src/cortex/scanner.ts', history: [24.6, 28.2, 31.8, 35.4, 38.0, 40.8, 42.9, 44.7, 46.2, 47.5],
         metrics: [
           { l: 'Cyclomatic complexity', s: 62.3, raw: 'max 17', desc: 'Number of independent paths through the code.', warn: 'Max complexity of 17. Split this function into smaller pieces.' },
           { l: 'Cognitive complexity',  s: 58.1, raw: 'max 38', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 38. Reviewers will struggle. Flatten and extract.' },
@@ -2220,7 +2328,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 35.5, raw: '10 commits', desc: 'Commits touching this file in the last 30 days.', warn: '10 commits. Moderate instability.' },
         ]},
       { name: 'CodeView.tsx',     score: 45.1, layer: 'UI',   trend: '↔',
-        path: 'src/app/renderer/components/CodeView.tsx', history: [44.5, 45.3, 45.1],
+        path: 'src/app/renderer/components/CodeView.tsx', history: [42.8, 44.5, 46.2, 43.8, 45.3, 44.1, 46.5, 44.8, 45.6, 45.1],
         metrics: [
           { l: 'Cyclomatic complexity', s: 40.2, raw: 'max 10', desc: 'Number of independent paths through the code.', warn: 'Approaching danger zone. Monitor closely.' },
           { l: 'Cognitive complexity',  s: 48.5, raw: 'max 30', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 30. Reviewers may struggle.' },
@@ -2228,7 +2336,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 28.3, raw: '8 commits', desc: 'Commits touching this file in the last 30 days.' },
         ]},
       { name: 'index.ts',         score: 37.0, layer: 'CORE', trend: '↔',
-        path: 'src/cortex/index.ts', history: [36.2, 37.4, 37.0],
+        path: 'src/cortex/index.ts', history: [35.8, 37.2, 36.5, 38.1, 37.4, 36.8, 37.5, 38.2, 36.9, 37.0],
         metrics: [
           { l: 'Cyclomatic complexity', s: 30.5, raw: 'max 8',  desc: 'Number of independent paths through the code.', warn: 'Moderate complexity. Keep an eye on growth.' },
           { l: 'Cognitive complexity',  s: 38.2, raw: 'max 24', desc: 'How hard the code is to read. Penalizes deep nesting.', warn: 'Score of 24. Becoming hard to review.' },
@@ -2236,7 +2344,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 32.4, raw: '9 commits', desc: 'Commits touching this file in the last 30 days.', warn: '9 commits. Moderate churn.' },
         ]},
       { name: 'App.tsx',          score: 33.7, layer: 'UI',   trend: '↔',
-        path: 'src/app/renderer/App.tsx', history: [34.1, 33.2, 33.7],
+        path: 'src/app/renderer/App.tsx', history: [32.4, 34.1, 33.5, 34.8, 33.2, 34.5, 33.8, 34.2, 33.5, 33.7],
         metrics: [
           { l: 'Cyclomatic complexity', s: 25.1, raw: 'max 6',  desc: 'Number of independent paths through the code.' },
           { l: 'Cognitive complexity',  s: 28.4, raw: 'max 18', desc: 'How hard the code is to read. Penalizes deep nesting.' },
@@ -2244,7 +2352,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 42.2, raw: '12 commits', desc: 'Commits touching this file in the last 30 days.', warn: '12 commits. Consider whether this file is too central.' },
         ]},
       { name: 'parser.ts',        score: 28.2, layer: 'CORE', trend: '↑',
-        path: 'src/cortex/parser.ts', history: [22.5, 25.4, 28.2],
+        path: 'src/cortex/parser.ts', history: [14.2, 16.8, 18.5, 20.3, 22.1, 23.8, 25.4, 26.1, 27.3, 28.2],
         metrics: [
           { l: 'Cyclomatic complexity', s: 38.5, raw: 'max 9',  desc: 'Number of independent paths through the code.', warn: 'Approaching danger zone. Monitor closely.' },
           { l: 'Cognitive complexity',  s: 22.4, raw: 'max 14', desc: 'How hard the code is to read.' },
@@ -2252,7 +2360,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 18.5, raw: '5 commits', desc: 'Commits touching this file in the last 30 days.' },
         ]},
       { name: 'db.ts',            score: 20.8, layer: 'DB',   trend: '↔',
-        path: 'src/cortex/db.ts', history: [20.2, 21.0, 20.8],
+        path: 'src/cortex/db.ts', history: [19.8, 21.2, 20.5, 21.4, 20.8, 21.0, 20.6, 21.1, 20.9, 20.8],
         metrics: [
           { l: 'Cyclomatic complexity', s: 18.2, raw: 'max 4',  desc: 'Number of independent paths through the code.' },
           { l: 'Cognitive complexity',  s: 12.4, raw: 'max 8',  desc: 'How hard the code is to read.' },
@@ -2260,7 +2368,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 22.1, raw: '6 commits', desc: 'Commits touching this file in the last 30 days.' },
         ]},
       { name: 'MetricBar.tsx',    score: 19.9, layer: 'UI',   trend: '↓',
-        path: 'src/app/renderer/components/shared/MetricBar.tsx', history: [28.4, 23.6, 19.9],
+        path: 'src/app/renderer/components/shared/MetricBar.tsx', history: [32.5, 30.8, 28.4, 26.1, 24.2, 22.8, 23.6, 21.4, 20.6, 19.9],
         metrics: [
           { l: 'Cyclomatic complexity', s: 12.3, raw: 'max 3',  desc: 'Number of independent paths through the code.' },
           { l: 'Cognitive complexity',  s:  8.5, raw: 'max 5',  desc: 'How hard the code is to read.' },
@@ -2268,7 +2376,7 @@ window.addEventListener('DOMContentLoaded', () => {
           { l: 'Churn',                 s: 15.4, raw: '4 commits', desc: 'Commits touching this file in the last 30 days.' },
         ]},
       { name: 'HistoryView.tsx',  score: 19.1, layer: 'UI',   trend: '↓',
-        path: 'src/app/renderer/components/HistoryView.tsx', history: [26.8, 22.3, 19.1],
+        path: 'src/app/renderer/components/HistoryView.tsx', history: [31.2, 28.8, 26.4, 24.1, 22.8, 26.8, 24.2, 22.3, 20.8, 19.1],
         metrics: [
           { l: 'Cyclomatic complexity', s: 15.2, raw: 'max 3',  desc: 'Number of independent paths through the code.' },
           { l: 'Cognitive complexity',  s: 10.8, raw: 'max 7',  desc: 'How hard the code is to read.' },

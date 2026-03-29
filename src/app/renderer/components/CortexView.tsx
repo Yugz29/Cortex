@@ -85,6 +85,7 @@ export default function CortexView({
   };
 
   const handleCodeViewClose = () => {
+    if (centerView !== 'code') return;
     if (previousView === 'security') setSelectedFinding(null);
     setCenterView(previousView);
   };
@@ -339,7 +340,7 @@ export default function CortexView({
           transition: rightCollapsed ? 'width 0.2s, min-width 0.2s' : 'none',
           display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden',
         }}>
-          {selected && !selectedFinding && <Detail scan={selected} onClose={() => onSelectScan(null)} edges={edges} onFocusFunction={handleFocusFunction} />}
+          {selected && !selectedFinding && <Detail scan={selected} onClose={() => { handleCodeViewClose(); onSelectScan(null); }} edges={edges} onFocusFunction={handleFocusFunction} onCloseCodeView={handleCodeViewClose} />}
           {selectedFinding && <SecurityFindingPanel finding={selectedFinding} onClose={() => { setSelectedFinding(null); handleCodeViewClose(); }} />}
         </div>
       )}

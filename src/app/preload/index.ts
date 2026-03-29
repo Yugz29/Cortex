@@ -110,6 +110,9 @@ contextBridge.exposeInMainWorld('api', {
   readFile: (filePath: string): Promise<{ ok: boolean; content: string }> =>
     ipcRenderer.invoke('read-file', filePath),
 
+  writeFile: (filePath: string, content: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('write-file', filePath, content),
+
   runSecurityScan: (projectPath: string): Promise<any> =>
     ipcRenderer.invoke('run-security-scan', projectPath),
 

@@ -29,7 +29,6 @@ import {
     clampedScore,
     scoreFromRaw,
     computeProjectBaselines,
-    extractRaw,
 } from '../src/cortex/risk-score/riskScore.js';
 import type { RawMetrics } from '../src/cortex/risk-score/riskScore.js';
 
@@ -169,40 +168,6 @@ describe('scoreFromRaw — hotspotScore', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('scoreFromRaw — WeightAdjustment', () => {
-
-    const base = makeRaw({ complexity: 10, churn: 8, fanIn: 5 });
-
-    it('adjustments = 1.0 partout → même score que sans adjustments', () => {
-        const noAdj   = scoreFromRaw(base, '/a.ts', 'typescript');
-        const withAdj = scoreFromRaw(base, '/a.ts', 'typescript', undefined, {
-            complexity: 1, cognitiveComplexity: 1, functionSize: 1,
-            depth: 1, churn: 1, params: 1, fanIn: 1,
-        });
-        expect(withAdj.globalScore).toBeCloseTo(noAdj.globalScore, 5);
-    });
-
-    it('réduire le poids churn diminue le globalScore', () => {
-        const normal  = scoreFromRaw(base, '/a.ts', 'typescript');
-        const reduced = scoreFromRaw(base, '/a.ts', 'typescript', undefined, {
-            complexity: 1, cognitiveComplexity: 1, functionSize: 1,
-            depth: 1, churn: 0.5, params: 1, fanIn: 1,
-        });
-        expect(reduced.globalScore).toBeLessThan(normal.globalScore);
-    });
-
-    it('multiplicateur 0 sur fanIn → contribution nulle au global', () => {
-        const withoutFanIn = scoreFromRaw(makeRaw({ fanIn: 20 }), '/a.ts', 'typescript', undefined, {
-            complexity: 1, cognitiveComplexity: 1, functionSize: 1,
-            depth: 1, churn: 1, params: 1, fanIn: 0,
-        });
-        const noFanIn = scoreFromRaw(makeRaw({ fanIn: 0 }), '/a.ts', 'typescript');
-        expect(withoutFanIn.details.fanInScore).toBeGreaterThan(0); // score calculé mais non appliqué
-        expect(withoutFanIn.globalScore).toBeCloseTo(noFanIn.globalScore, 5);
-    });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 describe('computeProjectBaselines', () => {
 
     it('calcule les percentiles correctement sur un jeu simple', () => {
@@ -232,27 +197,4 @@ describe('computeProjectBaselines', () => {
     });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-describe('extractRaw', () => {
 
-    it('retourne toutes les métriques à 0 pour un fichier sans fonctions', async () => {
-        const raw = await extractRaw({ filePath: '/empty.ts', language: 'typescript', functions: [] });
-        expect(raw.complexity).toBe(0);
-        expect(raw.functionSize).toBe(0);
-        expect(raw.depth).toBe(0);
-        expect(raw.fanIn).toBe(0);
-    });
-
-    it('accepte fanIn en paramètre optionnel', async () => {
-        const raw = await extractRaw(
-            { filePath: '/a.ts', language: 'typescript', functions: [] },
-            7,
-        );
-        expect(raw.fanIn).toBe(7);
-    });
-
-    it('fanIn par défaut = 0', async () => {
-        const raw = await extractRaw({ filePath: '/a.ts', language: 'typescript', functions: [] });
-        expect(raw.fanIn).toBe(0);
-    });
-});

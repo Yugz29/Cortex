@@ -40,7 +40,7 @@ After each scan, Cortex writes a structured JSON snapshot of your project — sc
 
 | Feature | Description |
 |---------|-------------|
-| **Real-time watcher** | Monitors `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.py` — debounced, exclusion-aware |
+| **Real-time watcher** | Monitors `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.py` — debounced, exclusion-aware |
 | **Manual scan** | Trigger a full rescan on demand from the topbar |
 | **AST analysis** | TS/JS via ts-morph — cyclomatic complexity, cognitive complexity, function size, nesting depth, parameter count |
 | **Git churn** | Commit frequency per file over the last 30 days |
@@ -50,12 +50,15 @@ After each scan, Cortex writes a structured JSON snapshot of your project — sc
 | **Score history** | Per-file trend graphs and project health curve — by scan or by day |
 | **Hotspot detection** | Files that are both complex and frequently modified |
 | **Multi-project** | Switch between projects without restarting |
-| **Graph view** | Force-directed dependency graph — Layers (architectural clusters) or All Links |
+| **Graph view** | Dependency graph of your import edges — LAYERS mode (architectural clusters by file type) and ALL LINKS mode (full force-directed layout); pan, zoom, click to focus a node and its neighbours |
 | **Security scan** | Pattern-based secret/injection detection + `npm audit` dependency vulnerability check |
 | **File ignore** | Exclude files from scoring via sidebar (greyed) or from scanning entirely via Settings |
 | **UI preferences** | Sidebar width, activity panel height, graph mode and granularity persist across sessions |
 | **AI snapshot** | `cortex-snapshot.json` written after every scan — structured context for any LLM |
-| **Export** | JSON report available from the Overview tab |
+| **Export** | Markdown + JSON report generated simultaneously from the Overview tab |
+| **Code viewer** | Inline syntax-highlighted code viewer — opens on any function, with quick-edit mode powered by CodeMirror 6 (save triggers an instant rescan) |
+| **File tree** | Toggle between flat list and folder tree in the sidebar — files sorted by score within each directory |
+| **i18n** | Interface available in English and French — toggle in Settings |
 
 ---
 
@@ -85,7 +88,6 @@ After every scan, Cortex writes `cortex-snapshot.json` in the project root. This
 - Per-file scores with raw metrics, language, and last scan timestamp
 - Project health history (score evolution over time)
 - Coupling map (files that change together most often)
-- Current feedback loop weights
 
 This makes Cortex useful as a **context generator for AI assistants**. You work in Cortex, then drop the snapshot into any conversation — the AI immediately knows the state of your project, what's risky, what's trending up, and where the real problems are.
 
@@ -98,7 +100,8 @@ This makes Cortex useful as a **context generator for AI assistants**. You work 
 | Desktop shell | Electron 40 + electron-vite |
 | UI | React 19 + TypeScript |
 | TS/JS analysis | ts-morph (AST) |
-| Python analysis | Regex-based |
+| Python analysis | tree-sitter (AST) + regex fallback |
+| Code editor | CodeMirror 6 |
 | Git / churn | simple-git |
 | Database | better-sqlite3 (SQLite — local, on disk) |
 | File watching | chokidar |

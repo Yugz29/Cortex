@@ -220,6 +220,11 @@ const translations = {
   'code.error':        { en: 'Cannot read file.',        fr: 'Impossible de lire le fichier.' },
   'code.line':         { en: 'line',                     fr: 'ligne'                          },
   'code.lines':        { en: 'lines',                    fr: 'lignes'                         },
+  'code.edit':         { en: 'Edit',                     fr: 'Modifier'                       },
+  'code.save':         { en: 'Save',                     fr: 'Sauvegarder'                    },
+  'code.saving':       { en: 'saving…',                  fr: 'sauvegarde…'                    },
+  'code.cancel':       { en: 'Cancel',                   fr: 'Annuler'                        },
+  'code.writeFailed':  { en: 'write failed',             fr: 'échec écriture'                 },
 
   // ── Welcome screen ─────────────────────────────────────────────────────────
   'welcome.title':      { en: 'Welcome to Cortex',              fr: 'Bienvenue sur Cortex'            },
