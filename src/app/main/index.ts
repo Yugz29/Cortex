@@ -475,6 +475,15 @@ app.whenReady().then(async () => {
     }
   });
 
+  ipcMain.handle('write-file', (_e, filePath: string, content: string) => {
+    try {
+      fs.writeFileSync(filePath, content, 'utf-8');
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  });
+
   ipcMain.handle('get-projects-health', async () => {
     const settings = loadSettings();
     return settings.projects.map(p => {
