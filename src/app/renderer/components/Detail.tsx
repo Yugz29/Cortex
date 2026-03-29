@@ -11,9 +11,10 @@ interface Props {
   onClose:         () => void;
   edges:           Edge[];
   onFocusFunction: (fn: FunctionDetail, filePath: string) => void;
+  onCloseCodeView: () => void;
 }
 
-export default function Detail({ scan, onClose, edges, onFocusFunction }: Props) {
+export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseCodeView }: Props) {
   const { t } = useLocale();
   const [functions,   setFunctions]   = useState<FunctionDetail[]>([]);
   const [history,     setHistory]     = useState<{ score: number; scanned_at: string }[]>([]);
@@ -21,6 +22,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction }: Props)
   const [selectedFn,  setSelectedFn]  = useState<FunctionDetail | null>(null);
 
   useEffect(() => {
+    onCloseCodeView();
     setActiveTab('metrics');
     setSelectedFn(null);
     window.api.getFunctions(scan.filePath).then(setFunctions);
@@ -119,7 +121,11 @@ export default function Detail({ scan, onClose, edges, onFocusFunction }: Props)
 
         {/* Tabs */}
         <div style={{ display: 'flex' }}>
-          <button style={tabStyle('metrics')} onClick={() => setActiveTab('metrics')}>
+          <button style={tabStyle('metrics')} onClick={() => {
+            if (activeTab === 'functions' && selectedFn !== null) onCloseCodeView();
+            setSelectedFn(null);
+            setActiveTab('metrics');
+          }}>
             {t('detail.tabs.metrics')}
           </button>
           {namedFunctions.length > 0 && (
@@ -259,8 +265,8 @@ export default function Detail({ scan, onClose, edges, onFocusFunction }: Props)
 
         {activeTab === 'functions' && (
           selectedFn
-            ? <FunctionDetailPanel fn={selectedFn} onBack={() => setSelectedFn(null)} onViewInCenter={() => onFocusFunction(selectedFn, scan.filePath)} />
-            : <FunctionList fns={namedFunctions} onSelect={setSelectedFn} t={t} />
+            ? <FunctionDetailPanel fn={selectedFn} onBack={() => { onCloseCodeView(); setSelectedFn(null); }} />
+            : <FunctionList fns={namedFunctions} onSelect={fn => { setSelectedFn(fn); onFocusFunction(fn, scan.filePath); }} t={t} />
         )}
       </div>
     </div>
@@ -378,11 +384,10 @@ function FnMetricBar({
 }
 
 function FunctionDetailPanel({
-  fn, onBack, onViewInCenter,
+  fn, onBack,
 }: {
   fn: FunctionDetail;
   onBack: () => void;
-  onViewInCenter: () => void;
 }) {
   const { t } = useLocale();
 
@@ -445,23 +450,6 @@ function FunctionDetailPanel({
           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t('fn.topSignal')}</span>
         </div>
       </div>
-
-      {/* Bouton voir dans le code */}
-      <button
-        onClick={onViewInCenter}
-        style={{
-          width: '100%', padding: '9px 0', marginBottom: 20,
-          background: 'var(--bg-card)', border: '0.5px solid var(--border)',
-          borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
-          fontSize: 11, color: 'var(--blue)', letterSpacing: '0.04em',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          transition: 'background 0.15s, border-color 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--blue) 8%, var(--bg-card))'; e.currentTarget.style.borderColor = 'var(--blue)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-      >
-        <span style={{ fontSize: 13 }}>⌥</span> {t('fn.seeInCode')}
-      </button>
 
       {/* Métriques */}
       <div style={{ marginBottom: 8 }}><SectionLabel>{t('fn.detail')}</SectionLabel></div>
