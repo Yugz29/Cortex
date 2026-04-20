@@ -238,9 +238,9 @@ export default function CortexView({
                 </div>
               )}
               <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.9 }}>
-                {stable   > 0 && <><span style={{ color: 'rgba(52,199,89,0.7)' }}>{stable} healthy</span><span style={{ color: 'var(--border-hover)' }}> · </span></>}
-                {stressed > 0 && <><span style={{ color: 'rgba(255,159,10,0.7)' }}>{stressed} stressed</span><span style={{ color: 'var(--border-hover)' }}> · </span></>}
-                {critical > 0 && <span style={{ color: 'rgba(255,69,58,0.8)' }}>{critical} critical</span>}
+                {stable   > 0 && <><span style={{ color: 'rgba(52,199,89,0.7)' }}>{stable} low pressure</span><span style={{ color: 'var(--border-hover)' }}> · </span></>}
+                {stressed > 0 && <><span style={{ color: 'rgba(255,159,10,0.7)' }}>{stressed} elevated</span><span style={{ color: 'var(--border-hover)' }}> · </span></>}
+                {critical > 0 && <span style={{ color: 'rgba(255,69,58,0.8)' }}>{critical} high pressure</span>}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>

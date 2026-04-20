@@ -16,24 +16,24 @@ export function scoreColorHex(score: number): string {
 
 // ── STATUS — source de vérité unique ────────────────────────────────────────
 //
-// Règle simple basée sur le score de risque moyen (0-100) :
-//   >= 50 → Critical   (rouge)
-//   >= 20 → Stressed   (orange)
-//   <  20 → Healthy    (vert)
+// Règle simple basée sur le score moyen (0-100) :
+//   >= 50 → High pressure (rouge)
+//   >= 20 → Elevated      (orange)
+//   <  20 → Low pressure  (vert)
 //
 // Utilisée partout : HealthPill, CortexView, OverviewView, ProjectSwitcher.
 
 export interface HealthStatus {
-  label:    'Critical' | 'Stressed' | 'Healthy' | 'Observing';
+  label:    'High pressure' | 'Elevated' | 'Low pressure' | 'Observing';
   colorHex: string;   // pour SVG attributes, boxShadow, etc.
   colorVar: string;   // pour inline styles (var(--red) etc.)
 }
 
 export function projectHealthStatus(avgScore: number | null): HealthStatus {
   if (avgScore === null) return { label: 'Observing', colorHex: '#636366', colorVar: 'var(--text-muted)' };
-  if (avgScore >= 50)    return { label: 'Critical',  colorHex: '#ff453a', colorVar: 'var(--red)'        };
-  if (avgScore >= 20)    return { label: 'Stressed',  colorHex: '#ff9f0a', colorVar: 'var(--orange)'     };
-  return                        { label: 'Healthy',   colorHex: '#34c759', colorVar: 'var(--green)'      };
+  if (avgScore >= 50)    return { label: 'High pressure', colorHex: '#ff453a', colorVar: 'var(--red)'    };
+  if (avgScore >= 20)    return { label: 'Elevated',      colorHex: '#ff9f0a', colorVar: 'var(--orange)' };
+  return                        { label: 'Low pressure',  colorHex: '#34c759', colorVar: 'var(--green)'  };
 }
 
 /** Calcule le score moyen d'un tableau de scans (0 si vide). */
@@ -129,5 +129,4 @@ export const LAYER_COLORS: Record<Layer, string> = {
 };
 
 export const LAYER_ORDER: Layer[] = ['ui', 'api', 'core', 'db', 'config'];
-
 

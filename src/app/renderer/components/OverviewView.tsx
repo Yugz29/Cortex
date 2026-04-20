@@ -51,7 +51,7 @@ function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[], avgS
   if (critical.length === 0 && stressed.length === 0) {
     const improving = scans.filter(s => s.trend === '↓').length;
     if (improving > scans.length * 0.3)
-      return `${t('summary.allHealthy', { n: scans.length })} ${improving} files are actively improving.`;
+      return `${t('summary.allHealthy', { n: scans.length })} ${improving} files show lower maintenance pressure.`;
     return t('summary.allHealthy', { n: scans.length });
   }
 
@@ -71,7 +71,7 @@ function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[], avgS
     if (trending.length > 0)
       parts.push(t('summary.stressedWorse', { n: trending.length, files: filesWord }));
     else if (improving.length > 0)
-      parts.push(`${improving.length} stressed ${t(improving.length > 1 ? 'summary.files' : 'summary.file')} ${t('overview.improving').toLowerCase()}.`);
+      parts.push(`${improving.length} elevated ${t(improving.length > 1 ? 'summary.files' : 'summary.file')} show lower maintenance pressure.`);
     else
       parts.push(t('summary.stressedStable', { n: stressed.length, files: filesWord }));
   }
@@ -365,7 +365,7 @@ export default function OverviewView({
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px 6px' }}>
             <span style={{ fontSize: 10, letterSpacing: '0.10em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-              Trend
+              Pressure trend
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>
               {projectHistory.length} scans →
@@ -423,7 +423,7 @@ export default function OverviewView({
           <div style={{ fontSize: 10, letterSpacing: '0.10em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>{t('overview.hotspots')}</div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.55 }}>{t('overview.hotspotDesc')}</div>
           {hotspots.length === 0 ? (
-            <div style={{ fontSize: 10, color: 'var(--text-ghost)', fontStyle: 'italic', padding: '6px 0' }}>No hotspots detected.</div>
+            <div style={{ fontSize: 10, color: 'var(--text-ghost)', fontStyle: 'italic', padding: '6px 0' }}>No maintenance hotspots stand out right now.</div>
           ) : hotspots.map(s => {
             const name = s.filePath.split('/').pop() ?? '';
             const hs   = Math.min(s.hotspotScore, 150);
@@ -447,7 +447,7 @@ export default function OverviewView({
           <div style={{ fontSize: 10, letterSpacing: '0.10em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>{t('overview.hubs')}</div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.55 }}>{t('overview.hubDesc')}</div>
           {hubs.length === 0 ? (
-            <div style={{ fontSize: 10, color: 'var(--text-ghost)', fontStyle: 'italic', padding: '6px 0' }}>No critical hubs detected.</div>
+            <div style={{ fontSize: 10, color: 'var(--text-ghost)', fontStyle: 'italic', padding: '6px 0' }}>No high fan-in files stand out right now.</div>
           ) : hubs.map(s => {
             const name = s.filePath.split('/').pop() ?? '';
             const col  = s.fanIn > 10 ? '#ff453a' : '#ff9f0a';

@@ -364,7 +364,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, color: scoreColor(tooltip.scan.globalScore) }}>
             {tooltip.scan.globalScore.toFixed(1)}
-            <span style={{ fontSize: 9, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>tension</span>
+            <span style={{ fontSize: 9, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{t('graph.tension')}</span>
           </div>
         </div>
       )}
