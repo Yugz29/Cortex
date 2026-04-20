@@ -8,9 +8,17 @@ import WelcomeView from './components/WelcomeView';
 
 // ── Health pill ───────────────────────────────────────────────────────────────
 function HealthPill({ scans }: { scans: Scan[] }) {
+  const { t } = useLocale();
   if (!scans.length) return null;
   const avg    = avgRiskScore(scans);
   const status = projectHealthStatus(avg);
+  const statusLabel = status.label === 'High pressure'
+    ? t('status.critical')
+    : status.label === 'Elevated'
+      ? t('status.stressed')
+      : status.label === 'Low pressure'
+        ? t('status.healthy')
+        : t('status.observing');
   const hex    = status.colorHex;
   return (
     <span style={{
@@ -18,7 +26,7 @@ function HealthPill({ scans }: { scans: Scan[] }) {
       borderRadius: 20, letterSpacing: '0.04em',
       color: hex, background: `${hex}14`, border: `0.5px solid ${hex}30`,
     }}>
-      {status.label.toUpperCase()}
+      {statusLabel.toUpperCase()}
     </span>
   );
 }

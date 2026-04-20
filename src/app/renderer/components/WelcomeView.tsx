@@ -53,6 +53,13 @@ function ProjectCard({ project, health, fileCount, onOpen, onRemove }: {
   const { t }   = useLocale();
   const [hov, setHov] = useState(false);
   const status  = projectHealthStatus(health);
+  const statusLabel = status.label === 'High pressure'
+    ? t('status.critical')
+    : status.label === 'Elevated'
+      ? t('status.stressed')
+      : status.label === 'Low pressure'
+        ? t('status.healthy')
+        : t('status.observing');
   const color   = status.colorHex;
   const score   = health !== null ? Math.round(health) : null;
   const hasData = health !== null;
@@ -137,7 +144,7 @@ function ProjectCard({ project, health, fileCount, onOpen, onRemove }: {
               color, background: `${color}15`, border: `0.5px solid ${color}40`,
               borderRadius: 20, padding: '2px 7px',
             }}>
-              {status.label}
+              {statusLabel}
             </span>
           )}
         </div>

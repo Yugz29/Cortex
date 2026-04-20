@@ -181,11 +181,11 @@ function VulnRow({ vuln, t }: { vuln: AuditVuln; t: TFn }) {
             </div>
             {expanded && (
                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10, fontFamily: "'SF Mono','Menlo',monospace", color: 'var(--text-muted)' }}>
-                    {vuln.subdir && <span>in: <span style={{ color: 'var(--text-secondary)' }}>{vuln.subdir}/</span></span>}
-                    {vuln.range && <span>range: <span style={{ color: 'var(--text-secondary)' }}>{vuln.range}</span></span>}
-                    {vuln.via.length > 0 && <span>via: <span style={{ color: 'var(--text-secondary)' }}>{vuln.via.join(', ')}</span></span>}
+                    {vuln.subdir && <span>{t('security.in')}: <span style={{ color: 'var(--text-secondary)' }}>{vuln.subdir}/</span></span>}
+                    {vuln.range && <span>{t('security.range')}: <span style={{ color: 'var(--text-secondary)' }}>{vuln.range}</span></span>}
+                    {vuln.via.length > 0 && <span>{t('security.via')}: <span style={{ color: 'var(--text-secondary)' }}>{vuln.via.join(', ')}</span></span>}
                     {vuln.cves.length > 0 && (
-                        <span>CVE:{' '}
+                        <span>{t('security.cve')}:{' '}
                             {vuln.cves.map((cve, i) => (
                                 <span key={i}>
                                     {i > 0 && ', '}

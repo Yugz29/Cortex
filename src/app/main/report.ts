@@ -244,20 +244,23 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
     const avg         = avgRisk(scans);
     const critical    = scans.filter(s => s.globalScore >= 50);
     const stressed    = scans.filter(s => s.globalScore >= 20 && s.globalScore < 50);
+    const lowPressure = scans.filter(s => s.globalScore < 20);
     const activeScans = scans.filter(s => !isDeadFile(s) || s.globalScore >= 50);
     const deadFiles   = scans.filter(isDeadFile).map(s => s.filePath.replace(projectPath + '/', ''));
+    const overallPressureLevel = avg >= 50 ? 'high_pressure' : avg >= 20 ? 'elevated' : 'low_pressure';
 
-    const layerSummary: Record<string, { role: string; fileCount: number; avgRisk: number }> = {};
+    const layerSummary: Record<string, { role: string; fileCount: number; avgMaintenancePressure: number; avgRisk: number }> = {};
     for (const s of activeScans) {
         const layer = getLayer(s.filePath, projectPath);
         if (!layer) continue;
-        if (!layerSummary[layer.label]) layerSummary[layer.label] = { role: layer.role, fileCount: 0, avgRisk: 0 };
+        if (!layerSummary[layer.label]) layerSummary[layer.label] = { role: layer.role, fileCount: 0, avgMaintenancePressure: 0, avgRisk: 0 };
         layerSummary[layer.label]!.fileCount++;
-        layerSummary[layer.label]!.avgRisk += s.globalScore;
+        layerSummary[layer.label]!.avgMaintenancePressure += s.globalScore;
     }
     for (const k of Object.keys(layerSummary)) {
         const l = layerSummary[k]!;
-        l.avgRisk = Math.round(l.avgRisk / l.fileCount * 10) / 10;
+        l.avgMaintenancePressure = Math.round(l.avgMaintenancePressure / l.fileCount * 10) / 10;
+        l.avgRisk = l.avgMaintenancePressure;
     }
 
     return JSON.stringify({
@@ -266,9 +269,27 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
             totalFiles:  scans.length,
             activeFiles: activeScans.length,
             deadFiles,
+            overallPressureLevel,
+            highPressure: critical.length,
+            elevated:    stressed.length,
+            lowPressure: lowPressure.length,
+            avgMaintenancePressure: parseFloat(avg.toFixed(1)),
+            topReviewCandidates: activeScans
+                .filter(s => s.globalScore >= 50)
+                .slice(0, 5)
+                .map(s => ({
+                    file:               s.filePath.replace(projectPath + '/', ''),
+                    maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
+                    pressureLevel:      s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
+                    trend:              s.trend,
+                    dominantSignal:     topMetricKey(s),
+                    lines:              s.rawFunctionSize,
+                    fanIn:              s.fanIn,
+                    layer:              getLayer(s.filePath, projectPath)?.label ?? 'unknown',
+                })),
             critical:    critical.length,
             stressed:    stressed.length,
-            healthy:     scans.filter(s => s.globalScore < 20).length,
+            healthy:     lowPressure.length,
             avgRisk:     parseFloat(avg.toFixed(1)),
             healthPct:   Math.round(Math.max(0, 100 - avg)),
             topPriorities: activeScans
@@ -277,8 +298,11 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
                 .map(s => ({
                     file:     s.filePath.replace(projectPath + '/', ''),
                     risk:     parseFloat(s.globalScore.toFixed(1)),
+                    maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
+                    pressureLevel: s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
                     trend:    s.trend,
                     topIssue: topMetricKey(s),
+                    dominantSignal: topMetricKey(s),
                     lines:    s.rawFunctionSize,
                     fanIn:    s.fanIn,
                     layer:    getLayer(s.filePath, projectPath)?.label ?? 'unknown',
@@ -289,9 +313,12 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
             file:     s.filePath.replace(projectPath + '/', ''),
             layer:    getLayer(s.filePath, projectPath)?.label ?? 'other',
             risk:     parseFloat(s.globalScore.toFixed(1)),
+            maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
             status:   s.globalScore >= 50 ? 'critical' : s.globalScore >= 20 ? 'stressed' : 'healthy',
+            pressureLevel: s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
             trend:    s.trend,
             topIssue: topMetricKey(s),
+            dominantSignal: topMetricKey(s),
             cx: s.rawComplexity, cog: s.rawCognitiveComplexity,
             lines: s.rawFunctionSize, depth: s.rawDepth,
             churn: s.rawChurn, fanIn: s.fanIn, fanOut: s.fanOut,

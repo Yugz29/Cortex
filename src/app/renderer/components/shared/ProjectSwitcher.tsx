@@ -31,6 +31,13 @@ function ProjectRow({ project, isActive, avg, totalProjects, onSwitch, onRemove 
   const canRemove = true;
   const { t }    = useLocale();
   const status   = projectHealthStatus(avg);
+  const statusLabel = status.label === 'High pressure'
+    ? t('status.critical')
+    : status.label === 'Elevated'
+      ? t('status.stressed')
+      : status.label === 'Low pressure'
+        ? t('status.healthy')
+        : t('status.observing');
   const dotColor = status.colorHex;
   const hasData  = avg !== null;
 
@@ -87,7 +94,7 @@ function ProjectRow({ project, isActive, avg, totalProjects, onSwitch, onRemove 
             <div style={{ fontSize: 13, fontWeight: 200, color: dotColor, letterSpacing: '-0.5px', lineHeight: 1 }}>
               {(avg as number).toFixed(0)}
             </div>
-            <div style={{ fontSize: 8, color: 'var(--text-faint)', marginTop: 1 }}>{status.label.toLowerCase()}</div>
+            <div style={{ fontSize: 8, color: 'var(--text-faint)', marginTop: 1 }}>{statusLabel.toLowerCase()}</div>
           </>
         ) : (
           <div style={{ fontSize: 9, color: 'var(--text-faint)' }}>{t('switcher.noScan')}</div>
