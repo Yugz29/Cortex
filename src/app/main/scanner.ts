@@ -3,7 +3,7 @@ import path from 'node:path';
 import { analyzeFile } from '../../cortex/analyzer/parser.js';
 import { scoreFromRaw, computeProjectBaselines } from '../../cortex/risk-score/riskScore.js';
 import type { RawMetrics, RiskScoreResult } from '../../cortex/risk-score/riskScore.js';
-import { saveScan, saveFunctions, saveCouplings } from '../../database/db.js';
+import { saveScan, saveFunctions, saveCouplings, saveImportEdges } from '../../database/db.js';
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 
@@ -379,6 +379,7 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
 
     const importGraph = buildImportGraph(files, fileSources, { projectPath });
     const edges = importGraph.edges;
+    saveImportEdges(projectPath, edges);
     const d = importGraph.diagnostics;
     console.log(`[Cortex] Import graph — imports=${d.totalImports}, relative=${d.relativeImports}, aliases=${d.simpleAliasImports}, pythonAbsolute=${d.pythonAbsoluteImports}, external=${d.externalIgnored}, unresolved=${d.unresolvedImports}, edges=${d.edgesCreated}`);
     if (d.unresolvedExamples.length > 0) {

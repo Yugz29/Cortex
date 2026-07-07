@@ -5,6 +5,7 @@ import { existsSync, renameSync } from 'node:fs';
 import { app } from 'electron';
 import type { FunctionMetrics } from '../cortex/analyzer/parser.js';
 import type { FileCoupling } from '../cortex/analyzer/churn.js';
+import type { FileEdge } from '../app/main/scanner.js';
 import { runMigrations } from './migrations.js';
 
 let _db: InstanceType<typeof Database> | null = null;
@@ -303,6 +304,34 @@ export function saveCouplings(couplings: Map<string, FileCoupling[]>, projectPat
             stmt.run(fileA, fileB, coChangeCount, projectPath, now);
         }
     }
+}
+
+export function saveImportEdges(projectPath: string, edges: FileEdge[]): void {
+    const db  = getDb();
+    const now = new Date().toISOString();
+    const deleteExisting = db.prepare(`DELETE FROM import_edges WHERE project_path = ?`);
+    const insert = db.prepare(`
+        INSERT OR IGNORE INTO import_edges (project_path, from_file, to_file, scanned_at)
+        VALUES (?, ?, ?, ?)
+    `);
+
+    db.transaction(() => {
+        deleteExisting.run(projectPath);
+        for (const edge of edges) {
+            insert.run(projectPath, edge.from, edge.to, now);
+        }
+    })();
+}
+
+export function getImportEdges(projectPath: string): FileEdge[] {
+    const rows = getDb().prepare(`
+        SELECT from_file, to_file
+        FROM import_edges
+        WHERE project_path = ?
+        ORDER BY id ASC
+    `).all(projectPath) as { from_file: string; to_file: string }[];
+
+    return rows.map(row => ({ from: row.from_file, to: row.to_file }));
 }
 
 /** Sauvegarde un snapshot uniquement si le score a changé OU si c'est un nouveau jour. */

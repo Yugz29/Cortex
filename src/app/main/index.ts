@@ -15,6 +15,7 @@ import {
   getScoreHistory,
   getProjectScoreHistory, getProjectSummary,
   saveProjectSnapshot, getProjectHistory, getProjectHistoryByDay, getSnapshotDetail, getSnapshotDetailForDay,
+  getImportEdges,
 } from '../../database/db.js';
 import { scanProject } from './scanner.js';
 import { scanProjectForPatterns } from '../../cortex/security/patternScanner.js';
@@ -252,7 +253,7 @@ app.whenReady().then(async () => {
     return getLatestScans(getActiveProjectPath()).filter(s => !ignoredSet.has(s.filePath));
   });
   ipcMain.handle('get-project-path',        () => getActiveProjectPath());
-  ipcMain.handle('get-edges',               () => lastEdges);
+  ipcMain.handle('get-edges',               () => lastEdges.length > 0 ? lastEdges : getImportEdges(getActiveProjectPath()));
   ipcMain.handle('get-functions',           (_e, filePath: string) => getFunctions(filePath));
   ipcMain.handle('get-score-history',       (_e, filePath: string) => getScoreHistory(filePath));
   ipcMain.handle('get-project-score-history', () => getProjectScoreHistory(getActiveProjectPath()));

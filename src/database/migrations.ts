@@ -22,7 +22,7 @@ type BetterSqlite3 = {
     transaction: (fn: () => void) => () => void;
 };
 
-export const CURRENT_VERSION = 8;
+export const CURRENT_VERSION = 9;
 
 type Migration = {
     version: number;
@@ -219,6 +219,25 @@ export const MIGRATIONS: Migration[] = [
         up: (db) => {
             db.exec(`CREATE INDEX IF NOT EXISTS idx_feedbacks_file ON feedbacks(file_path, created_at DESC)`);
             db.exec(`CREATE INDEX IF NOT EXISTS idx_snapshots_project_at ON project_snapshots(project_path, scanned_at DESC)`);
+        },
+    },
+    {
+        version: 9,
+        description: 'Persist import graph edges',
+        up: (db) => {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS import_edges (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_path TEXT NOT NULL,
+                    from_file    TEXT NOT NULL,
+                    to_file      TEXT NOT NULL,
+                    scanned_at   TEXT NOT NULL
+                )
+            `);
+            db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_import_edges_unique ON import_edges(project_path, from_file, to_file)`);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_project ON import_edges(project_path)`);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_from ON import_edges(project_path, from_file)`);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_to ON import_edges(project_path, to_file)`);
         },
     },
 ];
