@@ -46,7 +46,6 @@ const IMPORT_PATTERNS: Record<string, RegExp[]> = {
         /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     ],
     py: [
-        /^from\s+(\.{0,2}[\w.]+)\s+import/gm,
         /^import\s+([\w.]+)/gm,
     ],
 };
@@ -57,8 +56,38 @@ export interface ImportResolveContext {
     projectPath: string;
 }
 
+export type ImportKind = 'relative' | 'simple-alias' | 'external';
+export type UnresolvedImportReason =
+    | 'target-not-scanned-or-excluded'
+    | 'outside-project'
+    | 'alias-context-missing';
+
+export interface UnresolvedImportExample {
+    filePath: string;
+    importPath: string;
+    reason: UnresolvedImportReason;
+}
+
+export interface ImportGraphDiagnostics {
+    totalImports:          number;
+    relativeImports:       number;
+    simpleAliasImports:    number;
+    pythonAbsoluteImports: number;
+    externalIgnored:       number;
+    unresolvedImports:     number;
+    edgesCreated:          number;
+    unresolvedExamples:    UnresolvedImportExample[];
+}
+
+export interface ImportGraphResult {
+    edges:       FileEdge[];
+    diagnostics: ImportGraphDiagnostics;
+}
+
 export function extractImports(filePath: string, source: string): string[] {
     const ext  = path.extname(filePath).toLowerCase();
+    if (ext === '.py') return extractPythonImports(source);
+
     const pats = ext === '.py' ? IMPORT_PATTERNS.py : IMPORT_PATTERNS.js;
     const imports: string[] = [];
     for (const pat of pats) {
@@ -72,13 +101,58 @@ export function extractImports(filePath: string, source: string): string[] {
     return imports;
 }
 
+function extractPythonImports(source: string): string[] {
+    const imports: string[] = [];
+    const fromPattern = /^from\s+(\.+)?([\w.]*)\s+import\s+([^\n#]+)/gm;
+    let fromMatch;
+    while ((fromMatch = fromPattern.exec(source)) !== null) {
+        const dots = fromMatch[1] ?? '';
+        const modulePath = fromMatch[2] ?? '';
+        const imported = fromMatch[3] ?? '';
+
+        if (dots && modulePath) {
+            imports.push(dots + modulePath);
+            continue;
+        }
+
+        if (dots && !modulePath) {
+            for (const name of imported.split(',')) {
+                const clean = name.trim().split(/\s+as\s+/)[0]?.trim();
+                if (clean && /^[A-Za-z_]\w*$/.test(clean)) imports.push(dots + clean);
+            }
+            continue;
+        }
+
+        if (modulePath) imports.push(modulePath);
+    }
+
+    for (const pat of IMPORT_PATTERNS.py) {
+        pat.lastIndex = 0;
+        let match;
+        while ((match = pat.exec(source)) !== null) {
+            imports.push(match[1]);
+        }
+    }
+
+    return imports;
+}
+
 function isInsideProject(filePath: string, projectPath: string): boolean {
     const rel = path.relative(projectPath, filePath);
     return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
+function classifyImport(importPath: string): ImportKind {
+    if (importPath.startsWith('.')) return 'relative';
+    if (importPath.startsWith('@/') || importPath.startsWith('~/') || importPath.startsWith('src/')) return 'simple-alias';
+    return 'external';
+}
+
 function resolveImportBase(fromFile: string, importPath: string, context?: ImportResolveContext): string | null {
     const stripped = importPath.replace(/\.js$/, '');
+    if (path.extname(fromFile).toLowerCase() === '.py' && importPath.startsWith('.')) {
+        return resolvePythonRelativeImportBase(fromFile, importPath);
+    }
     if (importPath.startsWith('.')) return path.resolve(path.dirname(fromFile), stripped);
 
     if (!context) return null;
@@ -92,17 +166,95 @@ function resolveImportBase(fromFile: string, importPath: string, context?: Impor
     return null;
 }
 
+function resolvePythonRelativeImportBase(fromFile: string, importPath: string): string | null {
+    const match = /^(\.+)(.*)$/.exec(importPath);
+    if (!match) return null;
+
+    const dots = match[1]!;
+    const modulePath = match[2]!;
+    let baseDir = path.dirname(fromFile);
+    for (let i = 1; i < dots.length; i++) {
+        baseDir = path.dirname(baseDir);
+    }
+
+    if (!modulePath) return baseDir;
+    return path.join(baseDir, ...modulePath.split('.').filter(Boolean));
+}
+
+function isPythonFile(filePath: string): boolean {
+    return path.extname(filePath).toLowerCase() === '.py';
+}
+
+function pythonModuleCandidates(base: string): string[] {
+    return [base + '.py', path.join(base, '__init__.py')];
+}
+
+function pythonAbsoluteRoots(fromFile: string, projectPath: string): string[] {
+    const roots: string[] = [];
+    const seen = new Set<string>();
+    const add = (dir: string) => {
+        const resolved = path.resolve(dir);
+        if (!isInsideProject(resolved, projectPath) || seen.has(resolved)) return;
+        seen.add(resolved);
+        roots.push(resolved);
+    };
+
+    let current = path.dirname(fromFile);
+    add(current);
+    while (current !== projectPath) {
+        current = path.dirname(current);
+        add(current);
+        if (current === path.dirname(current)) break;
+    }
+    add(path.join(projectPath, 'src'));
+
+    return roots;
+}
+
+function resolvePythonAbsoluteImport(
+    fromFile: string,
+    importPath: string,
+    allFiles: Set<string>,
+    context?: ImportResolveContext,
+): string | null {
+    if (!context || !isPythonFile(fromFile) || importPath.startsWith('.')) return null;
+    const moduleParts = importPath.split('.').filter(Boolean);
+    if (moduleParts.length === 0) return null;
+
+    for (const root of pythonAbsoluteRoots(fromFile, context.projectPath)) {
+        const base = path.join(root, ...moduleParts);
+        for (const candidate of pythonModuleCandidates(base)) {
+            if (!isInsideProject(candidate, context.projectPath)) continue;
+            if (allFiles.has(candidate)) return candidate;
+        }
+    }
+
+    return null;
+}
+
+function unresolvedReason(fromFile: string, importPath: string, context?: ImportResolveContext): UnresolvedImportReason {
+    if (classifyImport(importPath) === 'simple-alias' && !context) return 'alias-context-missing';
+    const base = resolveImportBase(fromFile, importPath, context);
+    if (base && context && !isInsideProject(base, context.projectPath)) return 'outside-project';
+    return 'target-not-scanned-or-excluded';
+}
+
 export function resolveImport(
     fromFile: string,
     importPath: string,
     allFiles: Set<string>,
     context?: ImportResolveContext,
 ): string | null {
+    const pythonAbsolute = resolvePythonAbsoluteImport(fromFile, importPath, allFiles, context);
+    if (pythonAbsolute) return pythonAbsolute;
+
     const base = resolveImportBase(fromFile, importPath, context);
     if (!base) return null;
     if (context && !isInsideProject(base, context.projectPath)) return null;
 
+    const isPythonImport = isPythonFile(fromFile);
     const candidates = [
+        ...(isPythonImport ? pythonModuleCandidates(base) : []),
         base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx', base + '.mjs', base + '.cjs',
         path.join(base, 'index.ts'), path.join(base, 'index.tsx'),
         path.join(base, 'index.js'), path.join(base, 'index.jsx'),
@@ -115,28 +267,72 @@ export function resolveImport(
     return null;
 }
 
-export function buildEdges(
+export function buildImportGraph(
     files: string[],
     fileSources: Map<string, string>,
     context?: ImportResolveContext,
-): FileEdge[] {
+): ImportGraphResult {
     const fileSet = new Set(files);
     const edges: FileEdge[] = [];
     const seen  = new Set<string>();
+    const diagnostics: ImportGraphDiagnostics = {
+        totalImports:          0,
+        relativeImports:       0,
+        simpleAliasImports:    0,
+        pythonAbsoluteImports: 0,
+        externalIgnored:       0,
+        unresolvedImports:     0,
+        edgesCreated:          0,
+        unresolvedExamples:    [],
+    };
+
     for (const file of files) {
         const source = fileSources.get(file);
         if (!source) continue;
         const imports = extractImports(file, source);
         for (const imp of imports) {
+            diagnostics.totalImports++;
+            const kind = classifyImport(imp);
             const resolved = resolveImport(file, imp, fileSet, context);
-            if (!resolved) continue;
+            if (kind === 'external') {
+                if (!resolved) {
+                    diagnostics.externalIgnored++;
+                    continue;
+                }
+                if (isPythonFile(file)) diagnostics.pythonAbsoluteImports++;
+            } else if (kind === 'relative') {
+                diagnostics.relativeImports++;
+            } else {
+                diagnostics.simpleAliasImports++;
+            }
+
+            if (!resolved) {
+                diagnostics.unresolvedImports++;
+                if (diagnostics.unresolvedExamples.length < 10) {
+                    diagnostics.unresolvedExamples.push({
+                        filePath: file,
+                        importPath: imp,
+                        reason: unresolvedReason(file, imp, context),
+                    });
+                }
+                continue;
+            }
             const key = `${file}→${resolved}`;
             if (seen.has(key)) continue;
             seen.add(key);
             edges.push({ from: file, to: resolved });
         }
     }
-    return edges;
+    diagnostics.edgesCreated = edges.length;
+    return { edges, diagnostics };
+}
+
+export function buildEdges(
+    files: string[],
+    fileSources: Map<string, string>,
+    context?: ImportResolveContext,
+): FileEdge[] {
+    return buildImportGraph(files, fileSources, context).edges;
 }
 
 export interface ScanResult { files: RiskScoreResult[]; edges: FileEdge[]; }
@@ -181,7 +377,15 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
         }
     }
 
-    const edges = buildEdges(files, fileSources, { projectPath });
+    const importGraph = buildImportGraph(files, fileSources, { projectPath });
+    const edges = importGraph.edges;
+    const d = importGraph.diagnostics;
+    console.log(`[Cortex] Import graph — imports=${d.totalImports}, relative=${d.relativeImports}, aliases=${d.simpleAliasImports}, pythonAbsolute=${d.pythonAbsoluteImports}, external=${d.externalIgnored}, unresolved=${d.unresolvedImports}, edges=${d.edgesCreated}`);
+    if (d.unresolvedExamples.length > 0) {
+        console.warn('[Cortex] Unresolved import examples —', d.unresolvedExamples.map(ex =>
+            `${path.relative(projectPath, ex.filePath)} imports "${ex.importPath}" (${ex.reason})`
+        ).join(' | '));
+    }
     const fanOutMap = new Map<string, number>();
     const fanInMap  = new Map<string, number>();
     for (const file of files) { fanOutMap.set(file, 0); fanInMap.set(file, 0); }
