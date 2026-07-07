@@ -4,6 +4,7 @@ import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils'
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
+import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
 import ScoreGraph from './shared/ScoreGraph';
 import MetricBar from './shared/MetricBar';
 import SectionLabel from './shared/SectionLabel';
@@ -342,6 +343,9 @@ function FunctionList({
       {fns.map(fn => {
         const key     = fn.name + fn.start_line;
         const isHov   = hovered === key;
+        const diagnosis = diagnoseFunction(fn);
+        const showDiagnosis = diagnosis.priority >= 30;
+        const diagCol = diagnosis.priority >= 60 ? 'var(--red)' : 'var(--orange)';
         const cxCol   = fn.cyclomatic_complexity > 10 ? 'var(--red)' : fn.cyclomatic_complexity > 5 ? 'var(--orange)' : 'var(--text-secondary)';
         const cogCol  = (fn.cognitive_complexity ?? 0) > 20 ? 'var(--red)' : (fn.cognitive_complexity ?? 0) > 10 ? 'var(--orange)' : 'var(--text-secondary)';
         const pCol    = fn.parameter_count > 5 ? 'var(--red)' : 'var(--text-secondary)';
@@ -387,6 +391,31 @@ function FunctionList({
                 <span key={item.v} style={{ color: item.col, fontFamily: "'SF Mono','Menlo',monospace" }}>{item.v}</span>
               ))}
             </div>
+            {showDiagnosis && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+                <span style={{
+                  fontSize: 9,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  fontWeight: 500,
+                  color: diagCol,
+                  background: diagnosis.priority >= 60 ? 'var(--explain-red-bg)' : 'var(--explain-org-bg)',
+                  border: `0.5px solid ${diagnosis.priority >= 60 ? 'var(--red)' : 'var(--orange)'}`,
+                  flexShrink: 0,
+                }}>
+                  {diagnosis.label}
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  color: 'var(--text-faint)',
+                  lineHeight: 1.45,
+                  whiteSpace: 'normal',
+                  wordBreak: 'normal',
+                }}>
+                  {diagnosis.summary}
+                </span>
+              </div>
+            )}
           </div>
         );
       })}
