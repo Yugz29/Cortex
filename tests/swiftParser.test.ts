@@ -61,6 +61,22 @@ class Controller {
         expect(metrics.functions.map(f => f.name)).toEqual(['resetState', 'makeDefault', 'viewDidLoad']);
     });
 
+    it('detecte nonisolated static func et nonisolated func', () => {
+        const metrics = analyzeSwiftFile(fixture('nonisolated', `\
+enum TuyaScooterMapper {
+    nonisolated static func map(_ status: [String]) -> ScooterState {
+        ScooterState()
+    }
+
+    nonisolated func refresh() {
+        print("ok")
+    }
+}
+`));
+
+        expect(metrics.functions.map(f => f.name)).toEqual(['map', 'refresh']);
+    });
+
     it('detecte init et override init', () => {
         const metrics = analyzeSwiftFile(fixture('initializers', `\
 class Base {}
@@ -96,7 +112,60 @@ struct SomeView: View {
 }
 `));
 
-        expect(metrics.functions.map(f => f.name)).toEqual(['title']);
+        expect(metrics.functions.map(f => f.name)).toEqual(['body', 'title']);
+    });
+
+    it('detecte les computed properties SwiftUI et simples', () => {
+        const metrics = analyzeSwiftFile(fixture('computed_properties', `\
+import SwiftUI
+
+struct SettingsView: View {
+    var body: some View {
+        VStack {
+            controlsSection
+        }
+    }
+
+    private var controlsSection: some View {
+        if isConnected {
+            Text("Connected")
+        } else {
+            Text(title)
+        }
+    }
+
+    var title: String {
+        "Settings"
+    }
+}
+`));
+
+        expect(metrics.functions.map(f => f.name)).toEqual(['body', 'controlsSection', 'title']);
+        const controlsSection = metrics.functions.find(f => f.name === 'controlsSection')!;
+        expect(controlsSection.parameterCount).toBe(0);
+        expect(controlsSection.cyclomaticComplexity).toBeGreaterThanOrEqual(2);
+        expect(controlsSection.cognitiveComplexity).toBeGreaterThanOrEqual(1);
+        expect(controlsSection.maxDepth).toBeGreaterThanOrEqual(1);
+    });
+
+    it('detecte une computed property annotee @ViewBuilder', () => {
+        const metrics = analyzeSwiftFile(fixture('view_builder_property', `\
+import SwiftUI
+
+struct Panel: View {
+    @ViewBuilder private var content: some View {
+        switch state {
+        case .empty:
+            Text("Empty")
+        default:
+            Text("Ready")
+        }
+    }
+}
+`));
+
+        expect(metrics.functions.map(f => f.name)).toEqual(['content']);
+        expect(metrics.functions[0]?.cyclomaticComplexity).toBeGreaterThanOrEqual(3);
     });
 
     it('detecte des methodes dans class, enum et extension', () => {
@@ -125,6 +194,21 @@ func connect(to peripheral: CBPeripheral, name: String, rssi: Int?) {
 `));
 
         expect(metrics.functions[0]?.parameterCount).toBe(3);
+    });
+
+    it('nomme les methodes Swift multi-labels avec leur selecteur', () => {
+        const metrics = analyzeSwiftFile(fixture('delegate_selector', `\
+func centralManager(
+    _ central: CBCentralManager,
+    didDiscover peripheral: CBPeripheral,
+    advertisementData: [String: Any],
+    rssi RSSI: NSNumber
+) {
+    print(peripheral)
+}
+`));
+
+        expect(metrics.functions[0]?.name).toBe('centralManager(_:didDiscover:advertisementData:rssi:)');
     });
 
     it('calcule profondeur et complexite via accolades et ruptures de flux', () => {

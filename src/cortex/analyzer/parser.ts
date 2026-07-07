@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Project, SyntaxKind, Node, SourceFile } from 'ts-morph';
+import { Project, SyntaxKind } from 'ts-morph';
+import type { Node, SourceFile } from 'ts-morph';
 import { analyzeWithTreeSitter } from './pythonParser.js';
 import { analyzeSwiftFile } from './swiftParser.js';
 

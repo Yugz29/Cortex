@@ -1,7 +1,15 @@
 import * as fs from 'node:fs';
 import type { FileMetrics, FunctionMetrics } from './parser.js';
 
-const SIGNATURE_RE = /(^|\n)([ \t]*(?:(?:public|private|fileprivate|internal|open|static|class|final|override|mutating|nonmutating|convenience|required)\s+)*(?:(?:func)\s+([A-Za-z_]\w*)|init)\s*(?:<[^>{}\n]*>)?\s*\()/g;
+const SWIFT_MODIFIER = 'public|private|fileprivate|internal|open|static|class|final|override|mutating|nonmutating|nonisolated|convenience|required';
+const SIGNATURE_RE = new RegExp(
+    `(^|\\n)([ \\t]*(?:(?:${SWIFT_MODIFIER})\\s+)*(?:(?:func)\\s+([A-Za-z_]\\w*)|init)\\s*(?:<[^>{}\\n]*>)?\\s*\\()`,
+    'g',
+);
+const COMPUTED_PROPERTY_RE = new RegExp(
+    `(^|\\n)((?:[ \\t]*@[^\\n]+\\n)*[ \\t]*(?:(?:@\\w+(?:\\([^\\n]*\\))?\\s+)|(?:(?:${SWIFT_MODIFIER})\\s+))*var\\s+([A-Za-z_]\\w*)\\s*:)`,
+    'g',
+);
 const DECISION_RE = /\b(if|guard|for|while|switch|case|catch)\b|&&|\|\||\?(?!\?)/g;
 
 function sanitizeSwiftSource(source: string): string {
@@ -136,6 +144,24 @@ function countParameters(parameterSource: string): number {
         .length;
 }
 
+function selectorLabel(parameter: string): string {
+    const trimmed = parameter.trim();
+    if (!trimmed) return '';
+
+    const firstToken = trimmed.match(/^([A-Za-z_]\w*|_)(?=\s|:)/)?.[1];
+    if (!firstToken) return '';
+    return firstToken + ':';
+}
+
+function swiftFunctionName(baseName: string, parameterSource: string): string {
+    const labels = splitTopLevelCommaList(parameterSource)
+        .map(selectorLabel)
+        .filter(label => label.length > 0);
+
+    if (labels.length <= 1) return baseName;
+    return `${baseName}(${labels.join('')})`;
+}
+
 function countMatches(source: string, re: RegExp): number {
     re.lastIndex = 0;
     let count = 0;
@@ -176,11 +202,28 @@ export function analyzeSwiftFile(filePath: string): FileMetrics {
     const starts = lineStarts(sanitized);
     const functions: FunctionMetrics[] = [];
 
+    function addAnalyzableUnit(name: string, signatureStart: number, parameterStart: number, parameterEnd: number, bodyStart: number, bodyEnd: number): void {
+        const startLine = lineForIndex(starts, signatureStart);
+        const endLine = lineForIndex(starts, bodyEnd);
+        const body = sanitized.slice(bodyStart + 1, bodyEnd);
+        const metrics = computeBodyMetrics(body);
+
+        functions.push({
+            name,
+            startLine,
+            lineCount: endLine - startLine + 1,
+            parameterCount: parameterStart >= 0 && parameterEnd >= 0
+                ? countParameters(sanitized.slice(parameterStart + 1, parameterEnd))
+                : 0,
+            ...metrics,
+        });
+    }
+
     SIGNATURE_RE.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = SIGNATURE_RE.exec(sanitized)) !== null) {
         const signatureStart = match.index + match[1]!.length;
-        const name = match[3] ?? 'init';
+        const baseName = match[3] ?? 'init';
         const parameterStart = sanitized.indexOf('(', signatureStart);
         if (parameterStart === -1) continue;
 
@@ -193,21 +236,32 @@ export function analyzeSwiftFile(filePath: string): FileMetrics {
         const bodyEnd = findMatching(sanitized, bodyStart, '{', '}');
         if (bodyEnd === -1) continue;
 
-        const startLine = lineForIndex(starts, signatureStart);
-        const endLine = lineForIndex(starts, bodyEnd);
-        const body = sanitized.slice(bodyStart + 1, bodyEnd);
-        const metrics = computeBodyMetrics(body);
+        const name = match[3]
+            ? swiftFunctionName(baseName, sanitized.slice(parameterStart + 1, parameterEnd))
+            : baseName;
 
-        functions.push({
-            name,
-            startLine,
-            lineCount: endLine - startLine + 1,
-            parameterCount: countParameters(sanitized.slice(parameterStart + 1, parameterEnd)),
-            ...metrics,
-        });
+        addAnalyzableUnit(name, signatureStart, parameterStart, parameterEnd, bodyStart, bodyEnd);
 
         SIGNATURE_RE.lastIndex = bodyEnd + 1;
     }
+
+    COMPUTED_PROPERTY_RE.lastIndex = 0;
+    while ((match = COMPUTED_PROPERTY_RE.exec(sanitized)) !== null) {
+        const signatureStart = match.index + match[1]!.length;
+        const name = match[3]!;
+        const bodyStart = sanitized.indexOf('{', COMPUTED_PROPERTY_RE.lastIndex);
+        if (bodyStart === -1) continue;
+        if (sanitized.slice(COMPUTED_PROPERTY_RE.lastIndex, bodyStart).includes('\n')) continue;
+
+        const bodyEnd = findMatching(sanitized, bodyStart, '{', '}');
+        if (bodyEnd === -1) continue;
+
+        addAnalyzableUnit(name, signatureStart, -1, -1, bodyStart, bodyEnd);
+
+        COMPUTED_PROPERTY_RE.lastIndex = bodyEnd + 1;
+    }
+
+    functions.sort((a, b) => a.startLine - b.startLine);
 
     return {
         filePath,
