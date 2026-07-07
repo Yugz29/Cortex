@@ -9,6 +9,7 @@ import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import type { FunctionDetail } from '../types';
 import { useLocale } from '../hooks/useLocale';
+import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
 
 interface Props {
   filePath: string;
@@ -259,6 +260,9 @@ export default function CodeView({ filePath, fn, onClose }: Props) {
   const ext     = filePath.split('.').pop()?.toLowerCase() ?? '';
   const lang    = ext === 'py' ? 'py' : 'js';
   const fname   = filePath.split('/').pop() ?? filePath;
+  const diagnosis = diagnoseFunction(fn);
+  const showDiagnosis = diagnosis.priority >= 30;
+  const diagCol = diagnosis.priority >= 60 ? 'var(--red)' : 'var(--orange)';
 
   const lineNumWidth = String(lines.length).length * 8 + 20;
 
@@ -440,6 +444,49 @@ export default function CodeView({ filePath, fn, onClose }: Props) {
           ×
         </button>
       </div>
+
+      {showDiagnosis && (
+        <div style={{
+          flexShrink: 0,
+          padding: '8px 20px 9px',
+          borderBottom: '0.5px solid var(--border)',
+          background: 'color-mix(in srgb, var(--bg-card) 72%, transparent)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <span style={{
+              fontSize: 10,
+              padding: '1px 6px',
+              borderRadius: 4,
+              fontWeight: 500,
+              color: diagCol,
+              background: diagnosis.priority >= 60 ? 'var(--explain-red-bg)' : 'var(--explain-org-bg)',
+              border: `0.5px solid ${diagnosis.priority >= 60 ? 'var(--red)' : 'var(--orange)'}`,
+            }}>
+              {diagnosis.label}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              {diagnosis.summary}
+            </span>
+          </div>
+          {diagnosis.reasons.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {diagnosis.reasons.slice(0, 3).map(reason => (
+                <span key={reason.metric} style={{
+                  fontSize: 9,
+                  color: 'var(--text-muted)',
+                  background: 'var(--bg-hover)',
+                  border: '0.5px solid var(--border)',
+                  borderRadius: 4,
+                  padding: '1px 6px',
+                  fontFamily: "'SF Mono','Menlo',monospace",
+                }}>
+                  {reason.label} · {reason.value}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Code — mode lecture */}
       {!editMode && (
