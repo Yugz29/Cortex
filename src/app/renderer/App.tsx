@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Scan, Edge } from './types';
 import { avgRiskScore, projectHealthStatus } from './utils';
 import { useLocale } from './hooks/useLocale';
@@ -48,6 +48,11 @@ export default function App() {
   const [settingsOpen,   setSettingsOpen]   = useState(false);
   const [sidebarOpen,    setSidebarOpen]    = useState(true);
   const [isFullscreen,   setIsFullscreen]   = useState(false);
+  const projectPathRef = useRef(projectPath);
+
+  useEffect(() => {
+    projectPathRef.current = projectPath;
+  }, [projectPath]);
 
   useEffect(() => {
     window.api.getSettings().then(s => {
@@ -58,7 +63,13 @@ export default function App() {
     window.api.getProjects().then(setProjects);
     window.api.getProjectsHealth().then(setProjectsHealth);
     load();
-    window.api.onScanComplete(() => { load(); refreshHealth(); setSwitching(false); });
+    window.api.onScanComplete((payload) => {
+      const completedProjectPath = payload?.projectPath;
+      if (completedProjectPath && completedProjectPath !== projectPathRef.current) return;
+      load();
+      refreshHealth();
+      setSwitching(false);
+    });
     window.api.onEvent((e: any) => {
       if (e.type === 'scan-start') { setScanStatus('scanning…'); return; }
       if (e.type === 'scan-done')  { setScanStatus(''); return; }

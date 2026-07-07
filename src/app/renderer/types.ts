@@ -75,7 +75,7 @@ declare global {
         improved: { filePath: string; prev: number; curr: number; delta: number }[];
         newFiles: { filePath: string; score: number }[];
       }>;
-      onScanComplete:         (cb: () => void) => void;
+      onScanComplete:         (cb: (payload?: { projectPath?: string }) => void) => void;
       onEvent:                (cb: (e: any) => void) => void;
       onFocusFile:            (cb: (filePath: string) => void) => (() => void);
       onFullscreenChange:     (cb: (isFullscreen: boolean) => void) => (() => void);

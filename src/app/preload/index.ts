@@ -37,9 +37,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('get-snapshot-detail-for-day', day),
 
   // ── Events ────────────────────────────────────────────────────────────────
-  onScanComplete: (cb: () => void): void => {
+  onScanComplete: (cb: (payload?: { projectPath?: string }) => void): void => {
     ipcRenderer.removeAllListeners('scan-complete');
-    ipcRenderer.on('scan-complete', cb);
+    ipcRenderer.on('scan-complete', (_ipc, payload) => cb(payload));
   },
 
   onEvent: (cb: (e: any) => void): void => {

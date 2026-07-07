@@ -121,7 +121,9 @@ function dumpSnapshot(projectPath: string): void {
 
 let mainWindow: BrowserWindow | null = null;
 let lastEdges: FileEdge[] = [];
+let lastEdgesProjectPath = '';
 let lastScoreSnapshot = new Map<string, number>();
+let activeScanToken = 0;
 
 function getActiveProjectPath(): string {
   const settings = loadSettings();
@@ -171,13 +173,19 @@ function emit(type: string, message: string, level: 'info' | 'warn' | 'critical'
 }
 
 async function runScan(): Promise<void> {
+  const scanToken = ++activeScanToken;
+  const projectPath = getActiveProjectPath();
   try {
-    const projectPath = getActiveProjectPath();
     emit('scan-start', 'analysis triggered', 'info');
 
     const settings = loadSettings();
     const result = await scanProject(projectPath, settings.ignore, settings.ignoredFiles);
+    if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
+      console.log(`[Cortex] Ignored stale scan result — ${projectPath.split('/').pop() || projectPath}`);
+      return;
+    }
     lastEdges = result.edges;
+    lastEdgesProjectPath = projectPath;
 
     const thresholdHit: { name: string; filePath: string; score: number }[] = [];
     const degraded:     string[] = [];
@@ -234,8 +242,12 @@ async function runScan(): Promise<void> {
     saveProjectSnapshot(projectPath, avgScore, result.files.length);
 
     dumpSnapshot(projectPath);
-    mainWindow?.webContents.send('scan-complete');
+    mainWindow?.webContents.send('scan-complete', { projectPath });
   } catch (err) {
+    if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
+      console.log(`[Cortex] Ignored stale scan error — ${projectPath.split('/').pop() || projectPath}`);
+      return;
+    }
     console.error('[Cortex] Scan error:', err);
     emit('scan-error', 'scan failed · check console', 'critical');
   }
@@ -253,7 +265,12 @@ app.whenReady().then(async () => {
     return getLatestScans(getActiveProjectPath()).filter(s => !ignoredSet.has(s.filePath));
   });
   ipcMain.handle('get-project-path',        () => getActiveProjectPath());
-  ipcMain.handle('get-edges',               () => lastEdges.length > 0 ? lastEdges : getImportEdges(getActiveProjectPath()));
+  ipcMain.handle('get-edges',               () => {
+    const projectPath = getActiveProjectPath();
+    return lastEdges.length > 0 && lastEdgesProjectPath === projectPath
+      ? lastEdges
+      : getImportEdges(projectPath);
+  });
   ipcMain.handle('get-functions',           (_e, filePath: string) => getFunctions(filePath));
   ipcMain.handle('get-score-history',       (_e, filePath: string) => getScoreHistory(filePath));
   ipcMain.handle('get-project-score-history', () => getProjectScoreHistory(getActiveProjectPath()));
@@ -276,6 +293,8 @@ app.whenReady().then(async () => {
     const updated = addProject(loadSettings(), newPath);
     saveSettings(updated);
     lastScoreSnapshot = new Map();
+    lastEdges = [];
+    lastEdgesProjectPath = '';
     emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
@@ -287,6 +306,8 @@ app.whenReady().then(async () => {
     const updated = removeProject(loadSettings(), projectPath);
     saveSettings(updated);
     lastScoreSnapshot = new Map();
+    lastEdges = [];
+    lastEdgesProjectPath = '';
     const w = (global as any).__cortexWatcher;
     if (updated.activeProjectPath && updated.activeProjectPath !== projectPath) {
       // Bascule sur le projet suivant
@@ -297,7 +318,8 @@ app.whenReady().then(async () => {
       // Plus aucun projet — arrêter le watcher, signaler l'UI
       if (w) w.close();
       emit('project-switch', '', 'info');
-      mainWindow?.webContents.send('scan-complete');
+      activeScanToken++;
+      mainWindow?.webContents.send('scan-complete', { projectPath: '' });
     }
     return updated.projects;
   });
@@ -497,6 +519,8 @@ app.whenReady().then(async () => {
     const updated = setActiveProject(loadSettings(), projectPath);
     saveSettings(updated);
     lastScoreSnapshot = new Map();
+    lastEdges = [];
+    lastEdgesProjectPath = '';
     emit('project-switch', `switched · ${projectPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(projectPath, loadSettings().ignore);
@@ -513,6 +537,8 @@ app.whenReady().then(async () => {
     const updated = addProject(loadSettings(), newPath);
     saveSettings(updated);
     lastScoreSnapshot = new Map();
+    lastEdges = [];
+    lastEdgesProjectPath = '';
     emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
