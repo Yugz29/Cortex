@@ -1,11 +1,23 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { buildEdges, buildImportGraph, extractImports, resolveImport } from '../src/app/main/scanner.js';
+import { buildEdges, buildImportGraph, createImportResolveContext, extractImports, resolveImport } from '../src/app/main/scanner.js';
 
 const root = path.resolve('/project');
 
 function p(...parts: string[]): string {
     return path.join(root, ...parts);
+}
+
+function tempProject(configName: 'tsconfig.json' | 'jsconfig.json', configBody: unknown): string {
+    const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-import-paths-'));
+    fs.writeFileSync(path.join(projectPath, configName), JSON.stringify(configBody), 'utf-8');
+    return projectPath;
+}
+
+function pt(projectPath: string, ...parts: string[]): string {
+    return path.join(projectPath, ...parts);
 }
 
 describe('import graph — imports relatifs JS/TS', () => {
@@ -251,6 +263,154 @@ import external from "@/external";
         });
         expect(graph.diagnostics.unresolvedExamples).toEqual([
             { filePath: fromFile, importPath: '@/components/Button', reason: 'alias-context-missing' },
+        ]);
+    });
+});
+
+describe('import graph — aliases tsconfig/jsconfig paths', () => {
+    it('resout un paths simple @app/* vers src/app/*', () => {
+        const projectPath = tempProject('tsconfig.json', {
+            compilerOptions: {
+                baseUrl: '.',
+                paths: { '@app/*': ['src/app/*'] },
+            },
+        });
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const target = pt(projectPath, 'src', 'app', 'main.ts');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import { main } from "@app/main";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('resout un paths vers une cible .tsx', () => {
+        const projectPath = tempProject('tsconfig.json', {
+            compilerOptions: {
+                baseUrl: '.',
+                paths: { '@components/*': ['src/components/*'] },
+            },
+        });
+        const fromFile = pt(projectPath, 'src', 'index.tsx');
+        const target = pt(projectPath, 'src', 'components', 'Button.tsx');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import Button from "@components/Button";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('resout un paths avec baseUrl src', () => {
+        const projectPath = tempProject('jsconfig.json', {
+            compilerOptions: {
+                baseUrl: 'src',
+                paths: { '@core/*': ['core/*'] },
+            },
+        });
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const target = pt(projectPath, 'src', 'core', 'logger.ts');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import { logger } from "@core/logger";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('essaie les targets multiples et prend celle qui existe dans allFiles', () => {
+        const projectPath = tempProject('tsconfig.json', {
+            compilerOptions: {
+                baseUrl: '.',
+                paths: { '@shared/*': ['missing/*', 'src/shared/*'] },
+            },
+        });
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const target = pt(projectPath, 'src', 'shared', 'format.ts');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import { format } from "@shared/format";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('ignore un paths non resolu', () => {
+        const projectPath = tempProject('tsconfig.json', {
+            compilerOptions: {
+                baseUrl: '.',
+                paths: { '@app/*': ['src/app/*'] },
+            },
+        });
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const files = [fromFile];
+        const sources = new Map([
+            [fromFile, 'import Missing from "@app/missing";'],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([]);
+    });
+
+    it.each(['react', 'lodash', '@tanstack/react-query'])(
+        'garde le package externe %s ignore avec paths',
+        specifier => {
+            const projectPath = tempProject('tsconfig.json', {
+                compilerOptions: {
+                    baseUrl: '.',
+                    paths: { '@app/*': ['src/app/*'] },
+                },
+            });
+            const fromFile = pt(projectPath, 'src', 'index.ts');
+            const files = [fromFile];
+            const sources = new Map([
+                [fromFile, `import value from "${specifier}";`],
+            ]);
+
+            expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([]);
+        },
+    );
+
+    it('continue sans erreur avec une config invalide et garde les aliases simples', () => {
+        const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-import-paths-invalid-'));
+        fs.writeFileSync(path.join(projectPath, 'tsconfig.json'), '{ invalid json', 'utf-8');
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const target = pt(projectPath, 'src', 'components', 'Button.tsx');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import Button from "@/components/Button";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('continue sans erreur sans config et garde les aliases simples', () => {
+        const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-import-paths-absent-'));
+        const fromFile = pt(projectPath, 'src', 'index.ts');
+        const target = pt(projectPath, 'src', 'components', 'Button.tsx');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import Button from "@/components/Button";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, createImportResolveContext(projectPath))).toEqual([
+            { from: fromFile, to: target },
         ]);
     });
 });

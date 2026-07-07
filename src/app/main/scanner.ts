@@ -52,8 +52,15 @@ const IMPORT_PATTERNS: Record<string, RegExp[]> = {
 
 export interface FileEdge { from: string; to: string; }
 
+export interface ImportPathAlias {
+    pattern: string;
+    targets: string[];
+    baseUrl: string;
+}
+
 export interface ImportResolveContext {
-    projectPath: string;
+    projectPath:  string;
+    pathAliases?: ImportPathAlias[];
 }
 
 export type ImportKind = 'relative' | 'simple-alias' | 'external';
@@ -148,6 +155,62 @@ function classifyImport(importPath: string): ImportKind {
     return 'external';
 }
 
+function stripJsonComments(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1')
+        .replace(/,\s*([}\]])/g, '$1');
+}
+
+function readCompilerAliases(configPath: string, projectPath: string): ImportPathAlias[] {
+    let parsed: any;
+    try {
+        parsed = JSON.parse(stripJsonComments(fs.readFileSync(configPath, 'utf-8')));
+    } catch {
+        return [];
+    }
+
+    const compilerOptions = parsed?.compilerOptions;
+    const paths = compilerOptions?.paths;
+    if (!paths || typeof paths !== 'object') return [];
+
+    const configDir = path.dirname(configPath);
+    const rawBaseUrl = typeof compilerOptions?.baseUrl === 'string' ? compilerOptions.baseUrl : '.';
+    const baseUrl = path.resolve(configDir, rawBaseUrl);
+    if (!isInsideProject(baseUrl, projectPath)) return [];
+
+    const aliases: ImportPathAlias[] = [];
+    for (const [pattern, rawTargets] of Object.entries(paths)) {
+        if (typeof pattern !== 'string' || !Array.isArray(rawTargets)) continue;
+        const targets = rawTargets.filter((target): target is string => typeof target === 'string');
+        if (targets.length === 0) continue;
+        aliases.push({ pattern, targets, baseUrl });
+    }
+    return aliases;
+}
+
+export function createImportResolveContext(projectPath: string): ImportResolveContext {
+    const pathAliases: ImportPathAlias[] = [];
+    for (const configName of ['tsconfig.json', 'jsconfig.json']) {
+        pathAliases.push(...readCompilerAliases(path.join(projectPath, configName), projectPath));
+    }
+    return { projectPath, pathAliases };
+}
+
+function matchPathAlias(importPath: string, alias: ImportPathAlias): string | null {
+    const starIndex = alias.pattern.indexOf('*');
+    if (starIndex === -1) return importPath === alias.pattern ? '' : null;
+
+    const prefix = alias.pattern.slice(0, starIndex);
+    const suffix = alias.pattern.slice(starIndex + 1);
+    if (!importPath.startsWith(prefix) || !importPath.endsWith(suffix)) return null;
+    return importPath.slice(prefix.length, importPath.length - suffix.length);
+}
+
+function applyAliasTarget(target: string, matched: string): string {
+    return target.includes('*') ? target.replace('*', matched) : target;
+}
+
 function resolveImportBase(fromFile: string, importPath: string, context?: ImportResolveContext): string | null {
     const stripped = importPath.replace(/\.js$/, '');
     if (path.extname(fromFile).toLowerCase() === '.py' && importPath.startsWith('.')) {
@@ -161,6 +224,27 @@ function resolveImportBase(fromFile: string, importPath: string, context?: Impor
     }
     if (importPath.startsWith('src/')) {
         return path.resolve(context.projectPath, stripped);
+    }
+
+    return null;
+}
+
+function resolvePathAliasImport(
+    importPath: string,
+    allFiles: Set<string>,
+    context?: ImportResolveContext,
+): string | null {
+    if (!context?.pathAliases?.length) return null;
+
+    for (const alias of context.pathAliases) {
+        const matched = matchPathAlias(importPath, alias);
+        if (matched === null) continue;
+
+        for (const target of alias.targets) {
+            const base = path.resolve(alias.baseUrl, applyAliasTarget(target, matched));
+            const resolved = resolveCandidate(base, allFiles, context);
+            if (resolved) return resolved;
+        }
     }
 
     return null;
@@ -187,6 +271,15 @@ function isPythonFile(filePath: string): boolean {
 
 function pythonModuleCandidates(base: string): string[] {
     return [base + '.py', path.join(base, '__init__.py')];
+}
+
+function jsModuleCandidates(base: string): string[] {
+    return [
+        base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx', base + '.mjs', base + '.cjs',
+        path.join(base, 'index.ts'), path.join(base, 'index.tsx'),
+        path.join(base, 'index.js'), path.join(base, 'index.jsx'),
+        path.join(base, 'index.mjs'), path.join(base, 'index.cjs'),
+    ];
 }
 
 function pythonAbsoluteRoots(fromFile: string, projectPath: string): string[] {
@@ -239,6 +332,20 @@ function unresolvedReason(fromFile: string, importPath: string, context?: Import
     return 'target-not-scanned-or-excluded';
 }
 
+function resolveCandidate(base: string, allFiles: Set<string>, context?: ImportResolveContext, isPythonImport = false): string | null {
+    if (context && !isInsideProject(base, context.projectPath)) return null;
+
+    const candidates = [
+        ...(isPythonImport ? pythonModuleCandidates(base) : []),
+        ...jsModuleCandidates(base),
+    ];
+    for (const c of candidates) {
+        if (context && !isInsideProject(c, context.projectPath)) continue;
+        if (allFiles.has(c)) return c;
+    }
+    return null;
+}
+
 export function resolveImport(
     fromFile: string,
     importPath: string,
@@ -248,23 +355,13 @@ export function resolveImport(
     const pythonAbsolute = resolvePythonAbsoluteImport(fromFile, importPath, allFiles, context);
     if (pythonAbsolute) return pythonAbsolute;
 
+    const pathAlias = resolvePathAliasImport(importPath, allFiles, context);
+    if (pathAlias) return pathAlias;
+
     const base = resolveImportBase(fromFile, importPath, context);
     if (!base) return null;
-    if (context && !isInsideProject(base, context.projectPath)) return null;
 
-    const isPythonImport = isPythonFile(fromFile);
-    const candidates = [
-        ...(isPythonImport ? pythonModuleCandidates(base) : []),
-        base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx', base + '.mjs', base + '.cjs',
-        path.join(base, 'index.ts'), path.join(base, 'index.tsx'),
-        path.join(base, 'index.js'), path.join(base, 'index.jsx'),
-        path.join(base, 'index.mjs'), path.join(base, 'index.cjs'),
-    ];
-    for (const c of candidates) {
-        if (context && !isInsideProject(c, context.projectPath)) continue;
-        if (allFiles.has(c)) return c;
-    }
-    return null;
+    return resolveCandidate(base, allFiles, context, isPythonFile(fromFile));
 }
 
 export function buildImportGraph(
@@ -377,7 +474,7 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
         }
     }
 
-    const importGraph = buildImportGraph(files, fileSources, { projectPath });
+    const importGraph = buildImportGraph(files, fileSources, createImportResolveContext(projectPath));
     const edges = importGraph.edges;
     saveImportEdges(projectPath, edges);
     const d = importGraph.diagnostics;
