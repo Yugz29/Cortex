@@ -1,9 +1,32 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Scan, Edge } from '../types';
-import { scoreColor, scoreColorHex, classifyLayer, LAYER_LABELS, LAYER_COLORS, LAYER_ORDER } from '../utils';
+import { scoreColor, scoreColorHex, classifyLayer, LAYER_LABELS, LAYER_COLORS, LAYER_ORDER, type Layer } from '../utils';
 import { useLocale } from '../hooks/useLocale';
 import { useLocalPref } from '../hooks/useLocalPref';
 import { buildLayerLayout, buildForceLayout, buildEdgePairs, canonKey, type NodeLayout } from '../graphLayout';
+
+type LayerBounds = {
+  layer: Layer;
+  color: string;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  cx: number;
+  cy: number;
+};
+
+type RenderEdge = {
+  edge: Edge;
+  index: number;
+  pathD: string;
+  arrowAngle: number;
+  ax: number;
+  ay: number;
+  isCrossLayer: boolean;
+  baseColor: string;
+  focusedColor: string;
+};
 
 interface Props {
   scans:        Scan[];
@@ -30,10 +53,44 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
     [scans],
   );
   const forceLayout = useMemo(
-    () => scans.length > 0 ? buildForceLayout(scans, edges) : new Map<string, NodeLayout>(),
-    [scans, edges],
+    () => graphMode === 'all' && scans.length > 0 ? buildForceLayout(scans, edges) : new Map<string, NodeLayout>(),
+    [graphMode, scans, edges],
   );
   const layout = graphMode === 'all' ? forceLayout : layerLayout;
+  const nodes = useMemo(() => [...layout.values()], [layout]);
+  const scanMap = useMemo(() => new Map(scans.map(s => [s.filePath, s])), [scans]);
+  const layerBounds = useMemo<LayerBounds[]>(() => {
+    if (graphMode !== 'layers') return [];
+    const byLayer = new Map<string, NodeLayout[]>();
+    for (const node of nodes) {
+      const layer = classifyLayer(node.id);
+      const layerNodes = byLayer.get(layer);
+      if (layerNodes) layerNodes.push(node);
+      else byLayer.set(layer, [node]);
+    }
+
+    const PAD = 48;
+    return LAYER_ORDER.flatMap(layer => {
+      const layerNodes = byLayer.get(layer);
+      if (!layerNodes?.length) return [];
+      const xs = layerNodes.map(n => n.x);
+      const ys = layerNodes.map(n => n.y);
+      const minX = Math.min(...xs) - PAD;
+      const maxX = Math.max(...xs) + PAD;
+      const minY = Math.min(...ys) - PAD;
+      const maxY = Math.max(...ys) + PAD;
+      return [{
+        layer,
+        color: LAYER_COLORS[layer],
+        minX,
+        maxX,
+        minY,
+        maxY,
+        cx: (minX + maxX) / 2,
+        cy: (minY + maxY) / 2,
+      }];
+    });
+  }, [graphMode, nodes]);
   const sizeRef = useRef(size);
   useEffect(() => { sizeRef.current = size; }, [size]);
 
@@ -146,35 +203,94 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
   const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
 
   // ── Focus edges/nodes ───────────────────────────────────────────────────────
-  const scanMap   = new Map(scans.map(s => [s.filePath, s]));
+  const edgeIndexByPath = useMemo(() => {
+    const index = new Map<string, number[]>();
+    edges.forEach((edge, i) => {
+      const fromEdges = index.get(edge.from);
+      if (fromEdges) fromEdges.push(i);
+      else index.set(edge.from, [i]);
+
+      const toEdges = index.get(edge.to);
+      if (toEdges) toEdges.push(i);
+      else index.set(edge.to, [i]);
+    });
+    return index;
+  }, [edges]);
+
   const focusPath = hoveredPath ?? selectedPath;
   const hasFocus  = focusPath !== null;
 
-  const focusEdgeIdxs = new Set<number>();
-  const focusNodeIds  = new Set<string>();
-  if (hasFocus) {
-    focusNodeIds.add(focusPath!);
-    edges.forEach((e, i) => {
-      if (e.from === focusPath || e.to === focusPath) {
-        focusEdgeIdxs.add(i);
-        focusNodeIds.add(e.from);
-        focusNodeIds.add(e.to);
-      }
-    });
-  }
-  const selNodeIds = new Set<string>();
-  if (selectedPath) {
-    selNodeIds.add(selectedPath);
-    edges.forEach(e => {
-      if (e.from === selectedPath || e.to === selectedPath) {
-        selNodeIds.add(e.from); selNodeIds.add(e.to);
-      }
-    });
-  }
+  const focusEdgeIdxs = useMemo(() => {
+    const focused = new Set<number>();
+    if (!focusPath) return focused;
+    for (const index of edgeIndexByPath.get(focusPath) ?? []) focused.add(index);
+    return focused;
+  }, [edgeIndexByPath, focusPath]);
+
+  const selNodeIds = useMemo(() => {
+    const selected = new Set<string>();
+    if (!selectedPath) return selected;
+    selected.add(selectedPath);
+    for (const index of edgeIndexByPath.get(selectedPath) ?? []) {
+      const edge = edges[index];
+      if (!edge) continue;
+      selected.add(edge.from);
+      selected.add(edge.to);
+    }
+    return selected;
+  }, [edgeIndexByPath, edges, selectedPath]);
 
   // ── Pré-calcul paires bidi ──────────────────────────────────────────────────
   const edgePairs = useMemo(() => buildEdgePairs(edges), [edges]);
-  const nodes     = [...layout.values()];
+  const renderedEdges = useMemo<RenderEdge[]>(() => {
+    const computed: RenderEdge[] = [];
+    edges.forEach((edge, index) => {
+      const from = layout.get(edge.from);
+      const to = layout.get(edge.to);
+      if (!from || !to) return;
+
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const key = canonKey(edge.from, edge.to);
+      const isBidi = (edgePairs.get(key) ?? []).length > 1;
+      const CURVE = 30;
+
+      let mx: number;
+      let my: number;
+      if (isBidi) {
+        const [posA, posB] = edge.from < edge.to ? [from, to] : [to, from];
+        const cdx = posB.x - posA.x;
+        const cdy = posB.y - posA.y;
+        const clen = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
+        const side = edge.from < edge.to ? +CURVE : -CURVE;
+        mx = (from.x + to.x) / 2 + (-cdy / clen) * side;
+        my = (from.y + to.y) / 2 + ( cdx / clen) * side;
+      } else {
+        mx = (from.x + to.x) / 2;
+        my = (from.y + to.y) / 2;
+      }
+
+      const tdx = to.x - mx;
+      const tdy = to.y - my;
+      const tlen = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+      const ax = to.x - (tdx / tlen) * (to.r + 2);
+      const ay = to.y - (tdy / tlen) * (to.r + 2);
+      const isCrossLayer = classifyLayer(edge.from) !== classifyLayer(edge.to);
+
+      computed.push({
+        edge,
+        index,
+        pathD: isBidi ? `M ${from.x} ${from.y} Q ${mx} ${my} ${ax} ${ay}` : `M ${from.x} ${from.y} L ${ax} ${ay}`,
+        arrowAngle: isBidi ? Math.atan2(ay - my, ax - mx) * 180 / Math.PI : Math.atan2(dy, dx) * 180 / Math.PI,
+        ax,
+        ay,
+        isCrossLayer,
+        baseColor: LAYER_COLORS[classifyLayer(edge.from)] ?? 'rgba(255,255,255,0.25)',
+        focusedColor: scoreColorHex(scanMap.get(edge.from)?.globalScore ?? 0),
+      });
+    });
+    return computed;
+  }, [edges, edgePairs, layout, scanMap]);
 
   // ── Rendu ───────────────────────────────────────────────────────────────────
   return (
@@ -195,85 +311,34 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
         }}>
 
           {/* ── Zones de layer ── */}
-          {graphMode === 'layers' && LAYER_ORDER.map(l => {
-            const layerNodes = [...layout.values()].filter(n => classifyLayer(n.id) === l);
-            if (!layerNodes.length) return null;
-            const col  = LAYER_COLORS[l];
-            const PAD  = 48;
-            const xs   = layerNodes.map(n => n.x);
-            const ys   = layerNodes.map(n => n.y);
-            const minX = Math.min(...xs) - PAD;
-            const maxX = Math.max(...xs) + PAD;
-            const minY = Math.min(...ys) - PAD;
-            const maxY = Math.max(...ys) + PAD;
-            const cx   = (minX + maxX) / 2;
-            const cy   = (minY + maxY) / 2;
+          {layerBounds.map(({ layer, color, minX, maxX, minY, maxY, cx, cy }) => {
             return (
-              <g key={l}>
+              <g key={layer}>
                 <ellipse cx={cx} cy={cy} rx={(maxX - minX) / 2} ry={(maxY - minY) / 2}
-                  fill={col} fillOpacity={0.06}
-                  stroke={col} strokeWidth={1} strokeOpacity={0.25}
+                  fill={color} fillOpacity={0.06}
+                  stroke={color} strokeWidth={1} strokeOpacity={0.25}
                   strokeDasharray="6,4"
                 />
                 <text x={cx} y={minY - 8} textAnchor="middle"
-                  fontSize={10} fill={col} fillOpacity={0.8}
+                  fontSize={10} fill={color} fillOpacity={0.8}
                   fontWeight="700" letterSpacing="0.12em"
                   style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>
-                  {LAYER_LABELS[l]}
+                  {LAYER_LABELS[layer]}
                 </text>
               </g>
             );
           })}
 
           {/* ── Edges ── */}
-          {edges.map((e, i) => {
-            const from = layout.get(e.from);
-            const to   = layout.get(e.to);
-            if (!from || !to) return null;
-
-            const isFocused    = focusEdgeIdxs.has(i);
-            const isCrossLayer = classifyLayer(e.from) !== classifyLayer(e.to);
+          {renderedEdges.map(({ edge, index, pathD, arrowAngle, ax, ay, isCrossLayer, baseColor, focusedColor }) => {
+            const isFocused = focusEdgeIdxs.has(index);
             if (hasFocus && !isFocused) return null;
 
-            const isOut  = e.from === focusPath;
-            const colHex = isFocused
-              ? scoreColorHex(scanMap.get(e.from)?.globalScore ?? 0)
-              : (LAYER_COLORS[classifyLayer(e.from)] ?? 'rgba(255,255,255,0.25)');
-
-            const dx  = to.x - from.x;
-            const dy  = to.y - from.y;
-
-            // Courbe bidi : sens opposés via normale canonique
-            const key    = canonKey(e.from, e.to);
-            const isBidi = (edgePairs.get(key) ?? []).length > 1;
-            const CURVE  = 30;
-
-            let mx: number, my: number;
-            if (isBidi) {
-              const [posA, posB] = e.from < e.to ? [from, to] : [to, from];
-              const cdx  = posB.x - posA.x;
-              const cdy  = posB.y - posA.y;
-              const clen = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
-              const side = e.from < e.to ? +CURVE : -CURVE;
-              mx = (from.x + to.x) / 2 + (-cdy / clen) * side;
-              my = (from.y + to.y) / 2 + ( cdx / clen) * side;
-            } else {
-              mx = (from.x + to.x) / 2;
-              my = (from.y + to.y) / 2;
-            }
-
-            // Point d'arrivée sur le bord du nœud cible
-            const tdx  = to.x - mx;
-            const tdy  = to.y - my;
-            const tlen = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
-            const ax   = to.x - (tdx / tlen) * (to.r + 2);
-            const ay   = to.y - (tdy / tlen) * (to.r + 2);
-
-            const pathD      = isBidi ? `M ${from.x} ${from.y} Q ${mx} ${my} ${ax} ${ay}` : `M ${from.x} ${from.y} L ${ax} ${ay}`;
-            const arrowAngle = isBidi ? Math.atan2(ay - my, ax - mx) * 180 / Math.PI : Math.atan2(dy, dx) * 180 / Math.PI;
+            const isOut = edge.from === focusPath;
+            const colHex = isFocused ? focusedColor : baseColor;
 
             return (
-              <g key={i}>
+              <g key={index}>
                 <path
                   d={pathD} fill="none"
                   stroke={colHex}

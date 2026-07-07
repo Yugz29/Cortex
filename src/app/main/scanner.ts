@@ -3,7 +3,7 @@ import path from 'node:path';
 import { analyzeFile } from '../../cortex/analyzer/parser.js';
 import { scoreFromRaw, computeProjectBaselines } from '../../cortex/risk-score/riskScore.js';
 import type { RawMetrics, RiskScoreResult } from '../../cortex/risk-score/riskScore.js';
-import { saveScan, saveFunctions, saveCouplings, saveImportEdges } from '../../database/db.js';
+import { saveScans, saveFunctions, saveCouplings, saveImportEdges } from '../../database/db.js';
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 
@@ -505,8 +505,8 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
     for (const result of results) {
         result.details.fanIn  = fanInMap.get(result.filePath)  ?? 0;
         result.details.fanOut = fanOutMap.get(result.filePath) ?? 0;
-        saveScan(result, projectPath);
     }
+    saveScans(results, projectPath);
 
     try {
         const couplings = await buildCouplingMap(projectPath);

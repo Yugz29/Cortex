@@ -71,9 +71,8 @@ function _backfillSnapshotsIfNeeded(db: InstanceType<typeof Database>): void {
     console.log(`[Cortex] Backfilled ${runs.length} project snapshots from ${allScans.length} scan rows.`);
 }
 
-export function saveScan(result: RiskScoreResult, projectPath: string): void {
-    const db   = getDb();
-    const stmt = db.prepare(`
+function scanInsertStatement(db: InstanceType<typeof Database>) {
+    return db.prepare(`
         INSERT INTO scans (
             file_path, global_score, hotspot_score,
             complexity_score, cognitive_complexity_score, function_size_score,
@@ -85,6 +84,9 @@ export function saveScan(result: RiskScoreResult, projectPath: string): void {
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+}
+
+function runScanInsert(stmt: any, result: RiskScoreResult, projectPath: string, scannedAt: string): void {
     stmt.run(
         result.filePath, result.globalScore, result.hotspotScore,
         result.details.complexityScore, result.details.cognitiveComplexityScore,
@@ -94,21 +96,42 @@ export function saveScan(result: RiskScoreResult, projectPath: string): void {
         result.language ?? 'unknown', projectPath,
         result.raw.complexity, result.raw.cognitiveComplexity, result.raw.functionSize,
         result.raw.depth, result.raw.params, result.raw.churn,
-        new Date().toISOString()
+        scannedAt
     );
+}
+
+export function saveScan(result: RiskScoreResult, projectPath: string): void {
+    const db = getDb();
+    runScanInsert(scanInsertStatement(db), result, projectPath, new Date().toISOString());
+}
+
+export function saveScans(results: RiskScoreResult[], projectPath: string): void {
+    if (results.length === 0) return;
+    const db = getDb();
+    const stmt = scanInsertStatement(db);
+    const now = new Date().toISOString();
+
+    db.transaction(() => {
+        for (const result of results) {
+            runScanInsert(stmt, result, projectPath, now);
+        }
+    })();
 }
 
 export function saveFunctions(filePath: string, functions: FunctionMetrics[], projectPath: string): void {
     const db = getDb();
-    db.prepare(`DELETE FROM functions WHERE file_path = ?`).run(filePath);
+    const deleteExisting = db.prepare(`DELETE FROM functions WHERE file_path = ?`);
     const stmt = db.prepare(`
         INSERT INTO functions (file_path, name, start_line, line_count, cyclomatic_complexity, cognitive_complexity, parameter_count, max_depth, project_path, scanned_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = new Date().toISOString();
-    for (const fn of functions) {
-        stmt.run(filePath, fn.name, fn.startLine, fn.lineCount, fn.cyclomaticComplexity, fn.cognitiveComplexity ?? 0, fn.parameterCount, fn.maxDepth, projectPath, now);
-    }
+    db.transaction(() => {
+        deleteExisting.run(filePath);
+        for (const fn of functions) {
+            stmt.run(filePath, fn.name, fn.startLine, fn.lineCount, fn.cyclomaticComplexity, fn.cognitiveComplexity ?? 0, fn.parameterCount, fn.maxDepth, projectPath, now);
+        }
+    })();
 }
 
 export interface LatestScan {
@@ -293,17 +316,21 @@ export function getFunctions(filePath: string) {
 export function saveCouplings(couplings: Map<string, FileCoupling[]>, projectPath: string): void {
     const db  = getDb();
     const now = new Date().toISOString();
-    db.prepare(`DELETE FROM couplings WHERE project_path = ?`).run(projectPath);
+    const deleteExisting = db.prepare(`DELETE FROM couplings WHERE project_path = ?`);
     const stmt = db.prepare(`INSERT INTO couplings (file_a, file_b, co_change_count, project_path, updated_at) VALUES (?, ?, ?, ?, ?)`);
     const inserted = new Set<string>();
-    for (const [, pairs] of couplings) {
-        for (const { fileA, fileB, coChangeCount } of pairs) {
-            const key = fileA < fileB ? `${fileA}\0${fileB}` : `${fileB}\0${fileA}`;
-            if (inserted.has(key)) continue;
-            inserted.add(key);
-            stmt.run(fileA, fileB, coChangeCount, projectPath, now);
+
+    db.transaction(() => {
+        deleteExisting.run(projectPath);
+        for (const [, pairs] of couplings) {
+            for (const { fileA, fileB, coChangeCount } of pairs) {
+                const key = fileA < fileB ? `${fileA}\0${fileB}` : `${fileB}\0${fileA}`;
+                if (inserted.has(key)) continue;
+                inserted.add(key);
+                stmt.run(fileA, fileB, coChangeCount, projectPath, now);
+            }
         }
-    }
+    })();
 }
 
 export function saveImportEdges(projectPath: string, edges: FileEdge[]): void {
