@@ -5,6 +5,7 @@
     "src/app/preload/**/*",
     "src/core/**/*",
     "src/cortex/**/*",
+    "src/database/**/*",
     "src/reflex/**/*"
   ],
   "compilerOptions": {

@@ -132,6 +132,7 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
                 depth:               fns.length > 0 ? Math.max(...fns.map(f => f.maxDepth))                                      : 0,
                 params:              fns.length > 0 ? Math.max(...fns.map(f => f.parameterCount))                                : 0,
                 churn,
+                fanIn:               0,
             };
             analyses.push({ metrics, raw });
         } catch (error) {

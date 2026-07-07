@@ -43,6 +43,12 @@ export type AppSettings = {
   [key: string]: any;
 };
 
+declare module 'react' {
+  interface CSSProperties {
+    WebkitAppRegion?: 'drag' | 'no-drag';
+  }
+}
+
 // ── WINDOW API CONTRACT ───────────────────────────────────────────────────────
 
 declare global {
@@ -89,6 +95,7 @@ declare global {
       getExcludedFiles:     () => Promise<string[]>;
       runScan:              () => Promise<void>;
       readFile:             (filePath: string) => Promise<{ ok: boolean; content: string }>;
+      writeFile:            (filePath: string, content: string) => Promise<{ ok: boolean; error?: string }>;
       runSecurityScan:         (projectPath: string) => Promise<SecurityScanResult>;
       openExternal:             (url: string) => Promise<void>;
       getLastSecurityResult:    (projectPath: string) => Promise<SecurityScanResult | null>;

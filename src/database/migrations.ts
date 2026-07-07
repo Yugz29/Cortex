@@ -13,7 +13,14 @@
 
 // Type-only import — better-sqlite3 est external dans electron-vite
 // On utilise un type structurel plutôt qu'un import externe
-type BetterSqlite3 = { exec: (sql: string) => void; prepare: (sql: string) => { run: (...args: any[]) => void }; transaction: (fn: () => void) => () => void };
+type BetterSqlite3 = {
+    exec: (sql: string) => void;
+    prepare: (sql: string) => {
+        run: (...args: any[]) => void;
+        get: (...args: any[]) => unknown;
+    };
+    transaction: (fn: () => void) => () => void;
+};
 
 export const CURRENT_VERSION = 8;
 

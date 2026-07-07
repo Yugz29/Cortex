@@ -23,8 +23,8 @@ interface Props {
   scans:           Scan[];
   edges:           Edge[];
   projectPath:     string;
-  projectHistory:  { date: string; score: number }[];
-  events:          { message: string; level: string; type: string }[];
+  projectHistory:  { date: string; score: number; healthPct: number }[];
+  events:          { message: string; level: string; type: string; ts: number; filePath?: string | null }[];
   selected:        Scan | null;
   projects:        Project[];
   projectsHealth:  ProjectHealth[];
@@ -185,6 +185,8 @@ export default function CortexView({
 
       <ResizeHandle
         onMouseDown={e => startResize('left', e, leftWidthRef.current)}
+        onToggle={() => {}}
+        collapsed={false}
         collapseToward="left"
       />
 

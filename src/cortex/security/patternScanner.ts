@@ -33,6 +33,7 @@ export interface SecurityScanResult {
         vulns:   AuditVuln[];
         counts:  { critical: number; high: number; moderate: number; low: number; info: number; total: number };
         error?:  string;
+        reason?: string;
     };
     scannedAt: string;
 }

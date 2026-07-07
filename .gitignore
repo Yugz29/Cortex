@@ -6,7 +6,6 @@ pulse.db
 *.log
 .claude
 ollama_models/
-package-lock.json
 
 # Generated at runtime — not for version control
 cortex-snapshot.json
@@ -14,4 +13,3 @@ pulse.config.json
 dump-metrics.ts
 out/
 dump-metrics.ts
-

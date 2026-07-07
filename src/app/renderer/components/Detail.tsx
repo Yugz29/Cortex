@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Scan, Edge, FunctionDetail } from '../types';
 import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils';
 import { useLocale } from '../hooks/useLocale';
+import type { TranslationKey } from '../i18n';
 import ScoreGraph from './shared/ScoreGraph';
 import MetricBar from './shared/MetricBar';
 import SectionLabel from './shared/SectionLabel';
@@ -280,7 +281,7 @@ function FunctionList({
 }: {
   fns: FunctionDetail[];
   onSelect: (fn: FunctionDetail) => void;
-  t: (key: string, p?: any) => string;
+  t: (key: TranslationKey, p?: Record<string, string | number>) => string;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
