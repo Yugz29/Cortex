@@ -53,6 +53,10 @@ const IMPORT_PATTERNS: Record<string, RegExp[]> = {
 
 export interface FileEdge { from: string; to: string; }
 
+export interface ImportResolveContext {
+    projectPath: string;
+}
+
 export function extractImports(filePath: string, source: string): string[] {
     const ext  = path.extname(filePath).toLowerCase();
     const pats = ext === '.py' ? IMPORT_PATTERNS.py : IMPORT_PATTERNS.js;
@@ -62,27 +66,60 @@ export function extractImports(filePath: string, source: string): string[] {
         let match;
         while ((match = pat.exec(source)) !== null) {
             const raw = match[1];
-            if (raw.startsWith('.')) imports.push(raw);
+            imports.push(raw);
         }
     }
     return imports;
 }
 
-export function resolveImport(fromFile: string, importPath: string, allFiles: Set<string>): string | null {
-    const dir      = path.dirname(fromFile);
+function isInsideProject(filePath: string, projectPath: string): boolean {
+    const rel = path.relative(projectPath, filePath);
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function resolveImportBase(fromFile: string, importPath: string, context?: ImportResolveContext): string | null {
     const stripped = importPath.replace(/\.js$/, '');
-    const base     = path.resolve(dir, stripped);
+    if (importPath.startsWith('.')) return path.resolve(path.dirname(fromFile), stripped);
+
+    if (!context) return null;
+    if (importPath.startsWith('@/') || importPath.startsWith('~/')) {
+        return path.resolve(context.projectPath, 'src', stripped.slice(2));
+    }
+    if (importPath.startsWith('src/')) {
+        return path.resolve(context.projectPath, stripped);
+    }
+
+    return null;
+}
+
+export function resolveImport(
+    fromFile: string,
+    importPath: string,
+    allFiles: Set<string>,
+    context?: ImportResolveContext,
+): string | null {
+    const base = resolveImportBase(fromFile, importPath, context);
+    if (!base) return null;
+    if (context && !isInsideProject(base, context.projectPath)) return null;
+
     const candidates = [
         base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx', base + '.mjs', base + '.cjs',
         path.join(base, 'index.ts'), path.join(base, 'index.tsx'),
         path.join(base, 'index.js'), path.join(base, 'index.jsx'),
         path.join(base, 'index.mjs'), path.join(base, 'index.cjs'),
     ];
-    for (const c of candidates) { if (allFiles.has(c)) return c; }
+    for (const c of candidates) {
+        if (context && !isInsideProject(c, context.projectPath)) continue;
+        if (allFiles.has(c)) return c;
+    }
     return null;
 }
 
-export function buildEdges(files: string[], fileSources: Map<string, string>): FileEdge[] {
+export function buildEdges(
+    files: string[],
+    fileSources: Map<string, string>,
+    context?: ImportResolveContext,
+): FileEdge[] {
     const fileSet = new Set(files);
     const edges: FileEdge[] = [];
     const seen  = new Set<string>();
@@ -91,7 +128,7 @@ export function buildEdges(files: string[], fileSources: Map<string, string>): F
         if (!source) continue;
         const imports = extractImports(file, source);
         for (const imp of imports) {
-            const resolved = resolveImport(file, imp, fileSet);
+            const resolved = resolveImport(file, imp, fileSet, context);
             if (!resolved) continue;
             const key = `${file}→${resolved}`;
             if (seen.has(key)) continue;
@@ -144,7 +181,7 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
         }
     }
 
-    const edges = buildEdges(files, fileSources);
+    const edges = buildEdges(files, fileSources, { projectPath });
     const fanOutMap = new Map<string, number>();
     const fanInMap  = new Map<string, number>();
     for (const file of files) { fanOutMap.set(file, 0); fanInMap.set(file, 0); }

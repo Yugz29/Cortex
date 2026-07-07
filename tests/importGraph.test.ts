@@ -10,6 +10,7 @@ function p(...parts: string[]): string {
 
 describe('import graph — imports relatifs JS/TS', () => {
     const fromFile = p('src', 'main.ts');
+    const context = { projectPath: root };
 
     it('detecte les syntaxes relatives principales', () => {
         const source = `
@@ -24,6 +25,7 @@ import external from "@/external";
 
         expect(extractImports(fromFile, source)).toEqual([
             './foo',
+            '@/external',
             './setup',
             './qux',
             './wildcard',
@@ -80,6 +82,77 @@ import external from "@/external";
         expect(buildEdges(files, sources)).toEqual([
             { from: fromFile, to: p('src', 'foo.ts') },
         ]);
+    });
+
+    it('resout alias @/ vers le dossier src du projet', () => {
+        const target = p('src', 'components', 'Button.tsx');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import Button from "@/components/Button";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, context)).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('resout alias ~/ vers le dossier src du projet', () => {
+        const target = p('src', 'lib', 'utils.ts');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import { format } from "~/lib/utils";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, context)).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('resout alias src/ vers le dossier src du projet', () => {
+        const target = p('src', 'domain', 'foo.ts');
+        const files = [fromFile, target];
+        const sources = new Map([
+            [fromFile, 'import { foo } from "src/domain/foo";'],
+            [target, ''],
+        ]);
+
+        expect(buildEdges(files, sources, context)).toEqual([
+            { from: fromFile, to: target },
+        ]);
+    });
+
+    it('ignore un alias non resolu', () => {
+        const files = [fromFile];
+        const sources = new Map([
+            [fromFile, 'import Missing from "@/missing/File";'],
+        ]);
+
+        expect(buildEdges(files, sources, context)).toEqual([]);
+    });
+
+    it.each(['react', 'lodash', '@tanstack/react-query', '@scope/pkg'])(
+        'ignore import externe %s',
+        specifier => {
+            const files = [fromFile];
+            const sources = new Map([
+                [fromFile, `import value from "${specifier}";`],
+            ]);
+
+            expect(buildEdges(files, sources, context)).toEqual([]);
+        },
+    );
+
+    it('ne resout pas hors du projectPath', () => {
+        const outside = path.resolve('/outside/secret.ts');
+        const files = [fromFile, outside];
+        const sources = new Map([
+            [fromFile, 'import secret from "../../outside/secret";'],
+            [outside, ''],
+        ]);
+
+        expect(buildEdges(files, sources, context)).toEqual([]);
     });
 
     it.each(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'])(
