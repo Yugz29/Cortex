@@ -7,7 +7,7 @@ import { saveScan, saveFunctions, saveCouplings } from '../../database/db.js';
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 
-const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py']);
+const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py']);
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
 // Dossiers toujours exclus peu importe les settings — artefacts de build, caches
 const ALWAYS_IGNORE = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'assets', '.vite', '__pycache__', 'venv', '.venv', 'env', 'site-packages', 'migrations']);
@@ -40,6 +40,8 @@ export function getFiles(dir: string, ignore: string[], fileList: string[] = [],
 const IMPORT_PATTERNS: Record<string, RegExp[]> = {
     js: [
         /import\s+.*\s+from\s+['"]([^'"]+)['"]/g,
+        /import\s+['"]([^'"]+)['"]/g,
+        /export\s+(?:type\s+)?(?:\*|{[^}]*})\s+from\s+['"]([^'"]+)['"]/g,
         /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
         /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     ],
@@ -51,7 +53,7 @@ const IMPORT_PATTERNS: Record<string, RegExp[]> = {
 
 export interface FileEdge { from: string; to: string; }
 
-function extractImports(filePath: string, source: string): string[] {
+export function extractImports(filePath: string, source: string): string[] {
     const ext  = path.extname(filePath).toLowerCase();
     const pats = ext === '.py' ? IMPORT_PATTERNS.py : IMPORT_PATTERNS.js;
     const imports: string[] = [];
@@ -66,13 +68,15 @@ function extractImports(filePath: string, source: string): string[] {
     return imports;
 }
 
-function resolveImport(fromFile: string, importPath: string, allFiles: Set<string>): string | null {
+export function resolveImport(fromFile: string, importPath: string, allFiles: Set<string>): string | null {
     const dir      = path.dirname(fromFile);
     const stripped = importPath.replace(/\.js$/, '');
     const base     = path.resolve(dir, stripped);
     const candidates = [
-        base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx',
-        path.join(base, 'index.ts'), path.join(base, 'index.js'),
+        base, base + '.ts', base + '.tsx', base + '.js', base + '.jsx', base + '.mjs', base + '.cjs',
+        path.join(base, 'index.ts'), path.join(base, 'index.tsx'),
+        path.join(base, 'index.js'), path.join(base, 'index.jsx'),
+        path.join(base, 'index.mjs'), path.join(base, 'index.cjs'),
     ];
     for (const c of candidates) { if (allFiles.has(c)) return c; }
     return null;
