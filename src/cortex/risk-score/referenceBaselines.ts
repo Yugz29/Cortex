@@ -147,6 +147,7 @@ export const LANGUAGE_MULTIPLIERS: Record<string, LanguageMultipliers> = {
     ts:  NEUTRAL,
     js:  NEUTRAL,
     mjs: NEUTRAL,
+    swift: NEUTRAL,
 };
 
 export function getLanguageMultipliers(filePath: string): LanguageMultipliers {

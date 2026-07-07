@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Project, SyntaxKind, Node, SourceFile } from 'ts-morph';
 import { analyzeWithTreeSitter } from './pythonParser.js';
+import { analyzeSwiftFile } from './swiftParser.js';
 
 // ── INTERFACES ──
 
@@ -25,7 +26,7 @@ export interface FileMetrics {
 
 // ── LANGAGES SUPPORTÉS ──
 
-type Language = 'typescript' | 'javascript' | 'python' | 'unknown';
+type Language = 'typescript' | 'javascript' | 'python' | 'swift' | 'unknown';
 
 const EXTENSION_MAP: Record<string, Language> = {
     '.ts':  'typescript',
@@ -35,6 +36,7 @@ const EXTENSION_MAP: Record<string, Language> = {
     '.mjs': 'javascript',
     '.cjs': 'javascript',
     '.py':  'python',
+    '.swift': 'swift',
 };
 
 function detectLanguage(filePath: string): Language {
@@ -417,12 +419,17 @@ export async function analyzeFile(filePath: string): Promise<FileMetrics> {
         }
     }
 
+    if (language === 'swift') {
+        return analyzeSwiftFile(filePath);
+    }
+
     const source = fs.readFileSync(filePath, 'utf-8');
     return analyzeWithRegex(source, filePath, language);
 }
 
 export function analyzeFileSync(filePath: string): FileMetrics {
     const language = detectLanguage(filePath);
+    if (language === 'swift') return analyzeSwiftFile(filePath);
     const source   = fs.readFileSync(filePath, 'utf-8');
     return analyzeWithRegex(source, filePath, language);
 }

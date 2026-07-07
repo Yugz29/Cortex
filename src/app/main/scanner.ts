@@ -7,7 +7,7 @@ import { saveScan, saveFunctions, saveCouplings, saveImportEdges } from '../../d
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 
-const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py']);
+const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
 // Dossiers toujours exclus peu importe les settings — artefacts de build, caches
 const ALWAYS_IGNORE = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'assets', '.vite', '__pycache__', 'venv', '.venv', 'env', 'site-packages', 'migrations']);
