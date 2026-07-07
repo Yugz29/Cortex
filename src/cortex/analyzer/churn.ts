@@ -73,16 +73,26 @@ export async function buildCouplingMap(
     const result = new Map<string, FileCoupling[]>();
     try {
         const git     = simpleGit(projectPath);
+        const headStartedAt = Date.now();
         const gitHead = (await git.revparse(['HEAD'])).trim();
+        const headMs = elapsedMs(headStartedAt);
+        const cacheCheckMs = elapsedMs(startedAt);
         const cached = _couplingCache.get(projectPath);
         if (cached && cached.gitHead === gitHead && cached.minCoChanges === minCoChanges) {
             const m = cached.metrics;
+            console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headMs=${headMs}, cacheHit=true, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
             console.log(`[Cortex] Coupling map reused — ${m.filesWithCoupling} files, commits=${m.commits}, pairs=${m.pairs}, maxFilesPerCommit=${m.maxFilesPerCommit}, ignoredCommits=${m.ignoredCommits}, head=${gitHead.slice(0, 7)} in ${elapsedMs(startedAt)}ms`);
             return cached.couplingMap;
         }
+        console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headMs=${headMs}, cacheHit=false, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
 
+        const rootStartedAt = Date.now();
         const gitRoot = (await git.revparse(['--show-toplevel'])).trim();
+        const rootMs = elapsedMs(rootStartedAt);
+        const logStartedAt = Date.now();
         const log = await git.raw(['log', '--since=90 days ago', '--name-only', '--pretty=format:%H']);
+        const logMs = elapsedMs(logStartedAt);
+        const parseStartedAt = Date.now();
         const commitGroups = new Map<string, string[]>();
         let currentHash: string | null = null;
         for (const line of log.split('\n')) {
@@ -96,6 +106,8 @@ export async function buildCouplingMap(
                 commitGroups.get(currentHash)!.push(abs);
             }
         }
+        const parseMs = elapsedMs(parseStartedAt);
+        const pairsStartedAt = Date.now();
         const pairCounts = new Map<string, number>();
         let totalPairsGenerated = 0;
         let maxFilesPerCommit = 0;
@@ -125,6 +137,7 @@ export async function buildCouplingMap(
             result.get(fileA)!.push(coupling);
             result.get(fileB)!.push(coupling);
         }
+        const pairsMs = elapsedMs(pairsStartedAt);
         const metrics = {
             commits:           commitGroups.size,
             filesWithCoupling: result.size,
@@ -138,6 +151,7 @@ export async function buildCouplingMap(
             couplingMap: result,
             metrics,
         });
+        console.log(`[Cortex] Coupling git log parsed — rootMs=${rootMs}, logMs=${logMs}, parseMs=${parseMs}, pairsMs=${pairsMs}`);
         console.log(`[Cortex] Coupling map built — ${result.size} files, commits=${commitGroups.size}, pairs=${totalPairsGenerated}, maxFilesPerCommit=${maxFilesPerCommit}, ignoredCommits=${ignoredCommits}, head=${gitHead.slice(0, 7)} in ${elapsedMs(startedAt)}ms`);
     } catch { }
     return result;
