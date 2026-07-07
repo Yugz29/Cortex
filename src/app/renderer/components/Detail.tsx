@@ -51,6 +51,18 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   });
 
   const namedFunctions = functions.filter(fn => fn.name !== 'anonymous');
+  const topFunction = namedFunctions.reduce<{ fn: FunctionDetail; priority: number } | null>((best, fn) => {
+    const fnDiagnosis = diagnoseFunction(fn);
+    if (fnDiagnosis.priority < 30) return best;
+    if (!best || fnDiagnosis.priority > best.priority) return { fn, priority: fnDiagnosis.priority };
+    return best;
+  }, null);
+
+  const handleSelectFunction = (fn: FunctionDetail) => {
+    setActiveTab('functions');
+    setSelectedFn(fn);
+    onFocusFunction(fn, scan.filePath);
+  };
 
   // Helpers explain traduits
   const explainCx  = (s: number, n: number) =>
@@ -184,6 +196,32 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
                   ))}
                 </div>
               )}
+              {topFunction && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectFunction(topFunction.fn)}
+                  style={{
+                    marginTop: 10,
+                    padding: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 10,
+                    lineHeight: 1.5,
+                    textAlign: 'left',
+                    wordBreak: 'break-word',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                >
+                  Fonction à regarder en premier :{' '}
+                  <span style={{ color: 'var(--blue)', fontFamily: "'SF Mono','Menlo',monospace" }}>
+                    {topFunction.fn.name}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* History */}
@@ -311,7 +349,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
         {activeTab === 'functions' && (
           selectedFn
             ? <FunctionDetailPanel fn={selectedFn} onBack={() => { onCloseCodeView(); setSelectedFn(null); }} />
-            : <FunctionList fns={namedFunctions} onSelect={fn => { setSelectedFn(fn); onFocusFunction(fn, scan.filePath); }} t={t} />
+            : <FunctionList fns={namedFunctions} onSelect={handleSelectFunction} t={t} />
         )}
       </div>
     </div>
