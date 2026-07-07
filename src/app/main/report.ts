@@ -210,8 +210,8 @@ function mdAiSection(scans: any[], projName: string): string {
     const critical    = scans.filter(s => s.globalScore >= 50).sort((a, b) => b.globalScore - a.globalScore);
 
     const lines = [
-        `---\n\n## Context for AI Refactoring Assistant\n`,
-        `> Copy and paste this section into Claude, GPT-4, or any AI assistant.\n`,
+        `---\n\n## Review and Maintenance Context\n`,
+        `> Use this section as structured context for review and maintenance planning.\n`,
         `I have a ${projName} project analyzed by Cortex. Overall maintenance pressure: **${pressureLabel}** (score ${avg.toFixed(1)}/100). Cortex uses this score as a ranking signal, not a diagnosis.\n`,
     ];
     if (critical.length) {

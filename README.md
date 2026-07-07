@@ -31,8 +31,8 @@ Thresholds are calibrated per file type — a React component is not scored like
 **Tracks how scores evolve**
 Every scan is stored. You can see whether a file is getting better or worse over time, and follow the global health trend of your project across days and sessions.
 
-**Generates AI-ready context**
-After each scan, Cortex writes a structured JSON snapshot of your project — scores, history, couplings, trends. Paste it into any AI assistant and it instantly understands the state of your codebase without needing to read a single file.
+**Generates structured project snapshots**
+After each scan, Cortex writes a structured JSON snapshot of your project — scores, history, couplings, trends. Use it as maintenance context when reviewing the state of a codebase.
 
 ---
 
@@ -54,7 +54,7 @@ After each scan, Cortex writes a structured JSON snapshot of your project — sc
 | **Security scan** | Pattern-based secret/injection detection + `npm audit` dependency vulnerability check |
 | **File ignore** | Exclude files from scoring via sidebar (greyed) or from scanning entirely via Settings |
 | **UI preferences** | Sidebar width, activity panel height, graph mode and granularity persist across sessions |
-| **AI snapshot** | `cortex-snapshot.json` written after every scan — structured context for any LLM |
+| **Project snapshot** | `cortex-snapshot.json` written after every scan — structured maintenance context |
 | **Export** | Markdown + JSON report generated simultaneously from the Overview tab |
 | **Code viewer** | Inline syntax-highlighted code viewer — opens on any function, with quick-edit mode powered by CodeMirror 6 (save triggers an instant rescan) |
 | **File tree** | Toggle between flat list and folder tree in the sidebar — files sorted by score within each directory |
@@ -80,7 +80,7 @@ Score ranges: **< 20** healthy · **20–49** stressed · **≥ 50** critical
 
 ---
 
-## AI context
+## Maintenance context
 
 After every scan, Cortex writes `cortex-snapshot.json` in the project root. This file contains:
 
@@ -89,7 +89,7 @@ After every scan, Cortex writes `cortex-snapshot.json` in the project root. This
 - Project health history (score evolution over time)
 - Coupling map (files that change together most often)
 
-This makes Cortex useful as a **context generator for AI assistants**. You work in Cortex, then drop the snapshot into any conversation — the AI immediately knows the state of your project, what's risky, what's trending up, and where the real problems are.
+This makes Cortex useful as a **maintenance context generator**. The snapshot captures the state of your project, what stands out, what is trending up, and where review attention is most useful.
 
 ---
 

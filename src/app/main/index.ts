@@ -26,9 +26,9 @@ import { startWatcher } from '../../cortex/watcher/watcher.js';
 import { buildReport } from './report.js';
 import { getDb } from '../../database/db.js';
 
-// ── Snapshot pour accès Claude ────────────────────────────────────────────────
+// ── Snapshot structuré du projet ──────────────────────────────────────────────
 // Écrit cortex-snapshot.json dans le dossier du projet Cortex après chaque scan.
-// Permet à Claude de lire les métriques sans passer par l'UI.
+// Fournit un contexte de maintenance lisible hors de l'UI.
 
 function dumpSnapshot(projectPath: string): void {
   try {

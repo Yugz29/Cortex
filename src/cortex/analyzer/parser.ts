@@ -405,7 +405,7 @@ export async function analyzeFile(filePath: string): Promise<FileMetrics> {
         try {
             return analyzeWithTsMorph(filePath);
         } catch (err) {
-            console.warn(`[Pulse] ts-morph failed for ${filePath}, using regex fallback:`, err);
+            console.warn(`[Cortex] ts-morph failed for ${filePath}, using regex fallback:`, err);
         }
     }
 
@@ -413,7 +413,7 @@ export async function analyzeFile(filePath: string): Promise<FileMetrics> {
         try {
             return analyzeWithTreeSitter(filePath);
         } catch (err) {
-            console.warn(`[Pulse] tree-sitter failed for ${filePath}, using regex fallback:`, err);
+            console.warn(`[Cortex] tree-sitter failed for ${filePath}, using regex fallback:`, err);
         }
     }
 

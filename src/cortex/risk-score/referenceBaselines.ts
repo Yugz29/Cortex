@@ -6,7 +6,7 @@
 // Sources :
 //   - Distributions de complexité cyclomatique (McCabe, SonarSource research)
 //   - Métriques observées sur des projets GitHub populaires (React, Vite, ESLint, etc.)
-//   - Ajustées empiriquement via les scans de Pulse sur lui-même
+//   - Ajustées empiriquement via des scans historiques de projets Cortex
 //
 // Ces valeurs servent de PLANCHER pour les baselines projet.
 // ─────────────────────────────────────────────────────────────────────────────
