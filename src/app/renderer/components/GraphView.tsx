@@ -234,7 +234,6 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
             const isFocused    = focusEdgeIdxs.has(i);
             const isCrossLayer = classifyLayer(e.from) !== classifyLayer(e.to);
             if (hasFocus && !isFocused) return null;
-            if (!hasFocus && graphMode === 'layers' && !isCrossLayer) return null;
 
             const isOut  = e.from === focusPath;
             const colHex = isFocused
@@ -279,7 +278,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
                   d={pathD} fill="none"
                   stroke={colHex}
                   strokeWidth={(isFocused ? 1.5 : 0.8) / transform.k}
-                  opacity={isFocused ? 0.9 : graphMode === 'all' ? (isCrossLayer ? 0.18 : 0.10) : (isCrossLayer ? 0.2 : 0.3)}
+                  opacity={isFocused ? 0.9 : graphMode === 'all' ? (isCrossLayer ? 0.24 : 0.16) : (isCrossLayer ? 0.28 : 0.14)}
                   strokeDasharray={!isOut && isFocused ? `${4 / transform.k},${3 / transform.k}` : undefined}
                 />
                 {isFocused && (
