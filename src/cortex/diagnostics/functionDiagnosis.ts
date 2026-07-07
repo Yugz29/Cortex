@@ -87,7 +87,7 @@ function profileSummary(profile: FunctionPressureProfile): string {
         case 'mixed-pressure':
             return 'Plusieurs signaux rendent cette fonction intéressante à relire.';
         case 'low-pressure':
-            return 'Aucun signal notable ne ressort pour cette fonction.';
+            return 'Aucun signal particulier ne ressort pour cette fonction.';
     }
 }
 

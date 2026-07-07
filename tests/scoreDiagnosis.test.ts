@@ -33,7 +33,7 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('change-pressure');
         expect(d.profile).toBe('hotspot-priority');
-        expect(d.label).toBe('Hotspot prioritaire');
+        expect(d.label).toBe('Hotspot à relire');
         expect(d.reasons.some(r => r.metric === 'hotspotScore')).toBe(true);
     });
 
@@ -63,7 +63,7 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('dependency-impact');
         expect(d.profile).toBe('high-impact');
-        expect(d.label).toBe('Impact dépendances élevé');
+        expect(d.label).toBe('Impact dépendances');
         expect(d.dominantSignal?.metric).toBe('fanIn');
     });
 

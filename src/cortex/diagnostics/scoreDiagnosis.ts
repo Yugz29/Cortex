@@ -100,8 +100,8 @@ function topReasons(reasons: DiagnosisReason[]): DiagnosisReason[] {
 function familyLabel(family: DiagnosisFamily): string {
     switch (family) {
         case 'structural-load': return 'Charge structurelle élevée';
-        case 'change-pressure': return 'Pression de changement élevée';
-        case 'dependency-impact': return 'Impact dépendances élevé';
+        case 'change-pressure': return 'Pression de changement';
+        case 'dependency-impact': return 'Impact dépendances';
         case 'balanced': return 'Signaux mixtes';
         case 'low-pressure': return 'Faible pression';
     }
@@ -109,10 +109,10 @@ function familyLabel(family: DiagnosisFamily): string {
 
 function profileLabel(profile: FilePressureProfile, family: DiagnosisFamily): string {
     switch (profile) {
-        case 'hotspot-priority': return 'Hotspot prioritaire';
+        case 'hotspot-priority': return 'Hotspot à relire';
         case 'complex-but-stable': return 'Complexe mais stable';
         case 'volatile-but-simple': return 'Volatile mais simple';
-        case 'high-impact': return 'Impact dépendances élevé';
+        case 'high-impact': return 'Impact dépendances';
         case 'low-pressure': return 'Faible pression';
         case 'mixed-pressure': return familyLabel(family);
     }

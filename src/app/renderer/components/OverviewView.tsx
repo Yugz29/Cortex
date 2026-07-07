@@ -410,10 +410,10 @@ export default function OverviewView({
                       <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', fontFamily: "'SF Mono','Menlo',monospace" }}>{name}</span>
                       <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>{dir}/</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 500, background: `${colHex}18`, color: col, border: `0.5px solid ${colHex}35` }}>{signalLabel}</span>
                       <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace" }}>{signalValue}</span>
-                      <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>{signalExplain}</span>
+                      <span style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.4 }}>{signalExplain}</span>
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, textAlign: 'right' }}>
