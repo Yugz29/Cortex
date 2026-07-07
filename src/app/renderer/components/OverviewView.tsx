@@ -3,6 +3,7 @@ import type { Scan, Edge, SecurityScanResult } from '../types';
 import { scoreColor, scoreColorHex, projectHealthStatus } from '../utils';
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
+import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import ProjectSwitcher from './shared/ProjectSwitcher';
 
 type FilterKey = 'critical' | 'stressed' | 'healthy' | null;
@@ -388,11 +389,16 @@ export default function OverviewView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {topRisks.map(s => {
               const m      = topMetric(s, t);
+              const diagnosis = diagnoseScore(s);
+              const dominant = diagnosis.dominantSignal;
               const col    = scoreColor(s.globalScore);
               const colHex = scoreColorHex(s.globalScore);
               const name   = s.filePath.split('/').pop() ?? '';
               const parts  = s.filePath.split('/');
               const dir    = parts.length >= 2 ? parts[parts.length - 2] : '';
+              const signalLabel = dominant?.label ?? m.label;
+              const signalValue = dominant ? `${dominant.score.toFixed(0)}/100` : m.value;
+              const signalExplain = dominant ? diagnosis.summary : m.explain;
               return (
                 <div key={s.filePath} onClick={() => onSelectScan(s)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--bg-card)', border: `0.5px solid var(--border)`, borderLeft: `3px solid ${colHex}`, borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s' }}
@@ -405,9 +411,9 @@ export default function OverviewView({
                       <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>{dir}/</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 500, background: `${colHex}18`, color: col, border: `0.5px solid ${colHex}35` }}>{m.label}</span>
-                      <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace" }}>{m.value}</span>
-                      <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>{m.explain}</span>
+                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 500, background: `${colHex}18`, color: col, border: `0.5px solid ${colHex}35` }}>{signalLabel}</span>
+                      <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace" }}>{signalValue}</span>
+                      <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>{signalExplain}</span>
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, textAlign: 'right' }}>

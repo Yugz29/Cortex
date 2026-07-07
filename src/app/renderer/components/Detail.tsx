@@ -3,6 +3,7 @@ import type { Scan, Edge, FunctionDetail } from '../types';
 import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils';
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
+import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import ScoreGraph from './shared/ScoreGraph';
 import MetricBar from './shared/MetricBar';
 import SectionLabel from './shared/SectionLabel';
@@ -37,6 +38,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   const color = scoreColor(scan.globalScore);
   const l     = classifyLayer(scan.filePath);
   const lc    = LAYER_COLORS[l];
+  const diagnosis = diagnoseScore(scan);
 
   const tabStyle = (tab: 'metrics' | 'functions'): React.CSSProperties => ({
     flex: 1, padding: '9px 0', fontSize: 11, letterSpacing: '0.06em', fontWeight: 500,
@@ -142,6 +144,47 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
 
         {activeTab === 'metrics' && (
           <>
+            {/* Diagnostic */}
+            <div style={{
+              marginBottom: 18,
+              padding: '11px 12px',
+              background: 'var(--bg-card)',
+              border: '0.5px solid var(--border)',
+              borderLeft: `3px solid ${color}`,
+              borderRadius: 8,
+            }}>
+              <div style={{
+                fontSize: 10,
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                marginBottom: 5,
+              }}>
+                {diagnosis.label}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                {diagnosis.summary}
+              </div>
+              {diagnosis.reasons.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
+                  {diagnosis.reasons.map(reason => (
+                    <span key={reason.metric} style={{
+                      fontSize: 9,
+                      color: 'var(--text-muted)',
+                      background: 'var(--bg-hover)',
+                      border: '0.5px solid var(--border)',
+                      borderRadius: 4,
+                      padding: '2px 6px',
+                      fontFamily: "'SF Mono','Menlo',monospace",
+                    }}>
+                      {reason.label} · {reason.score.toFixed(0)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* History */}
             {history.length >= 1 && (
               <div style={{ marginBottom: 20 }}>

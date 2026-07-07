@@ -1,5 +1,5 @@
 {
-  "include": ["src/app/renderer/**/*"],
+  "include": ["src/app/renderer/**/*", "src/cortex/diagnostics/**/*"],
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
