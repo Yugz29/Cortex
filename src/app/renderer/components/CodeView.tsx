@@ -293,7 +293,7 @@ export default function CodeView({ filePath, fn, onClose }: Props) {
   // Scroll vers la fonction en mode lecture
   useEffect(() => {
     if (!loading && !editMode && lineRef.current) {
-      lineRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      lineRef.current.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
   }, [loading, editMode, fn.start_line]);
 
