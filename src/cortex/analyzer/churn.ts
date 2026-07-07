@@ -10,11 +10,17 @@ export interface FileCoupling {
 let _churnCache: Map<string, number> | null = null;
 let _cachedProjectPath: string | null = null;
 
+function elapsedMs(start: number): number {
+    return Date.now() - start;
+}
+
 export async function buildChurnCache(projectPath: string): Promise<void> {
+    const startedAt = Date.now();
     try {
         const git = simpleGit(projectPath);
         const gitRoot = (await git.revparse(['--show-toplevel'])).trim();
         const log = await git.raw(['log', '--since=30 days ago', '--name-only', '--pretty=format:']);
+        const logBytes = Buffer.byteLength(log, 'utf-8');
         _churnCache = new Map();
         for (const line of log.split('\n')) {
             const trimmed = line.trim();
@@ -23,7 +29,7 @@ export async function buildChurnCache(projectPath: string): Promise<void> {
             _churnCache.set(abs, (_churnCache.get(abs) ?? 0) + 1);
         }
         _cachedProjectPath = projectPath;
-        console.log(`[Cortex] Churn cache built — ${_churnCache.size} files tracked.`);
+        console.log(`[Cortex] Churn cache built — ${_churnCache.size} files tracked, log=${logBytes}B in ${elapsedMs(startedAt)}ms`);
     } catch {
         _churnCache = new Map();
         _cachedProjectPath = projectPath;
@@ -47,6 +53,7 @@ export async function buildCouplingMap(
     projectPath: string,
     minCoChanges = 3,
 ): Promise<Map<string, FileCoupling[]>> {
+    const startedAt = Date.now();
     const result = new Map<string, FileCoupling[]>();
     try {
         const git     = simpleGit(projectPath);
@@ -66,14 +73,22 @@ export async function buildCouplingMap(
             }
         }
         const pairCounts = new Map<string, number>();
+        let totalPairsGenerated = 0;
+        let maxFilesPerCommit = 0;
+        let ignoredCommits = 0;
         for (const [, filesInCommit] of commitGroups) {
-            if (filesInCommit.length < 2) continue;
+            maxFilesPerCommit = Math.max(maxFilesPerCommit, filesInCommit.length);
+            if (filesInCommit.length < 2) {
+                ignoredCommits++;
+                continue;
+            }
             for (let i = 0; i < filesInCommit.length; i++) {
                 for (let j = i + 1; j < filesInCommit.length; j++) {
                     const a   = filesInCommit[i]!;
                     const b   = filesInCommit[j]!;
                     const key = a < b ? `${a}\0${b}` : `${b}\0${a}`;
                     pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+                    totalPairsGenerated++;
                 }
             }
         }
@@ -86,6 +101,7 @@ export async function buildCouplingMap(
             result.get(fileA)!.push(coupling);
             result.get(fileB)!.push(coupling);
         }
+        console.log(`[Cortex] Coupling map built — ${result.size} files, commits=${commitGroups.size}, pairs=${totalPairsGenerated}, maxFilesPerCommit=${maxFilesPerCommit}, ignoredCommits=${ignoredCommits} in ${elapsedMs(startedAt)}ms`);
     } catch { }
     return result;
 }
