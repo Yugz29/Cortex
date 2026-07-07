@@ -124,6 +124,11 @@ let lastEdges: FileEdge[] = [];
 let lastEdgesProjectPath = '';
 let lastScoreSnapshot = new Map<string, number>();
 let activeScanToken = 0;
+let isScanRunning = false;
+let runningScanProjectPath = '';
+let runningScanToken = 0;
+let pendingScanProjectPath = '';
+let pendingScanReason = '';
 
 function getActiveProjectPath(): string {
   const settings = loadSettings();
@@ -172,9 +177,62 @@ function emit(type: string, message: string, level: 'info' | 'warn' | 'critical'
   mainWindow?.webContents.send('cortex-event', { type, message, level, ts: Date.now() });
 }
 
-async function runScan(): Promise<void> {
-  const scanToken = ++activeScanToken;
+type ScanOutcome = 'applied' | 'stale' | 'failed';
+
+function projectLabel(projectPath: string): string {
+  return projectPath.split('/').pop() || projectPath || 'no-project';
+}
+
+function requestScan(reason: string): void {
   const projectPath = getActiveProjectPath();
+  if (!projectPath) return;
+
+  if (isScanRunning) {
+    if (projectPath === runningScanProjectPath && activeScanToken === runningScanToken) {
+      console.log(`[Cortex] Scan already running — ${projectLabel(projectPath)} (${reason})`);
+      return;
+    }
+
+    activeScanToken++;
+    pendingScanProjectPath = projectPath;
+    pendingScanReason = reason;
+    console.log(`[Cortex] Scan queued latest — ${projectLabel(projectPath)} (${reason})`);
+    return;
+  }
+
+  startScheduledScan(projectPath, reason);
+}
+
+function startScheduledScan(projectPath: string, reason: string): void {
+  isScanRunning = true;
+  runningScanProjectPath = projectPath;
+  const scanToken = ++activeScanToken;
+  runningScanToken = scanToken;
+  console.log(`[Cortex] Scan started — ${projectLabel(projectPath)} (${reason})`);
+
+  runScan(projectPath, scanToken)
+    .finally(() => {
+      isScanRunning = false;
+      runningScanProjectPath = '';
+      runningScanToken = 0;
+
+      const nextProjectPath = pendingScanProjectPath;
+      const nextReason = pendingScanReason || 'pending';
+      pendingScanProjectPath = '';
+      pendingScanReason = '';
+
+      if (!nextProjectPath) return;
+      if (nextProjectPath !== getActiveProjectPath()) {
+        console.log(`[Cortex] Pending scan dropped — ${projectLabel(nextProjectPath)}`);
+        return;
+      }
+
+      console.log(`[Cortex] Pending scan started — ${projectLabel(nextProjectPath)} (${nextReason})`);
+      startScheduledScan(nextProjectPath, nextReason);
+    });
+}
+
+async function runScan(projectPath: string, scanToken: number): Promise<ScanOutcome> {
   try {
     emit('scan-start', 'analysis triggered', 'info');
 
@@ -182,7 +240,7 @@ async function runScan(): Promise<void> {
     const result = await scanProject(projectPath, settings.ignore, settings.ignoredFiles);
     if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
       console.log(`[Cortex] Ignored stale scan result — ${projectPath.split('/').pop() || projectPath}`);
-      return;
+      return 'stale';
     }
     lastEdges = result.edges;
     lastEdgesProjectPath = projectPath;
@@ -243,13 +301,15 @@ async function runScan(): Promise<void> {
 
     dumpSnapshot(projectPath);
     mainWindow?.webContents.send('scan-complete', { projectPath });
+    return 'applied';
   } catch (err) {
     if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
       console.log(`[Cortex] Ignored stale scan error — ${projectPath.split('/').pop() || projectPath}`);
-      return;
+      return 'stale';
     }
     console.error('[Cortex] Scan error:', err);
     emit('scan-error', 'scan failed · check console', 'critical');
+    return 'failed';
   }
 }
 
@@ -298,7 +358,7 @@ app.whenReady().then(async () => {
     emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
-    runScan();
+    requestScan('add-project');
     return updated.projects;
   });
 
@@ -313,12 +373,14 @@ app.whenReady().then(async () => {
       // Bascule sur le projet suivant
       emit('project-switch', `switched · ${updated.activeProjectPath.split('/').pop()}`, 'info');
       if (w) w.restart(updated.activeProjectPath, loadSettings().ignore);
-      runScan();
+      requestScan('remove-project');
     } else if (!updated.activeProjectPath) {
       // Plus aucun projet — arrêter le watcher, signaler l'UI
       if (w) w.close();
       emit('project-switch', '', 'info');
       activeScanToken++;
+      pendingScanProjectPath = '';
+      pendingScanReason = '';
       mainWindow?.webContents.send('scan-complete', { projectPath: '' });
     }
     return updated.projects;
@@ -327,14 +389,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('ignore-file', (_e, filePath: string) => {
     const updated = ignoreFile(loadSettings(), filePath);
     saveSettings(updated);
-    runScan();
+    requestScan('ignore-file');
     return updated.ignoredFiles;
   });
 
   ipcMain.handle('unignore-file', (_e, filePath: string) => {
     const updated = unignoreFile(loadSettings(), filePath);
     saveSettings(updated);
-    runScan();
+    requestScan('unignore-file');
     return updated.ignoredFiles;
   });
 
@@ -354,7 +416,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-excluded-files', () => loadSettings().excludedFiles);
 
-  ipcMain.handle('run-scan', () => { runScan(); });
+  ipcMain.handle('run-scan', () => { requestScan('manual'); });
 
   ipcMain.handle('run-security-scan', async (_e, projectPath: string): Promise<SecurityScanResult> => {
     const getSecurityCachePath = (projPath: string) => {
@@ -524,7 +586,7 @@ app.whenReady().then(async () => {
     emit('project-switch', `switched · ${projectPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(projectPath, loadSettings().ignore);
-    runScan();
+    requestScan('switch-project');
     return projectPath;
   });
 
@@ -542,7 +604,7 @@ app.whenReady().then(async () => {
     emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
-    runScan();
+    requestScan('pick-project');
     return newPath;
   });
 
@@ -585,7 +647,7 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
-  runScan();
+  requestScan('startup');
 
   // ── Watcher ────────────────────────────────────────────────────────────────
   const initialSettings = loadSettings();
@@ -613,7 +675,7 @@ app.whenReady().then(async () => {
       } catch { /* non-fatal */ }
     }
     if (scanTimeout) clearTimeout(scanTimeout);
-    scanTimeout = setTimeout(() => runScan(), 1500);
+    scanTimeout = setTimeout(() => requestScan(`watcher:${eventType}`), 1500);
   };
 
   watcher.emitter.on('file:changed', (p: string) => debouncedScan(p, 'changed'));
