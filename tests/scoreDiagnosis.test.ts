@@ -16,6 +16,8 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('structural-load');
         expect(d.profile).toBe('complex-but-stable');
+        expect(d.label).toBe('Complexe mais stable');
+        expect(d.summary).toBe('Ce fichier ressort surtout par sa charge structurelle. Son activité récente semble limitée.');
         expect(d.dominantSignal?.metric).toBe('cognitiveComplexityScore');
         expect(d.reasons).toHaveLength(3);
     });
@@ -31,6 +33,7 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('change-pressure');
         expect(d.profile).toBe('hotspot-priority');
+        expect(d.label).toBe('Hotspot prioritaire');
         expect(d.reasons.some(r => r.metric === 'hotspotScore')).toBe(true);
     });
 
@@ -45,7 +48,9 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('change-pressure');
         expect(d.profile).toBe('volatile-but-simple');
+        expect(d.label).toBe('Volatile mais simple');
         expect(d.dominantSignal?.metric).toBe('churnScore');
+        expect(d.dominantSignal?.label).toBe('Activité récente élevée');
     });
 
     it('detecte un fichier a fort impact de dependance', () => {
@@ -58,6 +63,7 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('dependency-impact');
         expect(d.profile).toBe('high-impact');
+        expect(d.label).toBe('Impact dépendances élevé');
         expect(d.dominantSignal?.metric).toBe('fanIn');
     });
 
@@ -76,6 +82,7 @@ describe('diagnoseScore', () => {
 
         expect(d.family).toBe('low-pressure');
         expect(d.profile).toBe('low-pressure');
+        expect(d.label).toBe('Faible pression');
         expect(d.dominantSignal).toBeNull();
         expect(d.reasons).toHaveLength(0);
     });

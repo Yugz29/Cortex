@@ -69,7 +69,7 @@ const translations = {
 
   // ── Overview summaries ─────────────────────────────────────────────────────
   'summary.noModules':      { en: 'No modules analyzed yet.', fr: "Aucun module analysé pour l'instant." },
-  'summary.allHealthy':     { en: 'All {n} modules are in a low-pressure range.', fr: 'Les {n} modules sont dans une plage de faible pression.' },
+  'summary.allHealthy':     { en: 'All {n} modules are in a low pressure range.', fr: 'Les {n} modules sont dans une plage de faible pression.' },
   'summary.criticalSingle': { en: '1 high-pressure module stands out — highest signal: {file} ({metric}).', fr: '1 module à forte pression ressort — signal principal : {file} ({metric}).' },
   'summary.criticalMulti':  { en: '{n} high-pressure modules stand out — highest signal: {file} ({metric}).', fr: '{n} modules à forte pression ressortent — signal principal : {file} ({metric}).' },
   'summary.stressedWorse':  { en: '{n} elevated {files} show higher maintenance pressure.', fr: '{n} {files} élevés montrent une pression de maintenance plus forte.' },

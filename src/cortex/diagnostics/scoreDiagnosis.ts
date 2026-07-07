@@ -100,10 +100,21 @@ function topReasons(reasons: DiagnosisReason[]): DiagnosisReason[] {
 function familyLabel(family: DiagnosisFamily): string {
     switch (family) {
         case 'structural-load': return 'Charge structurelle élevée';
-        case 'change-pressure': return 'Pression de changement';
-        case 'dependency-impact': return 'Impact de dépendance';
-        case 'balanced': return 'Pression mixte';
+        case 'change-pressure': return 'Pression de changement élevée';
+        case 'dependency-impact': return 'Impact dépendances élevé';
+        case 'balanced': return 'Signaux mixtes';
         case 'low-pressure': return 'Faible pression';
+    }
+}
+
+function profileLabel(profile: FilePressureProfile, family: DiagnosisFamily): string {
+    switch (profile) {
+        case 'hotspot-priority': return 'Hotspot prioritaire';
+        case 'complex-but-stable': return 'Complexe mais stable';
+        case 'volatile-but-simple': return 'Volatile mais simple';
+        case 'high-impact': return 'Impact dépendances élevé';
+        case 'low-pressure': return 'Faible pression';
+        case 'mixed-pressure': return familyLabel(family);
     }
 }
 
@@ -112,7 +123,7 @@ function familySummary(family: DiagnosisFamily, profile: FilePressureProfile): s
         return 'Ce fichier combine une charge structurelle notable et une activité récente élevée.';
     }
     if (profile === 'complex-but-stable') {
-        return 'Ce fichier ressort surtout par sa structure, mais il ne semble pas très actif récemment.';
+        return 'Ce fichier ressort surtout par sa charge structurelle. Son activité récente semble limitée.';
     }
     if (profile === 'volatile-but-simple') {
         return 'Ce fichier change souvent, mais ses signaux structurels restent limités.';
@@ -144,8 +155,8 @@ export function diagnoseScore(input: ScoreDiagnosisInput): ScoreDiagnosis {
         { label: 'Fonction principale longue', metric: 'functionSizeScore', score: metric(input, 'functionSizeScore') },
         { label: 'Imbrication importante', metric: 'depthScore', score: metric(input, 'depthScore') },
         { label: 'Interface de fonction large', metric: 'paramScore', score: metric(input, 'paramScore') },
-        { label: 'Churn récent élevé', metric: 'churnScore', score: metric(input, 'churnScore') },
-        { label: 'Hotspot complexité × churn', metric: 'hotspotScore', score: hotspotScore(num(input.hotspotScore)) },
+        { label: 'Activité récente élevée', metric: 'churnScore', score: metric(input, 'churnScore') },
+        { label: 'Complexité et changements combinés', metric: 'hotspotScore', score: hotspotScore(num(input.hotspotScore)) },
         { label: 'Nombreux fichiers dépendants', metric: 'fanIn', score: fanScore(num(input.fanIn ?? input.details?.fanIn)) },
         { label: 'Nombreuses dépendances sortantes', metric: 'fanOut', score: fanScore(num(input.fanOut ?? input.details?.fanOut)) },
         { label: 'Pression en hausse', metric: 'trend', score: trendScore(input.trend) },
@@ -197,7 +208,7 @@ export function diagnoseScore(input: ScoreDiagnosisInput): ScoreDiagnosis {
     return {
         family,
         profile,
-        label: familyLabel(family),
+        label: profileLabel(profile, family),
         summary: familySummary(family, profile),
         dominantSignal,
         reasons: selectedReasons,
