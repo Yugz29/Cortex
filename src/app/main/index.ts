@@ -21,6 +21,7 @@ import { buildProjectFingerprint, isProjectFingerprintCurrent, scanProject, SCAN
 import { scanProjectForPatterns } from '../../cortex/security/patternScanner.js';
 import type { SecurityScanResult } from '../../cortex/security/patternScanner.js';
 import { execFile } from 'node:child_process';
+import { DEPENDENCY_PACKAGE_FILES, findNodeProjects, hasPackageJsonAnywhere, runNpmAuditIn } from './dependencyAudit.js';
 import type { FileEdge } from './scanner.js';
 import { loadSettings, saveSettings, addProject, removeProject, setActiveProject, ignoreFile, unignoreFile, excludeFile, includeFile, type AppSettings } from './settings.js';
 import { startWatcher } from '../../cortex/watcher/watcher.js';
@@ -465,41 +466,13 @@ app.whenReady().then(async () => {
     const settings = loadSettings();
     const findings = scanProjectForPatterns(projectPath, settings.ignore);
 
-    const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.vite', '__pycache__', 'venv', '.venv']);
-
-    function findNodeProjects(dir: string, depth = 0): string[] {
-      if (depth > 4) return [];
-      const found: string[] = [];
-      try {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        const hasPkg  = entries.some(e => e.isFile() && e.name === 'package.json');
-        const hasLock = entries.some(e => e.isFile() && ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'].includes(e.name));
-        if (hasPkg && hasLock) { found.push(dir); return found; }
-        for (const entry of entries) {
-          if (!entry.isDirectory() || SKIP_DIRS.has(entry.name)) continue;
-          found.push(...findNodeProjects(path.join(dir, entry.name), depth + 1));
-        }
-      } catch { /* dossier inaccessible */ }
-      return found;
-    }
-
-    const nodeProjects = findNodeProjects(projectPath);
+    const nodeProjects = findNodeProjects(projectPath, message => console.log(message));
 
     if (nodeProjects.length === 0) {
-      function hasPkgAnywhere(dir: string, depth = 0): boolean {
-        if (depth > 4) return false;
-        try {
-          const entries = fs.readdirSync(dir, { withFileTypes: true });
-          if (entries.some(e => e.isFile() && e.name === 'package.json')) return true;
-          return entries
-            .filter(e => e.isDirectory() && !SKIP_DIRS.has(e.name))
-            .some(e => hasPkgAnywhere(path.join(dir, e.name), depth + 1));
-        } catch { return false; }
-      }
-      const pkgExists = hasPkgAnywhere(projectPath);
+      const pkgExists = hasPackageJsonAnywhere(projectPath);
       const reason = pkgExists
-        ? 'package.json found but no lockfile (package-lock.json / yarn.lock / pnpm-lock.yaml). Run your package manager install first.'
-        : 'No package.json found in this project — dependency audit only applies to Node.js projects.';
+        ? 'package.json trouvé, mais aucun lockfile reconnu dans le même dossier (package-lock.json / npm-shrinkwrap.json / yarn.lock / pnpm-lock.yaml). Lancez l’installation du gestionnaire de paquets dans ce projet.'
+        : 'Aucun package.json trouvé dans ce projet : l’audit des dépendances s’applique uniquement aux projets Node.js.';
 
       const result: SecurityScanResult = {
         findings,
@@ -510,23 +483,8 @@ app.whenReady().then(async () => {
       return result;
     }
 
-    function runAuditIn(dir: string): Promise<{ vulns: any[]; counts: any; error?: string }> {
-      return new Promise(resolve => {
-        execFile('npm', ['audit', '--json'], { cwd: dir, timeout: 30_000 }, (_err, stdout) => {
-          try {
-            const json   = JSON.parse(stdout) as any;
-            const vulns  = Object.values(json.vulnerabilities ?? {}) as any[];
-            const counts = json.metadata?.vulnerabilities ?? { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0 };
-            resolve({ vulns, counts });
-          } catch (e) {
-            resolve({ vulns: [], counts: { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0 }, error: String(e) });
-          }
-        });
-      });
-    }
-
     const auditResults = await Promise.all(
-      nodeProjects.map(async dir => ({ dir, ...(await runAuditIn(dir)) }))
+      nodeProjects.map(async project => ({ ...project, ...(await runNpmAuditIn(project.dir, execFile, message => console.log(message))) }))
     );
 
     const allVulns: any[] = [];
@@ -539,6 +497,26 @@ app.whenReady().then(async () => {
       for (const v of vulns) { allVulns.push({ ...v, subdir: subdir || undefined }); }
       for (const k of Object.keys(merged) as (keyof typeof merged)[]) {
         merged[k] += (counts[k] ?? 0);
+      }
+    }
+
+    if (hasError) {
+      const failed = auditResults.filter(r => r.error);
+      const succeeded = auditResults.length - failed.length;
+      if (succeeded === 0) {
+        const details = failed.map(r => `${r.dir}: ${r.error}`).join('\n');
+        const result: SecurityScanResult = {
+          findings,
+          audit: {
+            status: 'error',
+            vulns: [],
+            counts: merged,
+            error: `Audit des dépendances échoué sans résultat exploitable.\n${details}`,
+          },
+          scannedAt: new Date().toISOString(),
+        };
+        saveSecurityToSnapshot(result);
+        return result;
       }
     }
 
@@ -557,7 +535,7 @@ app.whenReady().then(async () => {
                         .map((x: any) => x.cve ?? x.url ?? '')
                         .filter(Boolean),
       })),
-      ...(hasError ? { error: 'Some sub-projects failed to audit.' } : {}),
+      ...(hasError ? { error: 'Certains sous-projets n’ont pas pu être audités.' } : {}),
     };
 
     const result: SecurityScanResult = { findings, audit, scannedAt: new Date().toISOString() };
@@ -581,7 +559,11 @@ app.whenReady().then(async () => {
     try {
       const key       = projectPath.replace(/[^a-zA-Z0-9]/g, '_').slice(-60);
       const cachePath = join(app.getPath('userData'), `security_${key}.json`);
-      if (fs.existsSync(cachePath)) return JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      if (fs.existsSync(cachePath)) {
+        const cached = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+        if (cached?.audit?.status !== 'ok') return null;
+        return cached;
+      }
     } catch { /* non-fatal */ }
     return null;
   });
@@ -691,7 +673,7 @@ app.whenReady().then(async () => {
   });
   let scanTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  const PKG_FILES = new Set(['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']);
+  const PKG_FILES = new Set<string>(DEPENDENCY_PACKAGE_FILES);
 
   const debouncedScan = (filePath: string, eventType: string) => {
     const file = filePath.split('/').pop() ?? '';

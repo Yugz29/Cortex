@@ -499,6 +499,11 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                         </div>
                                     </>
                                 )}
+                                {result.audit.error && (
+                                    <div style={{ padding: '10px 16px', fontSize: 10, color: 'var(--orange)', borderTop: '0.5px solid var(--border)', lineHeight: 1.6 }}>
+                                        <span style={{ fontWeight: 600 }}>{t('security.auditPartial')}</span> {result.audit.error}
+                                    </div>
+                                )}
                             </>
                         )}
                     </>

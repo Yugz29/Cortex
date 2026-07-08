@@ -341,6 +341,7 @@ const translations = {
   'security.auditNotAvail':   { en: 'Dependency audit not available.',   fr: 'Audit des dépendances indisponible.'               },
   'security.auditNoProject':  { en: 'No compatible Node.js project found.', fr: 'Aucun projet Node.js compatible trouvé.'       },
   'security.auditFailed':     { en: 'Audit failed.',                    fr: 'Audit échoué.'                                     },
+  'security.auditPartial':    { en: 'Partial audit.',                   fr: 'Audit partiel.'                                    },
   'security.npmSource':       { en: 'Source: npm advisory database ·',  fr: 'Source : base npm ·'                               },
   'security.viewInCode':      { en: 'View in code',                     fr: 'Voir dans le code'                                 },
   'security.fixAvailable':    { en: 'FIX AVAILABLE',                    fr: 'CORRECTIF DISPO'                                   },
