@@ -22,7 +22,7 @@ type BetterSqlite3 = {
     transaction: (fn: () => void) => () => void;
 };
 
-export const CURRENT_VERSION = 9;
+export const CURRENT_VERSION = 10;
 
 type Migration = {
     version: number;
@@ -238,6 +238,21 @@ export const MIGRATIONS: Migration[] = [
             db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_project ON import_edges(project_path)`);
             db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_from ON import_edges(project_path, from_file)`);
             db.exec(`CREATE INDEX IF NOT EXISTS idx_import_edges_to ON import_edges(project_path, to_file)`);
+        },
+    },
+    {
+        version: 10,
+        description: 'Persist project scan fingerprints',
+        up: (db) => {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS project_fingerprints (
+                    project_path    TEXT PRIMARY KEY,
+                    fingerprint     TEXT NOT NULL,
+                    scanner_version TEXT NOT NULL,
+                    created_at      TEXT NOT NULL
+                )
+            `);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_project_fingerprints_project ON project_fingerprints(project_path)`);
         },
     },
 ];

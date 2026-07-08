@@ -361,6 +361,38 @@ export function getImportEdges(projectPath: string): FileEdge[] {
     return rows.map(row => ({ from: row.from_file, to: row.to_file }));
 }
 
+export interface StoredProjectFingerprint {
+    fingerprint:     string;
+    scannerVersion:  string;
+    createdAt:       string;
+}
+
+export function getProjectFingerprint(projectPath: string): StoredProjectFingerprint | null {
+    const row = getDb().prepare(`
+        SELECT fingerprint, scanner_version, created_at
+        FROM project_fingerprints
+        WHERE project_path = ?
+    `).get(projectPath) as { fingerprint: string; scanner_version: string; created_at: string } | undefined;
+
+    if (!row) return null;
+    return {
+        fingerprint:    row.fingerprint,
+        scannerVersion: row.scanner_version,
+        createdAt:      row.created_at,
+    };
+}
+
+export function saveProjectFingerprint(projectPath: string, fingerprint: string, scannerVersion: string): void {
+    getDb().prepare(`
+        INSERT INTO project_fingerprints (project_path, fingerprint, scanner_version, created_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(project_path) DO UPDATE SET
+            fingerprint = excluded.fingerprint,
+            scanner_version = excluded.scanner_version,
+            created_at = excluded.created_at
+    `).run(projectPath, fingerprint, scannerVersion, new Date().toISOString());
+}
+
 /** Sauvegarde un snapshot uniquement si le score a changé OU si c'est un nouveau jour. */
 export function saveProjectSnapshot(projectPath: string, avgScore: number, fileCount: number): void {
     const db      = getDb();

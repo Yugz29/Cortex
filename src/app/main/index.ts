@@ -15,9 +15,9 @@ import {
   getScoreHistory,
   getProjectScoreHistory, getProjectSummary,
   saveProjectSnapshot, getProjectHistory, getProjectHistoryByDay, getSnapshotDetail, getSnapshotDetailForDay,
-  getImportEdges,
+  getImportEdges, getProjectFingerprint, saveProjectFingerprint,
 } from '../../database/db.js';
-import { scanProject } from './scanner.js';
+import { buildProjectFingerprint, isProjectFingerprintCurrent, scanProject, SCANNER_FINGERPRINT_VERSION } from './scanner.js';
 import { scanProjectForPatterns } from '../../cortex/security/patternScanner.js';
 import type { SecurityScanResult } from '../../cortex/security/patternScanner.js';
 import { execFile } from 'node:child_process';
@@ -237,6 +237,24 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
     emit('scan-start', 'analysis triggered', 'info');
 
     const settings = loadSettings();
+    const currentFingerprint = buildProjectFingerprint(projectPath, settings.ignore, settings.ignoredFiles);
+    const previousFingerprint = getProjectFingerprint(projectPath);
+    if (isProjectFingerprintCurrent(currentFingerprint, previousFingerprint)) {
+      if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
+        console.log(`[Cortex] Ignored stale scan skip — ${projectLabel(projectPath)}`);
+        return 'stale';
+      }
+
+      lastEdges = getImportEdges(projectPath);
+      lastEdgesProjectPath = projectPath;
+      const scans = getLatestScans(projectPath);
+      lastScoreSnapshot = new Map(scans.map(s => [s.filePath, s.globalScore]));
+      console.log(`[Cortex] Scan skipped — project unchanged (${currentFingerprint.fileCount} files)`);
+      emit('scan-done', `${currentFingerprint.fileCount} modules · unchanged`, 'info');
+      mainWindow?.webContents.send('scan-complete', { projectPath, skipped: true });
+      return 'applied';
+    }
+
     const result = await scanProject(projectPath, settings.ignore, settings.ignoredFiles);
     if (scanToken !== activeScanToken || projectPath !== getActiveProjectPath()) {
       console.log(`[Cortex] Ignored stale scan result — ${projectPath.split('/').pop() || projectPath}`);
@@ -298,6 +316,7 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
       ? result.files.reduce((a, f) => a + f.globalScore, 0) / result.files.length
       : 0;
     saveProjectSnapshot(projectPath, avgScore, result.files.length);
+    saveProjectFingerprint(projectPath, currentFingerprint.fingerprint, SCANNER_FINGERPRINT_VERSION);
 
     dumpSnapshot(projectPath);
     mainWindow?.webContents.send('scan-complete', { projectPath });

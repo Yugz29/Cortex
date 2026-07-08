@@ -1,5 +1,5 @@
 import { simpleGit } from 'simple-git';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 export interface FileCoupling {
     fileA:        string;
@@ -22,12 +22,61 @@ interface CouplingCacheEntry {
     metrics:      CouplingMetrics;
 }
 
+interface GitHeadCacheEntry {
+    head:      string;
+    checkedAt: number;
+}
+
+const GIT_HEAD_CACHE_TTL_MS = 10_000;
+
 let _churnCache: Map<string, number> | null = null;
 let _cachedProjectPath: string | null = null;
 const _couplingCache = new Map<string, CouplingCacheEntry>();
+const _gitHeadCache = new Map<string, GitHeadCacheEntry>();
 
 function elapsedMs(start: number): number {
     return Date.now() - start;
+}
+
+function cacheKeyForProject(projectPath: string): string {
+    return resolve(projectPath);
+}
+
+async function getGitHead(
+    cacheKey: string,
+    git: ReturnType<typeof simpleGit>,
+): Promise<{
+    head: string;
+    headMs: number;
+    cached: boolean;
+    cacheAgeMs: number | null;
+    missReason: 'none' | 'no-entry' | 'expired';
+}> {
+    const startedAt = Date.now();
+    const cached = _gitHeadCache.get(cacheKey);
+    const cacheAgeMs = cached ? startedAt - cached.checkedAt : null;
+    if (cached && cacheAgeMs !== null && cacheAgeMs < GIT_HEAD_CACHE_TTL_MS) {
+        return {
+            head:       cached.head,
+            headMs:     elapsedMs(startedAt),
+            cached:     true,
+            cacheAgeMs,
+            missReason: 'none',
+        };
+    }
+
+    const head = (await git.revparse(['HEAD'])).trim();
+    _gitHeadCache.set(cacheKey, {
+        head,
+        checkedAt: Date.now(),
+    });
+    return {
+        head,
+        headMs:     elapsedMs(startedAt),
+        cached:     false,
+        cacheAgeMs,
+        missReason: cached ? 'expired' : 'no-entry',
+    };
 }
 
 export async function buildChurnCache(projectPath: string): Promise<void> {
@@ -73,18 +122,17 @@ export async function buildCouplingMap(
     const result = new Map<string, FileCoupling[]>();
     try {
         const git     = simpleGit(projectPath);
-        const headStartedAt = Date.now();
-        const gitHead = (await git.revparse(['HEAD'])).trim();
-        const headMs = elapsedMs(headStartedAt);
+        const cacheKey = cacheKeyForProject(projectPath);
+        const { head: gitHead, headMs, cached: headCached, cacheAgeMs, missReason } = await getGitHead(cacheKey, git);
         const cacheCheckMs = elapsedMs(startedAt);
-        const cached = _couplingCache.get(projectPath);
+        const cached = _couplingCache.get(cacheKey);
         if (cached && cached.gitHead === gitHead && cached.minCoChanges === minCoChanges) {
             const m = cached.metrics;
-            console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headMs=${headMs}, cacheHit=true, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
+            console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headCached=${headCached}, headMs=${headMs}, cacheAgeMs=${cacheAgeMs ?? 'none'}, headMiss=${missReason}, cacheHit=true, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
             console.log(`[Cortex] Coupling map reused — ${m.filesWithCoupling} files, commits=${m.commits}, pairs=${m.pairs}, maxFilesPerCommit=${m.maxFilesPerCommit}, ignoredCommits=${m.ignoredCommits}, head=${gitHead.slice(0, 7)} in ${elapsedMs(startedAt)}ms`);
             return cached.couplingMap;
         }
-        console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headMs=${headMs}, cacheHit=false, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
+        console.log(`[Cortex] Coupling cache check — head=${gitHead.slice(0, 7)}, headCached=${headCached}, headMs=${headMs}, cacheAgeMs=${cacheAgeMs ?? 'none'}, headMiss=${missReason}, cacheHit=false, checkMs=${cacheCheckMs}, totalMs=${elapsedMs(startedAt)}`);
 
         const rootStartedAt = Date.now();
         const gitRoot = (await git.revparse(['--show-toplevel'])).trim();
@@ -145,7 +193,7 @@ export async function buildCouplingMap(
             maxFilesPerCommit,
             ignoredCommits,
         };
-        _couplingCache.set(projectPath, {
+        _couplingCache.set(cacheKey, {
             gitHead,
             minCoChanges,
             couplingMap: result,

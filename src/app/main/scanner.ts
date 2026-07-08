@@ -8,6 +8,8 @@ import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } fro
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 
 const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
+const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
+export const SCANNER_FINGERPRINT_VERSION = 'scanner-v1';
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
 // Dossiers toujours exclus peu importe les settings — artefacts de build, caches
 const ALWAYS_IGNORE = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'assets', '.vite', '__pycache__', 'venv', '.venv', 'env', 'site-packages', 'migrations']);
@@ -436,8 +438,51 @@ export interface ScanResult { files: RiskScoreResult[]; edges: FileEdge[]; }
 
 interface FileAnalysis { metrics: FileMetrics; raw: RawMetrics; }
 
+export interface ProjectFingerprint {
+    fingerprint: string;
+    fileCount:   number;
+}
+
+export interface StoredFingerprintLike {
+    fingerprint:     string;
+    scannerVersion:  string;
+}
+
+export function isProjectFingerprintCurrent(current: ProjectFingerprint, previous: StoredFingerprintLike | null): boolean {
+    return previous?.fingerprint === current.fingerprint &&
+        previous.scannerVersion === SCANNER_FINGERPRINT_VERSION;
+}
+
+export function buildProjectFingerprint(projectPath: string, ignoreList?: string[], ignoredFiles?: string[]): ProjectFingerprint {
+    const ignore = ignoreList ?? DEFAULT_IGNORE;
+    const ignoredSet = new Set(ignoredFiles ?? []);
+    const files: { path: string; size: number; mtimeMs: number }[] = [];
+    for (const file of getFiles(projectPath, ignore)) {
+        if (ignoredSet.has(file)) continue;
+        try {
+            const stat = fs.statSync(file);
+            files.push({
+                path:    path.relative(projectPath, file).split(path.sep).join('/'),
+                size:    stat.size,
+                mtimeMs: stat.mtimeMs,
+            });
+        } catch {
+            // File changed during pre-scan; the next watcher-triggered scan will refresh the fingerprint.
+        }
+    }
+    files.sort((a, b) => a.path.localeCompare(b.path));
+
+    return {
+        fingerprint: JSON.stringify({
+            scannerVersion: SCANNER_FINGERPRINT_VERSION,
+            files,
+        }),
+        fileCount: files.length,
+    };
+}
+
 export async function scanProject(projectPath: string, ignoreList?: string[], ignoredFiles?: string[]): Promise<ScanResult> {
-    const ignore      = ignoreList ?? ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
+    const ignore      = ignoreList ?? DEFAULT_IGNORE;
     const ignoredSet  = new Set(ignoredFiles ?? []);
     const allFiles    = getFiles(projectPath, ignore);
     const files       = allFiles.filter(f => !ignoredSet.has(f));

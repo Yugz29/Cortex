@@ -35,7 +35,15 @@ function logFor(...files: string[]): string {
     return ['a'.repeat(40), ...files].join('\n');
 }
 
+function headRevparseCalls(projectPath: string): number {
+    return gitState.revparseCalls.filter(call => (
+        call.projectPath === projectPath &&
+        call.args.includes('HEAD')
+    )).length;
+}
+
 beforeEach(() => {
+    vi.useRealTimers();
     gitState.heads.clear();
     gitState.roots.clear();
     gitState.logs.clear();
@@ -45,17 +53,18 @@ beforeEach(() => {
 });
 
 describe('buildCouplingMap — cache par Git HEAD', () => {
-    it('calcule les couplings au premier appel', async () => {
+    it('lit le HEAD et calcule les couplings au premier appel', async () => {
         const projectPath = '/repo/first';
         gitState.logs.set(projectPath, logFor('src/a.ts', 'src/b.ts'));
 
         const couplings = await buildCouplingMap(projectPath, 1);
 
         expect(couplings.size).toBe(2);
+        expect(headRevparseCalls(projectPath)).toBe(1);
         expect(gitState.rawCalls).toHaveLength(1);
     });
 
-    it('reutilise le cache si le HEAD est identique', async () => {
+    it('reutilise le HEAD et les couplings dans le TTL', async () => {
         const projectPath = '/repo/reuse';
         gitState.heads.set(projectPath, 'b'.repeat(40));
         gitState.logs.set(projectPath, logFor('src/a.ts', 'src/b.ts'));
@@ -64,24 +73,44 @@ describe('buildCouplingMap — cache par Git HEAD', () => {
         const second = await buildCouplingMap(projectPath, 1);
 
         expect(second).toBe(first);
+        expect(headRevparseCalls(projectPath)).toBe(1);
         expect(gitState.rawCalls).toHaveLength(1);
     });
 
-    it('recalcule si le HEAD change', async () => {
+    it('relit le HEAD apres expiration du TTL et recalcule si le HEAD change', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
         const projectPath = '/repo/head-change';
         gitState.heads.set(projectPath, 'c'.repeat(40));
         gitState.logs.set(projectPath, logFor('src/a.ts', 'src/b.ts'));
 
         await buildCouplingMap(projectPath, 1);
+        vi.advanceTimersByTime(10_001);
         gitState.heads.set(projectPath, 'd'.repeat(40));
         gitState.logs.set(projectPath, logFor('src/a.ts', 'src/c.ts'));
         const next = await buildCouplingMap(projectPath, 1);
 
         expect(next.has('/repo/head-change/src/c.ts')).toBe(true);
+        expect(headRevparseCalls(projectPath)).toBe(2);
         expect(gitState.rawCalls).toHaveLength(2);
     });
 
-    it('isole le cache par projectPath', async () => {
+    it('reutilise le cache HEAD pour deux chemins equivalents normalises', async () => {
+        const projectPath = '/repo/equivalent';
+        const equivalentPath = '/repo/equivalent/.';
+        gitState.heads.set(projectPath, 'f'.repeat(40));
+        gitState.logs.set(projectPath, logFor('src/a.ts', 'src/b.ts'));
+
+        const first = await buildCouplingMap(projectPath, 1);
+        const second = await buildCouplingMap(equivalentPath, 1);
+
+        expect(second).toBe(first);
+        expect(headRevparseCalls(projectPath)).toBe(1);
+        expect(headRevparseCalls(equivalentPath)).toBe(0);
+        expect(gitState.rawCalls).toHaveLength(1);
+    });
+
+    it('isole le cache HEAD et couplings par projectPath', async () => {
         const projectA = '/repo/a';
         const projectB = '/repo/b';
         gitState.heads.set(projectA, 'e'.repeat(40));
@@ -92,6 +121,8 @@ describe('buildCouplingMap — cache par Git HEAD', () => {
         await buildCouplingMap(projectA, 1);
         await buildCouplingMap(projectB, 1);
 
+        expect(headRevparseCalls(projectA)).toBe(1);
+        expect(headRevparseCalls(projectB)).toBe(1);
         expect(gitState.rawCalls.map(call => call.projectPath)).toEqual([projectA, projectB]);
     });
 
@@ -102,6 +133,7 @@ describe('buildCouplingMap — cache par Git HEAD', () => {
         const couplings = await buildCouplingMap(projectPath, 1);
 
         expect(couplings.size).toBe(0);
+        expect(headRevparseCalls(projectPath)).toBe(1);
         expect(gitState.rawCalls).toHaveLength(0);
     });
 });
