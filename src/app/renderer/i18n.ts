@@ -12,7 +12,7 @@ const translations = {
 
   // ── Status labels ──────────────────────────────────────────────────────────
   'status.critical':   { en: 'High pressure', fr: 'Pression élevée' },
-  'status.stressed':   { en: 'Elevated',      fr: 'Élevé'            },
+  'status.stressed':   { en: 'Elevated',      fr: 'Pression modérée' },
   'status.healthy':    { en: 'Low pressure',  fr: 'Faible pression'  },
   'status.observing':  { en: 'Observing',  fr: 'Observation' },
 
@@ -40,7 +40,7 @@ const translations = {
   // ── Filter chips ───────────────────────────────────────────────────────────
   'filter.all':      { en: 'All',      fr: 'Tout'         },
   'filter.critical': { en: 'High pressure', fr: 'Pression élevée' },
-  'filter.stressed': { en: 'Elevated',      fr: 'Élevé'            },
+  'filter.stressed': { en: 'Elevated',      fr: 'Pression modérée' },
   'filter.healthy':  { en: 'Low pressure',  fr: 'Faible pression'  },
   'filter.hotspots': { en: 'Hotspots', fr: 'Points chauds'},
 
@@ -48,7 +48,7 @@ const translations = {
   'overview.risk':        { en: 'pressure',                 fr: 'pression'                   },
   'overview.riskScore':   { en: 'maintenance pressure',     fr: 'pression de maintenance'    },
   'overview.health':      { en: 'maintenance pressure',     fr: 'pression de maintenance'    },
-  'overview.modules':     { en: 'Modules',       fr: 'Modules'            },
+  'overview.modules':     { en: 'Modules analyzed', fr: 'Modules analysés' },
   'overview.topRisks':    { en: 'Priority files', fr: 'Fichiers prioritaires' },
   'overview.hotspots':    { en: 'Hotspots',      fr: 'Points chauds'      },
   'overview.hotspotDesc': { en: 'Files where structural load and recent change activity are both high.', fr: 'Fichiers où la charge structurelle et l’activité de changement récente sont toutes deux élevées.' },
@@ -62,20 +62,24 @@ const translations = {
   'overview.dependents':  { en: 'dependents',    fr: 'dépendants'         },
 
   // ── Overview stat cards ────────────────────────────────────────────────────
-  'card.modules':  { en: 'Modules',  fr: 'Modules'  },
+  'card.modules':  { en: 'Modules analyzed',  fr: 'Modules analysés'  },
   'card.critical': { en: 'High pressure', fr: 'Pression élevée' },
-  'card.stressed': { en: 'Elevated',      fr: 'Élevé'            },
-  'card.healthy':  { en: 'Low pressure',  fr: 'Faible pression'  },
+  'card.stressed': { en: 'Moderate pressure', fr: 'Pression modérée' },
+  'card.healthy':  { en: 'Low pressure',  fr: 'Pression faible'  },
 
   // ── Overview summaries ─────────────────────────────────────────────────────
   'summary.noModules':      { en: 'No modules analyzed yet.', fr: "Aucun module analysé pour l'instant." },
   'summary.allHealthy':     { en: 'All {n} modules are in a low pressure range.', fr: 'Les {n} modules sont dans une plage de faible pression.' },
-  'summary.criticalSingle': { en: '1 high-pressure module stands out — highest signal: {file} ({metric}).', fr: '1 module à forte pression ressort — signal principal : {file} ({metric}).' },
-  'summary.criticalMulti':  { en: '{n} high-pressure modules stand out — highest signal: {file} ({metric}).', fr: '{n} modules à forte pression ressortent — signal principal : {file} ({metric}).' },
-  'summary.stressedWorse':  { en: '{n} elevated {files} show higher maintenance pressure.', fr: '{n} {files} élevés montrent une pression de maintenance plus forte.' },
-  'summary.stressedStable': { en: '{n} {files} remain in the elevated range.', fr: '{n} {files} restent dans la plage élevée.' },
-  'summary.file':           { en: 'file',   fr: 'fichier'  },
-  'summary.files':          { en: 'files',  fr: 'fichiers' },
+  'summary.criticalSingle': { en: '1 high-pressure module stands out — highest signal: {file} ({metric}).', fr: '1 module en pression élevée ressort — signal principal : {file} ({metric}).' },
+  'summary.criticalMulti':  { en: '{n} high-pressure modules stand out — highest signal: {file} ({metric}).', fr: '{n} modules en pression élevée ressortent — signal principal : {file} ({metric}).' },
+  'summary.pressureDegradingSingle': { en: '1 file under pressure is degrading.', fr: '1 fichier sous pression se dégrade.' },
+  'summary.pressureDegradingMulti':  { en: '{n} files under pressure are degrading.', fr: '{n} fichiers sous pression se dégradent.' },
+  'summary.pressureImprovingSingle': { en: '1 file under pressure is improving.', fr: '1 fichier sous pression est en amélioration.' },
+  'summary.pressureImprovingMulti':  { en: '{n} files under pressure are improving.', fr: '{n} fichiers sous pression sont en amélioration.' },
+  'summary.filesImprovingSingle': { en: '1 file is improving.', fr: '1 fichier est en amélioration.' },
+  'summary.filesImprovingMulti':  { en: '{n} files are improving.', fr: '{n} fichiers sont en amélioration.' },
+  'summary.stressedStableSingle': { en: '1 file remains in the moderate-pressure range.', fr: '1 fichier reste dans la plage de pression modérée.' },
+  'summary.stressedStableMulti':  { en: '{n} files remain in the moderate-pressure range.', fr: '{n} fichiers restent dans la plage de pression modérée.' },
   'summary.healthDegraded': { en: 'Overall maintenance pressure is high.', fr: 'La pression de maintenance globale est élevée.' },
   'summary.healthModerate': { en: 'Overall maintenance pressure is moderate.', fr: 'La pression de maintenance globale est modérée.' },
 

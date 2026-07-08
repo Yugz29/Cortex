@@ -2,9 +2,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import type { Scan, Edge, SecurityScanResult } from '../types';
 import { scoreColor, scoreColorHex, projectHealthStatus } from '../utils';
 import { useLocale } from '../hooks/useLocale';
-import type { TranslationKey } from '../i18n';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import ProjectSwitcher from './shared/ProjectSwitcher';
+import { generateSummary, topMetric } from '../overviewSummary';
 
 type FilterKey = 'critical' | 'stressed' | 'healthy' | null;
 
@@ -30,58 +30,7 @@ interface Props {
   exporting:       boolean;
 }
 
-type T = (key: TranslationKey, vars?: Record<string, string | number>) => string;
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function topMetric(s: Scan, t: T): { label: string; value: string; explain: string } {
-  const candidates = [
-    { score: s.churnScore,                    label: t('metric.highChurn'),      value: `${s.rawChurn} commits/30d`,       explain: t('explain.highChurn') },
-    { score: s.complexityScore,               label: t('metric.highComplexity'), value: `cx ${s.rawComplexity}`,           explain: t('explain.highComplexity') },
-    { score: s.cognitiveComplexityScore ?? 0, label: t('metric.hardToRead'),     value: `cog ${s.rawCognitiveComplexity}`, explain: t('explain.hardToRead') },
-    { score: s.functionSizeScore,             label: t('metric.largeFunctions'), value: `${s.rawFunctionSize} lines`,      explain: t('explain.largeFunctions') },
-    { score: s.depthScore,                    label: t('metric.deepNesting'),     value: `depth ${s.rawDepth}`,             explain: t('explain.deepNesting') },
-    { score: s.fanIn > 0 ? Math.min(100, s.fanIn * 7) : 0, label: t('metric.widelyImported'), value: `${s.fanIn} ${t('overview.dependents')}`, explain: t('explain.widelyImported') },
-  ].sort((a, b) => b.score - a.score);
-  return candidates[0]!;
-}
-
-function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[], avgScore: number, t: T): string {
-  if (!scans.length) return t('summary.noModules');
-
-  if (critical.length === 0 && stressed.length === 0) {
-    const improving = scans.filter(s => s.trend === '↓').length;
-    if (improving > scans.length * 0.3)
-      return `${t('summary.allHealthy', { n: scans.length })} ${improving} files show lower maintenance pressure.`;
-    return t('summary.allHealthy', { n: scans.length });
-  }
-
-  const parts: string[] = [];
-
-  if (critical.length > 0) {
-    const top = critical[0]!;
-    const m   = topMetric(top, t);
-    const key = critical.length > 1 ? 'summary.criticalMulti' : 'summary.criticalSingle';
-    parts.push(t(key, { n: critical.length, file: top.filePath.split('/').pop() ?? '', metric: m.label.toLowerCase() }));
-  }
-
-  if (stressed.length > 0) {
-    const trending   = stressed.filter(s => s.trend === '↑');
-    const improving  = stressed.filter(s => s.trend === '↓');
-    const filesWord  = t(trending.length > 1 ? 'summary.files' : 'summary.file');
-    if (trending.length > 0)
-      parts.push(t('summary.stressedWorse', { n: trending.length, files: filesWord }));
-    else if (improving.length > 0)
-      parts.push(`${improving.length} ${t('filter.stressed').toLowerCase()} ${t(improving.length > 1 ? 'summary.files' : 'summary.file')} ${t('overview.improving').toLowerCase()}.`);
-    else
-      parts.push(t('summary.stressedStable', { n: stressed.length, files: filesWord }));
-  }
-
-  if (avgScore >= 40)      parts.push(t('summary.healthDegraded'));
-  else if (avgScore >= 20) parts.push(t('summary.healthModerate'));
-
-  return parts.join(' ');
-}
 
 function fmtRelTime(iso: string): string {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
