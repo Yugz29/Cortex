@@ -7,6 +7,7 @@ import { saveScans, saveFunctions, saveCouplings, saveImportEdges } from '../../
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 import { buildSwiftTypeGraph } from './swiftTypeGraph.js';
+import { summarizeProjectAnalysisCoverage } from '../../cortex/coverage/analysisCoverage.js';
 
 const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
 const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
@@ -560,6 +561,11 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
     const results: RiskScoreResult[] = analyses.map(({ metrics, raw }) =>
         scoreFromRaw(raw, metrics.filePath, metrics.language, baselines)
     );
+    const coverage = summarizeProjectAnalysisCoverage(results.map(result => ({
+        filePath: result.filePath,
+        language: result.language,
+    })));
+    console.log(`[Cortex] Analysis coverage — complete=${coverage.byLevel.complete}, partial=${coverage.byLevel.partial}, limited=${coverage.byLevel.limited}, none=${coverage.byLevel.none}, languages=${coverage.languages.join(',') || 'none'}`);
 
     for (const result of results) {
         result.details.fanIn  = fanInMap.get(result.filePath)  ?? 0;

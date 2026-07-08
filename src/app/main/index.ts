@@ -26,6 +26,7 @@ import { loadSettings, saveSettings, addProject, removeProject, setActiveProject
 import { startWatcher } from '../../cortex/watcher/watcher.js';
 import { buildReport } from './report.js';
 import { getDb } from '../../database/db.js';
+import { summarizeProjectAnalysisCoverage } from '../../cortex/coverage/analysisCoverage.js';
 
 // ── Snapshot structuré du projet ──────────────────────────────────────────────
 // Écrit cortex-snapshot.json dans le dossier du projet Cortex après chaque scan.
@@ -69,6 +70,10 @@ function dumpSnapshot(projectPath: string): void {
 
     const avg = scans.length > 0
       ? scans.reduce((a: number, s: any) => a + s.global_score, 0) / scans.length : 0;
+    const analysisCoverage = summarizeProjectAnalysisCoverage(scans.map((s: any) => ({
+      filePath: s.file_path,
+      language: s.language,
+    })));
 
     const snapshot = {
       generated_at: new Date().toISOString(),
@@ -83,6 +88,7 @@ function dumpSnapshot(projectPath: string): void {
           avg_score:  parseFloat(avg.toFixed(1)),
           health_pct: Math.round(Math.max(0, 100 - avg)),
         },
+        analysis_coverage: analysisCoverage,
         weights,
         scans: scans.map((s: any) => ({
           file:     s.file_path.replace(projectPath + '/', ''),
