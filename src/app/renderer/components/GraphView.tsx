@@ -124,7 +124,7 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
     const maxY = Math.max(...ns.map(n => n.y + n.r));
     const padH  = 32;
     const padVT = 72; // dégager les labels de cluster (~PAD48 + text10 + marge)
-    const padVB = 52; // dégager la légende du bas (~40px)
+    const padVB = 80; // dégager la légende basse restante sans trop réduire le graphe
     const availH = h - padVT - padVB;
     const k    = Math.min(2.5, Math.max(0.05, Math.min((w - padH * 2) / (maxX - minX || 1), availH / (maxY - minY || 1))));
     if (animated) startAnim();
@@ -440,13 +440,6 @@ export default function GraphView({ scans, edges, onSelect, selectedPath }: Prop
         color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace",
         alignItems: 'center', flexWrap: 'wrap', maxWidth: '60%',
       }}>
-        {LAYER_ORDER.filter(l => [...layout.keys()].some(id => classifyLayer(id) === l)).map(l => (
-          <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: LAYER_COLORS[l], display: 'inline-block' }} />
-            {LAYER_LABELS[l]}
-          </span>
-        ))}
-        <span style={{ color: 'var(--border-hover)' }}>·</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <svg width="18" height="8" viewBox="0 0 18 8" fill="none" style={{ display: 'inline-block' }}>
             <line x1="0" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.2" />

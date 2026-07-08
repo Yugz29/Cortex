@@ -46,7 +46,24 @@ describe('overviewSummary', () => {
         const stressed = [scan({ trend: '↓' })];
 
         expect(generateSummary(stressed, [], stressed, 25, t)).toBe(
-            '1 fichier sous pression est en amélioration. La pression de maintenance globale est modérée.',
+            '1 fichier sous pression est en amélioration.\nLa pression globale reste modérée.',
+        );
+    });
+
+    it('génère le résumé français validé pour les fichiers à pression élevée', () => {
+        const critical = [
+            scan({ filePath: 'src/cortex/analyzer/churn.ts', globalScore: 75, complexityScore: 88, rawComplexity: 32 }),
+            ...Array.from({ length: 6 }, (_, i) => scan({ filePath: `src/file-${i}.ts`, globalScore: 55 })),
+        ];
+        const stressed = [scan({ filePath: 'src/moderate.ts', globalScore: 25, trend: '↓' })];
+
+        expect(generateSummary([...critical, ...stressed], critical, stressed, 25, t)).toBe(
+            [
+                '7 fichiers à pression élevée ressortent.',
+                'Le signal principal vient de churn.ts : charge structurelle.',
+                '1 fichier sous pression est en amélioration.',
+                'La pression globale reste modérée.',
+            ].join('\n'),
         );
     });
 
@@ -54,7 +71,7 @@ describe('overviewSummary', () => {
         const healthy = [scan({ globalScore: 10, trend: '↓' })];
 
         expect(generateSummary(healthy, [], [], 10, t)).toBe(
-            'Les 1 modules sont dans une plage de faible pression. 1 fichier est en amélioration.',
+            '1 fichier est dans une plage de faible pression.\n1 fichier est en amélioration.',
         );
     });
 });

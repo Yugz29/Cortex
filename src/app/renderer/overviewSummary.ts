@@ -32,10 +32,11 @@ export function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[
 
   if (critical.length === 0 && stressed.length === 0) {
     const improving = scans.filter(s => s.trend === '↓').length;
+    const allHealthy = t(scans.length > 1 ? 'summary.allHealthyMulti' : 'summary.allHealthySingle', { n: scans.length });
     if (improving > scans.length * 0.3) {
-      return `${t('summary.allHealthy', { n: scans.length })} ${formatFilesImproving(improving, t)}`;
+      return [allHealthy, formatFilesImproving(improving, t)].join('\n');
     }
-    return t('summary.allHealthy', { n: scans.length });
+    return allHealthy;
   }
 
   const parts: string[] = [];
@@ -43,8 +44,9 @@ export function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[
   if (critical.length > 0) {
     const top = critical[0]!;
     const m   = topMetric(top, t);
-    const key = critical.length > 1 ? 'summary.criticalMulti' : 'summary.criticalSingle';
-    parts.push(t(key, { n: critical.length, file: top.filePath.split('/').pop() ?? '', metric: m.label.toLowerCase() }));
+    const key = critical.length > 1 ? 'summary.highPressureMulti' : 'summary.highPressureSingle';
+    parts.push(t(key, { n: critical.length }));
+    parts.push(t('summary.topSignal', { file: top.filePath.split('/').pop() ?? '', metric: m.label.toLowerCase() }));
   }
 
   if (stressed.length > 0) {
@@ -62,5 +64,5 @@ export function generateSummary(scans: Scan[], critical: Scan[], stressed: Scan[
   if (avgScore >= 40)      parts.push(t('summary.healthDegraded'));
   else if (avgScore >= 20) parts.push(t('summary.healthModerate'));
 
-  return parts.join(' ');
+  return parts.join('\n');
 }

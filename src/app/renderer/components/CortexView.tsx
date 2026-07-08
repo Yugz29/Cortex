@@ -43,9 +43,9 @@ export default function CortexView({
   onSelectScan, onSwitchProject, onAddProject, onOpenSettings, settingsOpen, sidebarOpen, onExport, exporting,
 }: Props) {
   const { t } = useLocale();
-  const lowPressureLabel = t('status.healthy').toLowerCase();
-  const elevatedLabel = t('status.stressed').toLowerCase();
-  const highPressureLabel = t('status.critical').toLowerCase();
+  const lowPressureLabel = t('graph.lowPressure');
+  const elevatedLabel = t('graph.moderatePressure');
+  const highPressureLabel = t('graph.highPressure');
 
   // ── Vue centrale ────────────────────────────────────────────────────────────
   const [centerView,     setCenterView]     = useState<'overview' | 'graph' | 'history' | 'settings' | 'code' | 'security'>('overview');
@@ -233,7 +233,7 @@ export default function CortexView({
                   onSwitchProject={onSwitchProject}
                   onAddProject={onAddProject}
                 />
-                <span style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>{scans.length} modules</span>
+                <span style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace" }}>{t('graph.files', { n: scans.length })}</span>
               </div>
               {scans.length > 0 && (
                 <div style={{ display: 'flex', height: 2, borderRadius: 2, overflow: 'hidden', gap: 1, marginBottom: 10 }}>
@@ -277,7 +277,7 @@ export default function CortexView({
           <div style={{ display: 'flex', flexShrink: 0, borderBottom: '0.5px solid var(--border)', padding: '0 24px' }}>
             {(['overview', 'graph', 'history', 'security'] as const).map(v => (
               <button key={v} style={tabStyle(v)} onClick={() => setCenterView(v)}>
-                {v === 'security' ? 'SECURITY' : t(`tab.${v}` as any).toUpperCase()}
+                {t(`tab.${v}` as any).toUpperCase()}
               </button>
             ))}
             <div style={{ flex: 1 }} />

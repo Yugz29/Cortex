@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import type { Scan, Edge, SecurityScanResult } from '../types';
 import { scoreColor, scoreColorHex, projectHealthStatus } from '../utils';
 import { useLocale } from '../hooks/useLocale';
+import type { TranslationKey } from '../i18n';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import ProjectSwitcher from './shared/ProjectSwitcher';
 import { generateSummary, topMetric } from '../overviewSummary';
@@ -116,6 +117,7 @@ export default function OverviewView({
   securityResult, onSelectScan, onFilterChange, onGoToSecurity, onGoToActivity,
   onSwitchProject, onAddProject, onExport, exporting,
 }: Props) {
+  const { t } = useLocale();
 
   // ── Badges sécurité ──────────────────────────────────────────────────────────
   type Badge = { label: string; color: string; bg: string; border: string };
@@ -127,32 +129,32 @@ export default function OverviewView({
     const highPat  = findings.filter(f => f.severity === 'high').length;
     const medPat   = findings.filter(f => f.severity === 'medium').length;
     const total    = findings.length;
+    const badgeText = (key: string, vars?: Record<string, string | number>) => t(key as TranslationKey, vars);
 
-    const badgeFor = (n: number, label: string, critN: number, highN: number, modN: number): Badge => {
-      if (n === 0)   return { label: `✓ ${label}`, color: '#34c759', bg: 'rgba(52,199,89,0.08)', border: 'rgba(52,199,89,0.25)' };
-      if (critN > 0) return { label: `${critN} critical · ${label}`, color: '#ff453a', bg: 'rgba(255,69,58,0.10)',  border: 'rgba(255,69,58,0.30)'  };
-      if (highN > 0) return { label: `${highN} high · ${label}`,     color: '#ff6b35', bg: 'rgba(255,107,53,0.10)', border: 'rgba(255,107,53,0.30)' };
-      if (modN  > 0) return { label: `${modN} moderate · ${label}`,  color: '#ff9f0a', bg: 'rgba(255,159,10,0.10)', border: 'rgba(255,159,10,0.30)' };
-      return { label: `${n} low · ${label}`, color: '#a8c5da', bg: 'rgba(168,197,218,0.08)', border: 'rgba(168,197,218,0.25)' };
+    const badgeFor = (kind: 'signals' | 'deps', n: number, critN: number, highN: number, modN: number): Badge => {
+      if (n === 0)   return { label: badgeText(`badge.${kind}Ok`), color: '#34c759', bg: 'rgba(52,199,89,0.08)', border: 'rgba(52,199,89,0.25)' };
+      if (critN > 0) return { label: badgeText(critN > 1 ? `badge.${kind}CriticalMulti` : `badge.${kind}CriticalSingle`, { n: critN }), color: '#ff453a', bg: 'rgba(255,69,58,0.10)',  border: 'rgba(255,69,58,0.30)'  };
+      if (highN > 0) return { label: badgeText(highN > 1 ? `badge.${kind}HighMulti` : `badge.${kind}HighSingle`, { n: highN }), color: '#ff6b35', bg: 'rgba(255,107,53,0.10)', border: 'rgba(255,107,53,0.30)' };
+      if (modN  > 0) return { label: badgeText(modN > 1 ? `badge.${kind}ModerateMulti` : `badge.${kind}ModerateSingle`, { n: modN }), color: '#ff9f0a', bg: 'rgba(255,159,10,0.10)', border: 'rgba(255,159,10,0.30)' };
+      return { label: badgeText(n > 1 ? `badge.${kind}LowMulti` : `badge.${kind}LowSingle`, { n }), color: '#a8c5da', bg: 'rgba(168,197,218,0.08)', border: 'rgba(168,197,218,0.25)' };
     };
 
-    const patternsBadge = badgeFor(total, 'Patterns', critPat, highPat, medPat);
+    const patternsBadge = badgeFor('signals', total, critPat, highPat, medPat);
 
     const auditStatus = securityResult.audit.status;
     let depsBadge: Badge;
     if (auditStatus === 'ok') {
       const c = securityResult.audit.counts;
-      depsBadge = badgeFor(c.total, 'Deps', c.critical, c.high, c.moderate);
+      depsBadge = badgeFor('deps', c.total, c.critical, c.high, c.moderate);
     } else if (auditStatus === 'error') {
-      depsBadge = { label: 'Deps — error', color: '#ff9f0a', bg: 'rgba(255,159,10,0.08)', border: 'rgba(255,159,10,0.25)' };
+      depsBadge = { label: t('badge.depsError'), color: '#ff9f0a', bg: 'rgba(255,159,10,0.08)', border: 'rgba(255,159,10,0.25)' };
     } else {
-      depsBadge = { label: 'Deps — skipped', color: 'var(--text-faint)', bg: 'var(--bg-hover)', border: 'var(--border)' };
+      depsBadge = { label: t('badge.depsSkipped'), color: 'var(--text-faint)', bg: 'var(--bg-hover)', border: 'var(--border)' };
     }
 
     return { patterns: patternsBadge, deps: depsBadge };
   })();
 
-  const { t } = useLocale();
   const sorted   = [...scans].sort((a, b) => b.globalScore - a.globalScore);
   const critical = sorted.filter(s => s.globalScore >= 50);
   const stressed = sorted.filter(s => s.globalScore >= 20 && s.globalScore < 50);
@@ -239,7 +241,7 @@ export default function OverviewView({
               {healthy.length  > 0 && <div style={{ flex: healthy.length,  background: '#34c759', opacity: 0.7 }} />}
             </div>
           )}
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 480, margin: 0 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 520, margin: 0, whiteSpace: 'pre-line' }}>
             {summary}
           </p>
         </div>
