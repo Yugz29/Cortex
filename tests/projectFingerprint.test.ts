@@ -97,7 +97,7 @@ describe('project fingerprint', () => {
         expect(second.fingerprint).not.toBe(first.fingerprint);
     });
 
-    it('ne considere pas un fingerprint absent ou une autre version scanner comme courant', () => {
+    it('ne considere pas un fingerprint absent ou une ancienne version scanner comme courant', () => {
         const projectPath = makeProject();
         writeFile(projectPath, 'src/a.ts', 'export const a = 1;\n');
         const current = buildProjectFingerprint(projectPath);
@@ -105,7 +105,7 @@ describe('project fingerprint', () => {
         expect(isProjectFingerprintCurrent(current, null)).toBe(false);
         expect(isProjectFingerprintCurrent(current, {
             fingerprint: current.fingerprint,
-            scannerVersion: 'scanner-v0',
+            scannerVersion: 'scanner-v1',
         })).toBe(false);
     });
 });

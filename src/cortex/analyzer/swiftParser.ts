@@ -12,7 +12,7 @@ const COMPUTED_PROPERTY_RE = new RegExp(
 );
 const DECISION_RE = /\b(if|guard|for|while|switch|case|catch)\b|&&|\|\||\?(?!\?)/g;
 
-function sanitizeSwiftSource(source: string): string {
+export function sanitizeSwiftSource(source: string): string {
     let result = '';
     let mode: 'code' | 'line-comment' | 'block-comment' | 'string' = 'code';
     let escaped = false;

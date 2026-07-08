@@ -6,10 +6,11 @@ import type { RawMetrics, RiskScoreResult } from '../../cortex/risk-score/riskSc
 import { saveScans, saveFunctions, saveCouplings, saveImportEdges } from '../../database/db.js';
 import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } from '../../cortex/analyzer/churn.js';
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
+import { buildSwiftTypeGraph } from './swiftTypeGraph.js';
 
 const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
 const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
-export const SCANNER_FINGERPRINT_VERSION = 'scanner-v1';
+export const SCANNER_FINGERPRINT_VERSION = 'scanner-v2';
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
 // Dossiers toujours exclus peu importe les settings — artefacts de build, caches
 const ALWAYS_IGNORE = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'assets', '.vite', '__pycache__', 'venv', '.venv', 'env', 'site-packages', 'migrations']);
@@ -434,6 +435,18 @@ export function buildEdges(
     return buildImportGraph(files, fileSources, context).edges;
 }
 
+function dedupeEdges(edges: FileEdge[]): FileEdge[] {
+    const deduped: FileEdge[] = [];
+    const seen = new Set<string>();
+    for (const edge of edges) {
+        const key = `${edge.from}\0${edge.to}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(edge);
+    }
+    return deduped;
+}
+
 export interface ScanResult { files: RiskScoreResult[]; edges: FileEdge[]; }
 
 interface FileAnalysis { metrics: FileMetrics; raw: RawMetrics; }
@@ -520,10 +533,11 @@ export async function scanProject(projectPath: string, ignoreList?: string[], ig
     }
 
     const importGraph = buildImportGraph(files, fileSources, createImportResolveContext(projectPath));
-    const edges = importGraph.edges;
+    const swiftTypeEdges = buildSwiftTypeGraph(files, fileSources);
+    const edges = dedupeEdges([...importGraph.edges, ...swiftTypeEdges]);
     saveImportEdges(projectPath, edges);
     const d = importGraph.diagnostics;
-    console.log(`[Cortex] Import graph — imports=${d.totalImports}, relative=${d.relativeImports}, aliases=${d.simpleAliasImports}, pythonAbsolute=${d.pythonAbsoluteImports}, external=${d.externalIgnored}, unresolved=${d.unresolvedImports}, edges=${d.edgesCreated}`);
+    console.log(`[Cortex] Import graph — imports=${d.totalImports}, relative=${d.relativeImports}, aliases=${d.simpleAliasImports}, pythonAbsolute=${d.pythonAbsoluteImports}, external=${d.externalIgnored}, unresolved=${d.unresolvedImports}, edges=${d.edgesCreated}, swiftTypeEdges=${swiftTypeEdges.length}, totalEdges=${edges.length}`);
     if (d.unresolvedExamples.length > 0) {
         console.warn('[Cortex] Unresolved import examples —', d.unresolvedExamples.map(ex =>
             `${path.relative(projectPath, ex.filePath)} imports "${ex.importPath}" (${ex.reason})`
