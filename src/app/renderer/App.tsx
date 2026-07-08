@@ -49,6 +49,7 @@ export default function App() {
   const [sidebarOpen,    setSidebarOpen]    = useState(true);
   const [isFullscreen,   setIsFullscreen]   = useState(false);
   const projectPathRef = useRef(projectPath);
+  const pendingSwitchProjectRef = useRef('');
 
   useEffect(() => {
     projectPathRef.current = projectPath;
@@ -65,21 +66,37 @@ export default function App() {
     load();
     window.api.onScanComplete((payload) => {
       const completedProjectPath = payload?.projectPath;
-      if (completedProjectPath && completedProjectPath !== projectPathRef.current) return;
+      const pendingSwitchProject = pendingSwitchProjectRef.current;
+      if (
+        completedProjectPath &&
+        completedProjectPath !== projectPathRef.current &&
+        completedProjectPath !== pendingSwitchProject
+      ) {
+        return;
+      }
+      if (completedProjectPath === pendingSwitchProject) {
+        pendingSwitchProjectRef.current = '';
+        projectPathRef.current = completedProjectPath;
+        setProjectPath(completedProjectPath);
+      }
       load();
       refreshHealth();
+      setScanStatus('');
       setSwitching(false);
     });
     window.api.onEvent((e: any) => {
       if (e.type === 'scan-start') { setScanStatus('scanning…'); return; }
       if (e.type === 'scan-done')  { setScanStatus(''); return; }
+      if (e.type === 'scan-error') { setScanStatus(''); setSwitching(false); return; }
       if (e.type === 'project-switch') {
-        const newPath = e.message?.replace('switched · ', '') ?? '';
-        setProjectPath(newPath);
+        const nextProjectPath = typeof e.projectPath === 'string' ? e.projectPath : '';
+        projectPathRef.current = nextProjectPath;
+        if (pendingSwitchProjectRef.current === nextProjectPath) pendingSwitchProjectRef.current = '';
+        setProjectPath(nextProjectPath);
         // Toujours rafraîchir la liste + la santé après switch ou suppression
         window.api.getProjects().then(setProjects);
         window.api.getProjectsHealth().then(setProjectsHealth);
-        if (!newPath) {
+        if (!nextProjectPath) {
           setScans([]); setEdges([]); setSelected(null); setProjectHistory([]);
         }
         setEvents(prev => [
@@ -126,7 +143,7 @@ export default function App() {
         window.api.getProjectPath(),
       ]);
       setScans(s); setEdges(e);
-      if (p) setProjectPath(p);
+      setProjectPath(p);
       const h = await (window.api.getProjectHistory
         ? window.api.getProjectHistory()
         : window.api.getProjectScoreHistory().then(rows =>
@@ -145,9 +162,12 @@ export default function App() {
 
   async function handleSwitchProject(path: string) {
     setSwitching(true);
+    pendingSwitchProjectRef.current = path;
     await window.api.switchProject(path);
     const p = await window.api.getProjects();
     setProjects(p);
+    pendingSwitchProjectRef.current = path;
+    projectPathRef.current = path;
     setProjectPath(path);
     setSelected(null);
   }

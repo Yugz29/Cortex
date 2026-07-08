@@ -173,8 +173,8 @@ function createWindow(): void {
   mainWindow.on('leave-full-screen',  () => mainWindow?.webContents.send('fullscreen-change', false));
 }
 
-function emit(type: string, message: string, level: 'info' | 'warn' | 'critical' | 'ok' = 'info') {
-  mainWindow?.webContents.send('cortex-event', { type, message, level, ts: Date.now() });
+function emit(type: string, message: string, level: 'info' | 'warn' | 'critical' | 'ok' = 'info', extra: Record<string, unknown> = {}) {
+  mainWindow?.webContents.send('cortex-event', { type, message, level, ts: Date.now(), ...extra });
 }
 
 type ScanOutcome = 'applied' | 'stale' | 'failed';
@@ -211,10 +211,17 @@ function startScheduledScan(projectPath: string, reason: string): void {
   console.log(`[Cortex] Scan started — ${projectLabel(projectPath)} (${reason})`);
 
   runScan(projectPath, scanToken)
+    .then(outcome => {
+      console.log(`[Cortex] Scan finished — ${projectLabel(projectPath)} (${outcome})`);
+    })
+    .catch(err => {
+      console.error(`[Cortex] Scan promise failed — ${projectLabel(projectPath)}`, err);
+    })
     .finally(() => {
       isScanRunning = false;
       runningScanProjectPath = '';
       runningScanToken = 0;
+      console.log(`[Cortex] Scan scheduler released — ${projectLabel(projectPath)}`);
 
       const nextProjectPath = pendingScanProjectPath;
       const nextReason = pendingScanReason || 'pending';
@@ -251,6 +258,7 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
       lastScoreSnapshot = new Map(scans.map(s => [s.filePath, s.globalScore]));
       console.log(`[Cortex] Scan skipped — project unchanged (${currentFingerprint.fileCount} files)`);
       emit('scan-done', `${currentFingerprint.fileCount} modules · unchanged`, 'info');
+      console.log(`[Cortex] Emitting scan-complete — ${projectLabel(projectPath)} (skipped)`);
       mainWindow?.webContents.send('scan-complete', { projectPath, skipped: true });
       return 'applied';
     }
@@ -319,6 +327,7 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
     saveProjectFingerprint(projectPath, currentFingerprint.fingerprint, SCANNER_FINGERPRINT_VERSION);
 
     dumpSnapshot(projectPath);
+    console.log(`[Cortex] Emitting scan-complete — ${projectLabel(projectPath)}`);
     mainWindow?.webContents.send('scan-complete', { projectPath });
     return 'applied';
   } catch (err) {
@@ -374,7 +383,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
+    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info', { projectPath: newPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
     requestScan('add-project');
@@ -390,13 +399,13 @@ app.whenReady().then(async () => {
     const w = (global as any).__cortexWatcher;
     if (updated.activeProjectPath && updated.activeProjectPath !== projectPath) {
       // Bascule sur le projet suivant
-      emit('project-switch', `switched · ${updated.activeProjectPath.split('/').pop()}`, 'info');
+      emit('project-switch', `switched · ${updated.activeProjectPath.split('/').pop()}`, 'info', { projectPath: updated.activeProjectPath });
       if (w) w.restart(updated.activeProjectPath, loadSettings().ignore);
       requestScan('remove-project');
     } else if (!updated.activeProjectPath) {
       // Plus aucun projet — arrêter le watcher, signaler l'UI
       if (w) w.close();
-      emit('project-switch', '', 'info');
+      emit('project-switch', '', 'info', { projectPath: '' });
       activeScanToken++;
       pendingScanProjectPath = '';
       pendingScanReason = '';
@@ -602,7 +611,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${projectPath.split('/').pop()}`, 'info');
+    emit('project-switch', `switched · ${projectPath.split('/').pop()}`, 'info', { projectPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(projectPath, loadSettings().ignore);
     requestScan('switch-project');
@@ -620,7 +629,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info');
+    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info', { projectPath: newPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
     requestScan('pick-project');
