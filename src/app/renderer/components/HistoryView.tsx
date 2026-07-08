@@ -301,7 +301,7 @@ export default function HistoryView({ projectHistory, projectPath, scans, onSele
           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
             {data.length} {t('history.scans')}
             {data.length >= 2 && ` · ${fmt(data[0]!.date)} → ${fmt(data[data.length - 1]!.date)}`}
-            {canPan && <span style={{ color: 'var(--text-ghost)', marginLeft: 6 }}>/ {totalPts} {t('history.points')}</span>}
+            {canPan && <span style={{ color: 'var(--text-ghost)', marginLeft: 6 }}>/ {totalPts} {granularity === 'scan' ? t('history.scans') : t('history.days')}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
@@ -343,8 +343,8 @@ export default function HistoryView({ projectHistory, projectPath, scans, onSele
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>
               {canPan
-                ? `${data.length} / ${totalPts} ${granularity === 'scan' ? t('history.points') : t('history.days')}`
-                : `${data.length} ${granularity === 'scan' ? t('history.points') : t('history.days')}`}
+                ? `${data.length} / ${totalPts} ${granularity === 'scan' ? t('history.scans') : t('history.days')}`
+                : `${data.length} ${granularity === 'scan' ? t('history.scans') : t('history.days')}`}
             </span>
             {totalPts > 30 && (
               <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: 5, padding: 1, gap: 1 }}>

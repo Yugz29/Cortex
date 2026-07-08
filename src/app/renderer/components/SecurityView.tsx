@@ -48,9 +48,51 @@ const CAT_LABEL: Record<Category, string> = {
 
 // ── COMPOSANTS ────────────────────────────────────────────────────────────────
 
-type TFn = (key: TranslationKey) => string;
+type TFn = (key: TranslationKey, vars?: Record<string, string | number>) => string;
 
-function SevBadge({ severity }: { severity: Severity }) {
+const SEVERITY_BADGE_KEYS: Record<Severity, TranslationKey> = {
+    critical: 'security.severityBadgeCritical',
+    high:     'security.severityBadgeHigh',
+    medium:   'security.severityBadgeMedium',
+    low:      'security.severityBadgeLow',
+    info:     'security.severityBadgeInfo',
+};
+
+const SEVERITY_LABEL_KEYS: Record<Severity, TranslationKey> = {
+    critical: 'security.severityCritical',
+    high:     'security.severityHigh',
+    medium:   'security.severityMedium',
+    low:      'security.severityLow',
+    info:     'security.severityInfo',
+};
+
+const PATTERN_SUMMARY_KEYS: Record<Severity, { single: TranslationKey; multi: TranslationKey }> = {
+    critical: { single: 'security.patternCriticalSingle', multi: 'security.patternCriticalMulti' },
+    high:     { single: 'security.patternHighSingle',     multi: 'security.patternHighMulti'     },
+    medium:   { single: 'security.patternMediumSingle',   multi: 'security.patternMediumMulti'   },
+    low:      { single: 'security.patternLowSingle',      multi: 'security.patternLowMulti'      },
+    info:     { single: 'security.patternInfoSingle',     multi: 'security.patternInfoMulti'     },
+};
+
+const FINDING_MESSAGE_KEYS: Partial<Record<string, TranslationKey>> = {
+    'math-random-security': 'security.patternMathRandom',
+};
+
+function severityPatternSummary(severity: Severity, count: number, t: TFn) {
+    const keys = PATTERN_SUMMARY_KEYS[severity];
+    return t(count === 1 ? keys.single : keys.multi, { n: count });
+}
+
+function severityLabel(severity: Severity, t: TFn) {
+    return t(SEVERITY_LABEL_KEYS[severity]);
+}
+
+function findingMessage(finding: SecurityFinding, t: TFn) {
+    const key = FINDING_MESSAGE_KEYS[finding.rule];
+    return key ? t(key) : finding.message;
+}
+
+function SevBadge({ severity, t }: { severity: Severity; t: TFn }) {
     return (
         <span style={{
             fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
@@ -61,7 +103,7 @@ function SevBadge({ severity }: { severity: Severity }) {
             textTransform: 'uppercase' as const, flexShrink: 0,
             fontFamily: "'SF Mono','Menlo',monospace",
         }}>
-            {severity}
+            {t(SEVERITY_BADGE_KEYS[severity])}
         </span>
     );
 }
@@ -100,9 +142,9 @@ function FindingRow({ finding, projectPath, onViewInCode, t }: {
                     letterSpacing: 0,
                 }}>{CAT_ICON[finding.category]}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {finding.message}
+                    {findingMessage(finding, t)}
                 </span>
-                <SevBadge severity={finding.severity} />
+                <SevBadge severity={finding.severity} t={t} />
                 <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0, marginLeft: 4 }}>
                     {expanded ? '▲' : '▼'}
                 </span>
@@ -163,7 +205,7 @@ function VulnRow({ vuln, t }: { vuln: AuditVuln; t: TFn }) {
                 <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, fontFamily: "'SF Mono','Menlo',monospace", flex: 1 }}>
                     {vuln.name}
                 </span>
-                <SevBadge severity={sev} />
+                <SevBadge severity={sev} t={t} />
                 {vuln.fixAvailable && (
                     <span style={{
                         fontSize: 9, color: 'var(--green)',
@@ -299,8 +341,9 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                 if (n === 0) return null;
                                 return (
                                     <div key={sev} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
-                                        <span style={{ fontWeight: 700, fontFamily: "'SF Mono','Menlo',monospace", color: SEV_COLOR[sev] }}>{n}</span>
-                                        <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{sev}</span>
+                                        <span style={{ fontWeight: 700, fontFamily: "'SF Mono','Menlo',monospace", color: SEV_COLOR[sev] }}>
+                                            {severityPatternSummary(sev, n, t)}
+                                        </span>
                                     </div>
                                 );
                             })}
@@ -445,7 +488,7 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                                 return (
                                                     <div key={sev} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                                         <span style={{ fontSize: 20, fontWeight: 200, color: n > 0 ? SEV_COLOR[displaySev] : 'var(--text-faint)', fontFamily: "'SF Mono','Menlo',monospace", lineHeight: 1 }}>{n}</span>
-                                                        <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize', letterSpacing: '0.06em' }}>{sev}</span>
+                                                        <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{severityLabel(displaySev, t)}</span>
                                                     </div>
                                                 );
                                             })}
