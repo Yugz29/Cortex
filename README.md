@@ -1,136 +1,141 @@
 # Cortex
 
-> A local-first code quality monitor that runs quietly in the background and tells you what's actually wrong — before it becomes a problem.
-
-![Electron](https://img.shields.io/badge/Electron-40-47848F?logo=electron&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+> Un moniteur local-first de qualité de code qui tourne discrètement en arrière-plan et indique où concentrer la revue avant que la dette ne devienne un problème.
 
 ---
 
-## What it is
+## Présentation
 
-Cortex is a desktop application that monitors your codebase in real time. It watches your files, analyzes code complexity and git activity, and surfaces risk scores per file — live, as you work.
-
-No cloud. No subscription. No AI model required. Everything runs locally on your machine.
+Cortex est une application desktop qui surveille un dépôt de code en temps réel. Elle observe les fichiers, analyse la complexité du code et l’activité Git, puis fait ressortir les fichiers qui méritent une revue en priorité.
 
 ---
 
-## What it does
+## Ce que fait Cortex
 
-**Watches your project continuously**
-Cortex runs in the background and detects file changes as they happen. Every save triggers a fresh analysis — complexity, function size, nesting depth, churn rate, coupling.
+**Surveillance continue du projet**
 
-**Scores every file 0–100**
-Each file gets a risk score based on 7 weighted metrics. Files are ranked and color-coded: 🟢 healthy · 🟡 stressed · 🔴 critical.
+Cortex tourne en arrière-plan et détecte les changements de fichiers. À chaque sauvegarde, il peut relancer une analyse : complexité, taille des fonctions, profondeur d’imbrication, churn, couplage et dépendances.
 
-**Adapts to your codebase**
-Thresholds are calibrated per file type — a React component is not scored like a parser, and a configuration file is not scored like a service. Baselines are also computed from your project's own distribution, so the tool adjusts to what's normal for your specific codebase.
+**Score par fichier de 0 à 100**
 
-**Tracks how scores evolve**
-Every scan is stored. You can see whether a file is getting better or worse over time, and follow the global health trend of your project across days and sessions.
+Chaque fichier reçoit un score de risque de maintenance basé sur 7 métriques pondérées. Les fichiers sont classés et colorés : 🟢 sain · 🟡 sous pression · 🔴 critique.
 
-**Generates structured project snapshots**
-After each scan, Cortex writes a structured JSON snapshot of your project — scores, history, couplings, trends. Use it as maintenance context when reviewing the state of a codebase.
+**Adaptation au codebase**
 
----
+Les seuils sont calibrés par type de fichier : un composant React n’est pas évalué comme un parser, et un fichier de configuration n’est pas évalué comme un service. Cortex utilise aussi les distributions propres au projet pour s’adapter à ce qui est normal dans ce codebase.
 
-## Features
+**Historique des scores**
 
-| Feature | Description |
-|---------|-------------|
-| **Real-time watcher** | Monitors `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.py` — debounced, exclusion-aware |
-| **Manual scan** | Trigger a full rescan on demand from the topbar |
-| **AST analysis** | TS/JS via ts-morph — cyclomatic complexity, cognitive complexity, function size, nesting depth, parameter count |
-| **Git churn** | Commit frequency per file over the last 30 days |
-| **Import graph** | Fan-in (who depends on this file) and fan-out (what this file depends on) |
-| **Adaptive scoring** | Per-file-type thresholds + project-wide percentile baselines |
-| **Language multipliers** | TSX/JSX scoring accounts for style ternaries that inflate complexity metrics |
-| **Score history** | Per-file trend graphs and project health curve — by scan or by day |
-| **Hotspot detection** | Files that are both complex and frequently modified |
-| **Multi-project** | Switch between projects without restarting |
-| **Graph view** | Dependency graph of your import edges — LAYERS mode (architectural clusters by file type) and ALL LINKS mode (full force-directed layout); pan, zoom, click to focus a node and its neighbours |
-| **Security scan** | Pattern-based secret/injection detection + `npm audit` dependency vulnerability check |
-| **File ignore** | Exclude files from scoring via sidebar (greyed) or from scanning entirely via Settings |
-| **UI preferences** | Sidebar width, activity panel height, graph mode and granularity persist across sessions |
-| **Project snapshot** | `cortex-snapshot.json` written after every scan — structured maintenance context |
-| **Export** | Markdown + JSON report generated simultaneously from the Overview tab |
-| **Code viewer** | Inline syntax-highlighted code viewer — opens on any function, with quick-edit mode powered by CodeMirror 6 (save triggers an instant rescan) |
-| **File tree** | Toggle between flat list and folder tree in the sidebar — files sorted by score within each directory |
-| **i18n** | Interface available in English and French — toggle in Settings |
+Chaque scan est stocké. Il est possible de voir si un fichier s’améliore ou se dégrade dans le temps, et de suivre l’évolution globale de la santé du projet par scan ou par jour.
+
+**Snapshots structurés du projet**
+
+Après chaque scan, Cortex écrit un snapshot JSON structuré du projet : scores, historique, couplages, tendances et couverture d’analyse. Ce snapshot sert de contexte de maintenance pour relire les parties analysées du codebase.
 
 ---
 
-## Risk score
+## Fonctionnalités
 
-The global score for a file is a weighted sum of 7 normalized metrics (0–100 each):
-
-| Metric | Weight | What it captures |
-|--------|--------|-----------------|
-| Cyclomatic complexity (max + mean blend) | 28% | Number of independent execution paths |
-| Cognitive complexity | 19% | How hard the code is to read and follow |
-| Function size (max + mean blend) | 14% | Size of the largest and average functions |
-| Nesting depth | 14% | Maximum depth of nested blocks |
-| Churn (commits / 30 days) | 12% | How often this file changes |
-| Parameter count | 8% | Maximum parameters on any function |
-| Fan-in | 5% | How many files import this one |
-
-Score ranges: **< 20** healthy · **20–49** stressed · **≥ 50** critical
+| Fonctionnalité | Description |
+|---|---|
+| **Watcher temps réel** | Surveille `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.py`, `.swift` — avec debounce et exclusions |
+| **Scan manuel** | Déclenche un rescan complet depuis la barre supérieure |
+| **Analyse AST / structurelle** | TS/JS via ts-morph, Python via tree-sitter avec fallback, Swift via un analyseur pragmatique dédié — complexité cyclomatique, complexité cognitive, taille des fonctions, profondeur d’imbrication, nombre de paramètres |
+| **Churn Git** | Fréquence de modification par fichier sur les 30 derniers jours |
+| **Graphe de dépendances** | Fan-in et fan-out à partir des imports JS/TS/Python résolus, complétés par des références de types Swift locales |
+| **Scoring adaptatif** | Seuils par type de fichier + baselines par percentiles du projet |
+| **Multiplicateurs par langage** | Ajustements pour TSX/JSX afin de limiter les biais liés aux ternaires ou à la densité visuelle des composants |
+| **Historique des scores** | Courbes de tendance par fichier et santé globale du projet — par scan ou par jour |
+| **Détection de hotspots** | Fichiers combinant complexité et modifications fréquentes |
+| **Multi-projets** | Passage d’un projet à l’autre sans redémarrer l’application |
+| **Vue graphe** | Graphe basé sur les imports résolus et les références de types Swift — mode LAYERS et mode ALL LINKS ; zoom, déplacement, clic et focus au survol |
+| **Scan sécurité** | Détection par patterns de secrets/injections + vérification des vulnérabilités via `npm audit` |
+| **Fichiers ignorés** | Exclusion de fichiers du scoring depuis la sidebar, ou exclusion complète du scan depuis les réglages |
+| **Préférences UI** | Largeur de la sidebar, hauteur du panneau d’activité, mode de graphe et granularité persistés entre les sessions |
+| **Snapshot projet** | `cortex-snapshot.json` écrit après chaque scan — contexte de maintenance structuré avec couverture d’analyse |
+| **Export** | Rapport Markdown + JSON généré depuis l’onglet Overview |
+| **Lecteur de code** | Visualisation syntax-highlighted du code, ouverture directe sur une fonction, édition rapide via CodeMirror 6 et rescan instantané à la sauvegarde |
+| **Arborescence fichiers** | Bascule entre liste plate et arbre de dossiers dans la sidebar, avec tri par score |
+| **i18n** | Interface disponible en français et en anglais, configurable dans les réglages |
 
 ---
 
-## Maintenance context
+## Score de risque
 
-After every scan, Cortex writes `cortex-snapshot.json` in the project root. This file contains:
+Le score global d’un fichier est une somme pondérée de 7 métriques normalisées de 0 à 100 :
 
-- Summary (total files, critical / stressed / healthy counts, average score)
-- Per-file scores with raw metrics, language, and last scan timestamp
-- Project health history (score evolution over time)
-- Coupling map (files that change together most often)
+| Métrique | Poids | Ce que cela mesure |
+|---|---:|---|
+| Complexité cyclomatique (blend max + moyenne) | 28 % | Nombre de chemins d’exécution indépendants |
+| Complexité cognitive | 19 % | Difficulté à lire et suivre le code |
+| Taille des fonctions (blend max + moyenne) | 14 % | Taille de la plus grande fonction et taille moyenne |
+| Profondeur d’imbrication | 14 % | Profondeur maximale des blocs imbriqués |
+| Churn (commits / 30 jours) | 12 % | Fréquence de modification du fichier |
+| Nombre de paramètres | 8 % | Nombre maximal de paramètres d’une fonction |
+| Fan-in | 5 % | Nombre de fichiers qui dépendent de celui-ci |
 
-This makes Cortex useful as a **maintenance context generator**. The snapshot captures the state of your project, what stands out, what is trending up, and where review attention is most useful.
+Plages de score : **< 20** sain · **20–49** sous pression · **≥ 50** critique
+
+Le score doit être lu comme un signal de priorisation pour la revue, pas comme une vérité absolue sur la qualité du code.
+
+---
+
+## Contexte de maintenance
+
+Après chaque scan, Cortex écrit `cortex-snapshot.json`. Ce fichier contient :
+
+- un résumé du projet : nombre total de fichiers, fichiers critiques / sous pression / sains, score moyen ;
+- les scores par fichier avec métriques brutes, langage et date du dernier scan ;
+- l’historique de santé du projet ;
+- la carte de couplage : fichiers qui changent souvent ensemble ;
+- un résumé de couverture d’analyse : parties entièrement, partiellement ou non analysées.
+
+Cortex est utile comme **générateur de contexte de maintenance**. Le snapshot capture l’état du code analysé, les fichiers qui ressortent, les tendances et les zones où une revue humaine est la plus utile.
+
+Le score concerne le code analysé. Il ne doit pas être interprété comme un jugement complet sur tous les fichiers du dépôt.
 
 ---
 
 ## Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Desktop shell | Electron 40 + electron-vite |
+| Composant | Technologie |
+|---|---|
+| Shell desktop | Electron 40 + electron-vite |
 | UI | React 19 + TypeScript |
-| TS/JS analysis | ts-morph (AST) |
-| Python analysis | tree-sitter (AST) + regex fallback |
-| Code editor | CodeMirror 6 |
+| Analyse TS/JS | ts-morph (AST) |
+| Analyse Python | tree-sitter (AST) + fallback regex |
+| Analyse Swift | Parser pragmatique dédié + graphe local de références de types |
+| Couverture d’analyse | Résumé par langage dans les snapshots et les logs de scan |
+| Éditeur de code | CodeMirror 6 |
 | Git / churn | simple-git |
-| Database | better-sqlite3 (SQLite — local, on disk) |
-| File watching | chokidar |
-| Dependency graph | d3-force |
+| Base de données | better-sqlite3 (SQLite local, sur disque) |
+| Surveillance fichiers | chokidar |
+| Graphe de dépendances | Imports résolus + références de types Swift, rendu avec d3-force |
 
 ---
 
-## Getting started
+## Installation
 
 ```bash
-# Clone
+# Cloner le dépôt
 git clone https://github.com/yugz29/cortex.git
 cd cortex
 
-# Install dependencies
+# Installer les dépendances
 npm install
 
-# Start in development mode
+# Lancer en développement
 npm run dev
 
-# Build for production
+# Build de production
 npm run build && npm start
 ```
 
-On first launch, click **Add project** and select a folder. Cortex will start watching and scoring immediately.
+Au premier lancement, cliquer sur **Add project** et sélectionner un dossier. Cortex commencera alors à surveiller et scorer le projet.
 
-### Linux — system dependencies
+### Linux — dépendances système
 
-Electron requires several system libraries that may not be installed by default. If the app fails to launch, install them first:
+Electron nécessite plusieurs bibliothèques système qui ne sont pas toujours installées par défaut. Si l’application ne démarre pas, installez-les d’abord :
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
@@ -141,48 +146,49 @@ sudo apt-get update && sudo apt-get install -y \
   libasound2t64
 ```
 
-> On older Ubuntu/Debian versions, replace `libasound2t64` with `libasound2`.
+> Sur d’anciennes versions d’Ubuntu/Debian, remplacer `libasound2t64` par `libasound2`.
 
 ---
 
-## Project structure
+## Structure du projet
 
-```
+```txt
 src/
 ├── app/
-│   ├── main/          # Electron main process — IPC, scan orchestration, report generation
+│   ├── main/          # Process principal Electron — IPC, orchestration des scans, génération de rapports
 │   ├── preload/       # Context bridge
-│   └── renderer/      # React UI — views, components, hooks
+│   └── renderer/      # UI React — vues, composants, hooks
 │       ├── components/
 │       │   ├── shared/        # Sidebar, FilterBar, FileList, ActivityPanel, GraphView...
-│       │   ├── CortexView     # Main layout — sidebar + center + detail panel
-│       │   ├── OverviewView   # Project dashboard
-│       │   ├── GraphView      # Dependency graph (FREE / LAYERS)
-│       │   ├── HistoryView    # Score trends over time
-│       │   └── Detail         # Per-file breakdown — metrics, functions, history
+│       │   ├── CortexView     # Layout principal — sidebar + centre + panneau détail
+│       │   ├── OverviewView   # Dashboard projet
+│       │   ├── GraphView      # Graphe de dépendances (ALL LINKS / LAYERS)
+│       │   ├── HistoryView    # Tendances de score dans le temps
+│       │   └── Detail         # Détail fichier — métriques, fonctions, historique
 │       ├── hooks/             # useFileFilters, useLocale, useLocalPref
-│       ├── graphLayout.ts     # Force layout algorithms (pure, testable)
-│       └── utils.ts           # Scoring colors, layer classification, health status
+│       ├── graphLayout.ts     # Algorithmes de layout du graphe, purs et testables
+│       └── utils.ts           # Couleurs de score, classification de couches, statut de santé
 ├── cortex/
-│   ├── analyzer/      # parser.ts (AST), churn.ts (git)
+│   ├── analyzer/      # Parsers JS/TS/Python/Swift, helpers d’import/type graph, churn.ts
+│   ├── coverage/      # Résumé de couverture d’analyse
 │   ├── risk-score/    # riskScore.ts, referenceBaselines.ts, trend.ts
-│   └── watcher/       # chokidar watcher with debouncing
+│   └── watcher/       # Watcher chokidar aligné avec les extensions scannées
 └── database/
-    ├── db.ts          # All SQLite queries
-    └── migrations.ts  # Versioned schema migrations
+    ├── db.ts          # Requêtes SQLite
+    └── migrations.ts  # Migrations de schéma versionnées
 ```
 
 ---
 
-## Privacy
+## Vie privée
 
-- **100% local** — no data leaves your machine
-- **No account** — no login, no telemetry, no analytics
-- **Your data** — stored in SQLite on your disk, deletable at any time
-- **No AI inside** — Cortex does not call any language model
+- **100 % local** — aucune donnée ne quitte la machine
+- **Aucun compte** — pas de connexion, pas de télémétrie, pas d’analytics
+- **Vos données** — stockées dans SQLite sur le disque, supprimables à tout moment
+- **Pas d’IA intégrée** — Cortex n’appelle aucun modèle de langage
 
 ---
 
-## License
+## Licence
 
 Apache-2.0
