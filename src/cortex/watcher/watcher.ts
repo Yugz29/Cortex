@@ -1,7 +1,8 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import { EventEmitter } from 'node:events';
+import { SUPPORTED_EXTENSIONS } from '../../app/main/scanner.js';
 
-const SUPPORTED = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py'];
+export const WATCHED_EXTENSIONS = [...SUPPORTED_EXTENSIONS];
 
 export interface WatcherOptions {
     projectPath: string;
@@ -16,8 +17,8 @@ export function startWatcher(options: WatcherOptions) {
     let watcher: FSWatcher | null = null;
 
     function attachListeners(w: FSWatcher) {
-        w.on('add',    (path) => { if (SUPPORTED.some(ext => path.endsWith(ext))) emitter.emit('file:added',   path); });
-        w.on('change', (path) => { if (SUPPORTED.some(ext => path.endsWith(ext))) emitter.emit('file:changed', path); });
+        w.on('add',    (path) => { if (WATCHED_EXTENSIONS.some(ext => path.endsWith(ext))) emitter.emit('file:added',   path); });
+        w.on('change', (path) => { if (WATCHED_EXTENSIONS.some(ext => path.endsWith(ext))) emitter.emit('file:changed', path); });
         w.on('unlink', (path) => emitter.emit('file:deleted', path));
         w.on('error',  (err)  => emitter.emit('error', err));
     }

@@ -9,7 +9,7 @@ import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 import { buildSwiftTypeGraph } from './swiftTypeGraph.js';
 import { summarizeProjectAnalysisCoverage } from '../../cortex/coverage/analysisCoverage.js';
 
-const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
+export const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
 const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
 export const SCANNER_FINGERPRINT_VERSION = 'scanner-v2';
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
