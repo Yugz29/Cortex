@@ -3,6 +3,8 @@
  * Isolé de index.ts pour être testable indépendamment.
  */
 
+import { inferFileProfile } from '../../cortex/diagnostics/fileProfile.js';
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 export function metricExplain(name: string, raw: number, score: number): string {
@@ -142,6 +144,8 @@ function mdCriticalFile(s: any): string {
         `### ${fname(s)} — Maintenance Signal ${s.globalScore.toFixed(1)}${trend}\n`,
         `\`${s.filePath}\`\n`,
     ];
+    const profile = inferFileProfile(s.filePath);
+    lines.push(`Profile: ${profile.label} — ${profile.description}\n`);
     if (issues.length > 0) {
         lines.push(`**Signals contributing most:**\n`);
         issues.forEach(i => lines.push(`- ${i}`));
@@ -279,16 +283,22 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
             topReviewCandidates: activeScans
                 .filter(s => s.globalScore >= 50)
                 .slice(0, 5)
-                .map(s => ({
-                    file:               s.filePath.replace(projectPath + '/', ''),
-                    maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
-                    pressureLevel:      s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
-                    trend:              s.trend,
-                    dominantSignal:     topMetricKey(s),
-                    lines:              s.rawFunctionSize,
-                    fanIn:              s.fanIn,
-                    layer:              getLayer(s.filePath, projectPath)?.label ?? 'unknown',
-                })),
+                .map(s => {
+                    const profile = inferFileProfile(s.filePath);
+                    return {
+                        file:               s.filePath.replace(projectPath + '/', ''),
+                        maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
+                        pressureLevel:      s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
+                        profile:            profile.profile,
+                        profileLabel:       profile.label,
+                        profileDescription: profile.description,
+                        trend:              s.trend,
+                        dominantSignal:     topMetricKey(s),
+                        lines:              s.rawFunctionSize,
+                        fanIn:              s.fanIn,
+                        layer:              getLayer(s.filePath, projectPath)?.label ?? 'unknown',
+                    };
+                }),
             critical:    critical.length,
             stressed:    stressed.length,
             healthy:     lowPressure.length,
@@ -311,20 +321,26 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
                 })),
         },
         architecture: layerSummary,
-        files: activeScans.map(s => ({
-            file:     s.filePath.replace(projectPath + '/', ''),
-            layer:    getLayer(s.filePath, projectPath)?.label ?? 'other',
-            risk:     parseFloat(s.globalScore.toFixed(1)),
-            maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
-            status:   s.globalScore >= 50 ? 'critical' : s.globalScore >= 20 ? 'stressed' : 'healthy',
-            pressureLevel: s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
-            trend:    s.trend,
-            topIssue: topMetricKey(s),
-            dominantSignal: topMetricKey(s),
-            cx: s.rawComplexity, cog: s.rawCognitiveComplexity,
-            lines: s.rawFunctionSize, depth: s.rawDepth,
-            churn: s.rawChurn, fanIn: s.fanIn, fanOut: s.fanOut,
-        })),
+        files: activeScans.map(s => {
+            const profile = inferFileProfile(s.filePath);
+            return {
+                file:     s.filePath.replace(projectPath + '/', ''),
+                layer:    getLayer(s.filePath, projectPath)?.label ?? 'other',
+                risk:     parseFloat(s.globalScore.toFixed(1)),
+                maintenancePressure: parseFloat(s.globalScore.toFixed(1)),
+                status:   s.globalScore >= 50 ? 'critical' : s.globalScore >= 20 ? 'stressed' : 'healthy',
+                pressureLevel: s.globalScore >= 50 ? 'high_pressure' : s.globalScore >= 20 ? 'elevated' : 'low_pressure',
+                profile: profile.profile,
+                profileLabel: profile.label,
+                profileDescription: profile.description,
+                trend:    s.trend,
+                topIssue: topMetricKey(s),
+                dominantSignal: topMetricKey(s),
+                cx: s.rawComplexity, cog: s.rawCognitiveComplexity,
+                lines: s.rawFunctionSize, depth: s.rawDepth,
+                churn: s.rawChurn, fanIn: s.fanIn, fanOut: s.fanOut,
+            };
+        }),
         security: security ? {
             scannedAt:     security.scannedAt,
             patternCount:  (security.findings ?? []).length,

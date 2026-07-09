@@ -40,6 +40,7 @@ describe('maintenance report export', () => {
         expect(markdown).toContain('largest fn 90L');
         expect(markdown).toContain('Maintenance Signal 61.4');
         expect(markdown).not.toContain('Maintenance Pressure 61.4');
+        expect(markdown).toContain('Profile: Orchestration');
         expect(markdown).toContain('Files to inspect first');
 
         const parsed = JSON.parse(json);
@@ -49,6 +50,9 @@ describe('maintenance report export', () => {
         expect(parsed.summary.avgMaintenancePressure).toBe(61.4);
         expect(parsed.summary.topReviewCandidates[0].maintenancePressure).toBe(61.4);
         expect(parsed.summary.topReviewCandidates[0].pressureLevel).toBe('high_pressure');
+        expect(parsed.summary.topReviewCandidates[0].profile).toBe('orchestration');
+        expect(parsed.summary.topReviewCandidates[0].profileLabel).toBe('Orchestration');
+        expect(parsed.summary.topReviewCandidates[0].profileDescription).toContain('Coordination files');
         expect(parsed.summary.topReviewCandidates[0].dominantSignal).toBe('complexity');
 
         expect(parsed.summary.critical).toBe(1);
@@ -59,6 +63,9 @@ describe('maintenance report export', () => {
 
         expect(parsed.files[0].maintenancePressure).toBe(61.4);
         expect(parsed.files[0].pressureLevel).toBe('high_pressure');
+        expect(parsed.files[0].profile).toBe('orchestration');
+        expect(parsed.files[0].profileLabel).toBe('Orchestration');
+        expect(parsed.files[0].profileDescription).toContain('Coordination files');
         expect(parsed.files[0].dominantSignal).toBe('complexity');
         expect(parsed.files[0].risk).toBe(61.4);
         expect(parsed.files[0].lines).toBe(90);
