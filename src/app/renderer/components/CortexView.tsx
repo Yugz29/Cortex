@@ -346,7 +346,7 @@ export default function CortexView({
           transition: rightCollapsed ? 'width 0.2s, min-width 0.2s' : 'none',
           display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden',
         }}>
-          {selected && !selectedFinding && <Detail scan={selected} onClose={() => { handleCodeViewClose(); onSelectScan(null); }} edges={edges} onFocusFunction={handleFocusFunction} onCloseCodeView={handleCodeViewClose} />}
+          {selected && !selectedFinding && <Detail scan={selected} projectPath={projectPath} onClose={() => { handleCodeViewClose(); onSelectScan(null); }} edges={edges} onFocusFunction={handleFocusFunction} onCloseCodeView={handleCodeViewClose} />}
           {selectedFinding && <SecurityFindingPanel finding={selectedFinding} onClose={() => { setSelectedFinding(null); handleCodeViewClose(); }} />}
         </div>
       )}

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import type { Scan, Edge, FunctionDetail } from '../types';
 import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils';
 import { useLocale } from '../hooks/useLocale';
+import { useLocalPref } from '../hooks/useLocalPref';
 import type { TranslationKey } from '../i18n';
 import { getScanFileProfile, shouldShowScanFileProfile } from '../fileProfileDisplay';
+import { displayPathForProject } from '../pathDisplay';
 import { selectResponsibleFunctions, type ResponsibleFunctionItem, type ResponsibleFunctionReason } from '../responsibleFunctions';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
@@ -13,23 +15,34 @@ import SectionLabel from './shared/SectionLabel';
 
 interface Props {
   scan:            Scan;
+  projectPath:     string;
   onClose:         () => void;
   edges:           Edge[];
   onFocusFunction: (fn: FunctionDetail, filePath: string) => void;
   onCloseCodeView: () => void;
 }
 
-export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseCodeView }: Props) {
+function sameFunction(
+  a: Pick<FunctionDetail, 'name' | 'start_line' | 'line_count'>,
+  b: Pick<FunctionDetail, 'name' | 'start_line' | 'line_count'>,
+): boolean {
+  return a.name === b.name && a.start_line === b.start_line && a.line_count === b.line_count;
+}
+
+export default function Detail({ scan, projectPath, onClose, edges, onFocusFunction, onCloseCodeView }: Props) {
   const { locale, t } = useLocale();
   const [functions,   setFunctions]   = useState<FunctionDetail[]>([]);
   const [history,     setHistory]     = useState<{ score: number; scanned_at: string }[]>([]);
   const [activeTab,   setActiveTab]   = useState<'metrics' | 'functions'>('metrics');
   const [selectedFn,  setSelectedFn]  = useState<FunctionDetail | null>(null);
+  const [showMetricDetails, setShowMetricDetails] = useLocalPref('detail.metricsDetailsOpen', true);
+  const [showProfileInfo, setShowProfileInfo] = useState(false);
 
   useEffect(() => {
     onCloseCodeView();
     setActiveTab('metrics');
     setSelectedFn(null);
+    setShowProfileInfo(false);
     window.api.getFunctions(scan.filePath).then(setFunctions);
   }, [scan.filePath]);
 
@@ -44,6 +57,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   const diagnosis = diagnoseScore(scan);
   const fileProfile = getScanFileProfile(scan, locale);
   const showFileProfile = shouldShowScanFileProfile(fileProfile);
+  const displayPath = displayPathForProject(scan.filePath, projectPath);
 
   const tabStyle = (tab: 'metrics' | 'functions'): React.CSSProperties => ({
     flex: 1, padding: '9px 0', fontSize: 11, letterSpacing: '0.06em', fontWeight: 500,
@@ -56,12 +70,19 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
 
   const namedFunctions = functions.filter(fn => fn.name !== 'anonymous');
   const responsibleFunctions = selectResponsibleFunctions(namedFunctions, diagnosis.dominantSignal?.metric);
+  const showWholeFileResponsibleNote = responsibleFunctions.dominantSignalIsWholeFile
+    && !responsibleFunctions.items.some(item => item.isDominantSignal);
   const topFunction = namedFunctions.reduce<{ fn: FunctionDetail; priority: number } | null>((best, fn) => {
     const fnDiagnosis = diagnoseFunction(fn);
     if (fnDiagnosis.priority < 30) return best;
     if (!best || fnDiagnosis.priority > best.priority) return { fn, priority: fnDiagnosis.priority };
     return best;
   }, null);
+  const repeatsPrimaryFunction = responsibleFunctions.items.length === 1
+    && topFunction !== null
+    && sameFunction(responsibleFunctions.items[0].fn, topFunction.fn);
+  const showResponsibleFunctions = (responsibleFunctions.items.length > 0 && !repeatsPrimaryFunction)
+    || showWholeFileResponsibleNote;
 
   const handleSelectFunction = (fn: FunctionDetail) => {
     setActiveTab('functions');
@@ -88,20 +109,75 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
 
       {/* Header */}
       <div style={{ padding: '18px 16px 0', flexShrink: 0, borderBottom: '0.5px solid var(--border)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-          <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 8, position: 'relative' }}>
             <div style={{
-              fontSize: 14, fontWeight: 600, color: 'var(--text-primary)',
-              marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              fontSize: 16, fontWeight: 650, color: 'var(--text-primary)',
+              marginBottom: showFileProfile ? 5 : 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              lineHeight: 1.25,
             }}>
               {scan.filePath.split('/').pop()}
             </div>
-            <div style={{
-              fontSize: 10, color: 'var(--text-muted)', wordBreak: 'break-all',
-              lineHeight: 1.55, fontFamily: "'SF Mono','Menlo',monospace",
-            }}>
-              {scan.filePath}
-            </div>
+            {showFileProfile && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                maxWidth: '100%',
+                marginBottom: 5,
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                fontWeight: 500,
+                lineHeight: 1.35,
+              }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {fileProfile.label}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t('detail.profileInfo')}
+                  title={fileProfile.description}
+                  onClick={() => setShowProfileInfo(open => !open)}
+                  onMouseEnter={() => setShowProfileInfo(true)}
+                  onMouseLeave={() => setShowProfileInfo(false)}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    border: '0.5px solid var(--border)',
+                    borderRadius: '50%',
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-muted)',
+                    fontSize: 10,
+                    lineHeight: '14px',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    flexShrink: 0,
+                  }}
+                >
+                  i
+                </button>
+                {showProfileInfo && (
+                  <span style={{
+                    position: 'absolute',
+                    zIndex: 20,
+                    top: 44,
+                    left: 0,
+                    width: 230,
+                    padding: '8px 9px',
+                    border: '0.5px solid var(--border)',
+                    borderRadius: 6,
+                    background: '#1f2024',
+                    color: '#f2f2f4',
+                    boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
+                    fontSize: 10,
+                    lineHeight: 1.45,
+                  }}>
+                    {fileProfile.description}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -115,14 +191,46 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
           >×</button>
         </div>
 
-        {/* Layer tag */}
-        <div style={{ marginBottom: 12 }}>
+        {/* File metadata */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          minWidth: 0,
+          marginBottom: 12,
+          position: 'relative',
+          color: 'var(--text-secondary)',
+        }}>
           <span style={{
-            fontSize: 10, fontWeight: 500, letterSpacing: '0.08em',
-            padding: '2px 8px', borderRadius: 4, display: 'inline-block',
-            color: lc, background: `${lc}18`, border: `0.5px solid ${lc}38`,
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: lc,
+            boxShadow: `0 0 0 3px ${lc}18`,
+            flexShrink: 0,
+          }} />
+          <span style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            letterSpacing: '0.04em',
+            lineHeight: 1.3,
+            flexShrink: 0,
           }}>
             {LAYER_LABELS[l]}
+          </span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>·</span>
+          <span style={{
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            lineHeight: 1.35,
+            fontFamily: "'SF Mono','Menlo',monospace",
+          }}>
+            {displayPath}
           </span>
         </div>
 
@@ -139,6 +247,19 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
             {scan.trend}
           </span>
         </div>
+
+        {/* History */}
+        {history.length >= 1 && (
+          <div style={{ padding: '0 0 13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 7 }}>
+              <SectionLabel>{t('detail.history')}</SectionLabel>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace" }}>
+                {history.length} point{history.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <ScoreGraph history={history} width={265} height={58} showDates={true} />
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex' }}>
@@ -229,94 +350,92 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
               )}
             </div>
 
-            {showFileProfile && (
-              <div style={{
-                marginBottom: 18,
-                padding: '10px 12px',
-                background: 'var(--bg-card)',
-                border: '0.5px solid var(--border)',
-                borderRadius: 8,
-              }}>
-                <div style={{
-                  fontSize: 10,
-                  letterSpacing: '0.08em',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  marginBottom: 4,
-                }}>
-                  {t('detail.profile')}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 3 }}>
-                  {fileProfile.label}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {fileProfile.description}
-                </div>
-              </div>
-            )}
-
-            {responsibleFunctions.items.length > 0 && (
+            {showResponsibleFunctions && (
               <ResponsibleFunctionsPanel
                 items={responsibleFunctions.items}
-                showWholeFileNote={responsibleFunctions.dominantSignalIsWholeFile}
+                showWholeFileNote={showWholeFileResponsibleNote}
                 onSelect={handleSelectFunction}
                 t={t}
               />
             )}
 
-            {/* History */}
-            {history.length >= 1 && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                  <SectionLabel>{t('detail.history')}</SectionLabel>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'SF Mono','Menlo',monospace" }}>
-                    {history.length} point{history.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <ScoreGraph history={history} width={265} height={80} showDates={true} />
-              </div>
-            )}
+            <div style={{
+              marginTop: 2,
+              borderTop: '0.5px solid var(--border)',
+              paddingTop: 12,
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowMetricDetails(!showMetricDetails)}
+                aria-expanded={showMetricDetails}
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  background: 'transparent',
+                  padding: '0 0 10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  font: 'inherit',
+                  color: 'var(--text-primary)',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{
+                  fontSize: 10,
+                  letterSpacing: '0.10em',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                }}>
+                  {t('detail.metricDetails')}
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  {showMetricDetails ? t('detail.hideMetricDetails') : t('detail.showMetricDetails')}
+                </span>
+              </button>
 
-            <div style={{ marginBottom: 6 }}><SectionLabel>{t('detail.breakdown')}</SectionLabel></div>
+              {showMetricDetails && (
+                <>
+                  <MetricBar
+                    label={t('metric.label.cyclomatic')}
+                    score={scan.complexityScore} rawLabel="max" rawValue={scan.rawComplexity}
+                    desc={t('metric.desc.cyclomatic')}
+                    explain={explainCx(scan.complexityScore, scan.rawComplexity)} />
+                  <MetricBar
+                    label={t('metric.label.cognitive')}
+                    score={scan.cognitiveComplexityScore ?? 0} rawLabel="max" rawValue={scan.rawCognitiveComplexity ?? 0}
+                    desc={t('metric.desc.cognitive')}
+                    explain={explainCog(scan.cognitiveComplexityScore ?? 0, scan.rawCognitiveComplexity ?? 0)} />
+                  <MetricBar
+                    label={t('metric.label.funcSize')}
+                    score={scan.functionSizeScore} rawLabel="max" rawValue={`${scan.rawFunctionSize}L`}
+                    desc={t('metric.desc.funcSize')}
+                    explain={explainSz(scan.functionSizeScore, scan.rawFunctionSize)} />
+                  <MetricBar
+                    label={t('metric.label.churn')}
+                    score={scan.churnScore} rawLabel="commits" rawValue={scan.rawChurn}
+                    desc={t('metric.desc.churn')}
+                    explain={explainCh(scan.churnScore, scan.rawChurn)} />
+                  <MetricBar
+                    label={t('metric.label.depth')}
+                    score={scan.depthScore} rawLabel="max" rawValue={scan.rawDepth}
+                    desc={t('metric.desc.depth')}
+                    explain={explainDp(scan.depthScore, scan.rawDepth)} />
+                  <MetricBar
+                    label={t('metric.label.params')}
+                    score={scan.paramScore} rawLabel="max" rawValue={scan.rawParams}
+                    desc={t('metric.desc.params')}
+                    explain={explainPr(scan.paramScore, scan.rawParams)} />
 
-            <MetricBar
-              label={t('metric.label.cyclomatic')}
-              score={scan.complexityScore} rawLabel="max" rawValue={scan.rawComplexity}
-              desc={t('metric.desc.cyclomatic')}
-              explain={explainCx(scan.complexityScore, scan.rawComplexity)} />
-            <MetricBar
-              label={t('metric.label.cognitive')}
-              score={scan.cognitiveComplexityScore ?? 0} rawLabel="max" rawValue={scan.rawCognitiveComplexity ?? 0}
-              desc={t('metric.desc.cognitive')}
-              explain={explainCog(scan.cognitiveComplexityScore ?? 0, scan.rawCognitiveComplexity ?? 0)} />
-            <MetricBar
-              label={t('metric.label.funcSize')}
-              score={scan.functionSizeScore} rawLabel="max" rawValue={`${scan.rawFunctionSize}L`}
-              desc={t('metric.desc.funcSize')}
-              explain={explainSz(scan.functionSizeScore, scan.rawFunctionSize)} />
-            <MetricBar
-              label={t('metric.label.churn')}
-              score={scan.churnScore} rawLabel="commits" rawValue={scan.rawChurn}
-              desc={t('metric.desc.churn')}
-              explain={explainCh(scan.churnScore, scan.rawChurn)} />
-            <MetricBar
-              label={t('metric.label.depth')}
-              score={scan.depthScore} rawLabel="max" rawValue={scan.rawDepth}
-              desc={t('metric.desc.depth')}
-              explain={explainDp(scan.depthScore, scan.rawDepth)} />
-            <MetricBar
-              label={t('metric.label.params')}
-              score={scan.paramScore} rawLabel="max" rawValue={scan.rawParams}
-              desc={t('metric.desc.params')}
-              explain={explainPr(scan.paramScore, scan.rawParams)} />
-
-            {/* Coupling */}
-            {(() => {
-              const usedBy = scan.fanIn;
-              const uses   = scan.fanOut;
-              const ucol   = usedBy > 10 ? 'var(--red)' : usedBy > 5 ? 'var(--orange)' : 'var(--text-secondary)';
-              const ocol   = uses   > 10 ? 'var(--red)' : uses   > 5 ? 'var(--orange)' : 'var(--text-secondary)';
+                  {/* Coupling */}
+                  {(() => {
+                    const usedBy = scan.fanIn;
+                    const uses   = scan.fanOut;
+                    const ucol   = usedBy > 10 ? 'var(--red)' : usedBy > 5 ? 'var(--orange)' : 'var(--text-secondary)';
+                    const ocol   = uses   > 10 ? 'var(--red)' : uses   > 5 ? 'var(--orange)' : 'var(--text-secondary)';
 
               const usedBySub = usedBy === 0
                 ? t('detail.notImported')
@@ -325,64 +444,67 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
                 ? t('detail.noDeps')
                 : t('detail.dependency', { n: uses, s: uses > 1 ? 's' : '', y: uses > 1 ? 'ies' : 'y' });
 
-              return (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ marginBottom: 10 }}><SectionLabel>{t('detail.coupling')}</SectionLabel></div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                    {[
-                      { lbl: t('detail.usedBy'), val: usedBy, col: ucol, sub: usedBySub },
-                      { lbl: t('detail.uses'),   val: uses,   col: ocol, sub: usesSub   },
-                    ].map(item => (
-                      <div key={item.lbl} style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 8, padding: '12px 12px' }}>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, fontWeight: 500 }}>{item.lbl}</div>
-                        <div style={{ fontSize: 28, fontWeight: 200, color: item.col, lineHeight: 1, marginBottom: 4 }}>{item.val}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.sub}</div>
+                    return (
+                      <div style={{ marginTop: 20 }}>
+                        <div style={{ marginBottom: 10 }}><SectionLabel>{t('detail.coupling')}</SectionLabel></div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          {[
+                            { lbl: t('detail.usedBy'), val: usedBy, col: ucol, sub: usedBySub },
+                            { lbl: t('detail.uses'),   val: uses,   col: ocol, sub: usesSub   },
+                          ].map(item => (
+                            <div key={item.lbl} style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 8, padding: '12px 12px' }}>
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, fontWeight: 500 }}>{item.lbl}</div>
+                              <div style={{ fontSize: 28, fontWeight: 200, color: item.col, lineHeight: 1, marginBottom: 4 }}>{item.val}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.sub}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {usedBy > 5 && (
+                          <div style={{
+                            fontSize: 10, lineHeight: 1.55, padding: '6px 10px',
+                            background: usedBy > 10 ? 'var(--explain-red-bg)' : 'var(--explain-org-bg)',
+                            borderLeft: `2px solid ${usedBy > 10 ? 'var(--red)' : 'var(--orange)'}`,
+                            borderRadius: '0 4px 4px 0', marginBottom: 5,
+                            color: usedBy > 10 ? 'var(--explain-red-text)' : 'var(--explain-org-text)',
+                          }}>
+                            {t('detail.widelyImported', { n: usedBy })}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  {usedBy > 5 && (
-                    <div style={{
-                      fontSize: 10, lineHeight: 1.55, padding: '6px 10px',
-                      background: usedBy > 10 ? 'var(--explain-red-bg)' : 'var(--explain-org-bg)',
-                      borderLeft: `2px solid ${usedBy > 10 ? 'var(--red)' : 'var(--orange)'}`,
-                      borderRadius: '0 4px 4px 0', marginBottom: 5,
-                      color: usedBy > 10 ? 'var(--explain-red-text)' : 'var(--explain-org-text)',
-                    }}>
-                      {t('detail.widelyImported', { n: usedBy })}
+                    );
+                  })()}
+
+                  {/* Hotspot */}
+                  {scan.hotspotScore > 0 && (
+                    <div style={{ marginTop: 18, padding: '12px 0', borderTop: '0.5px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500 }}>
+                          {t('detail.hotspot')}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: scan.hotspotScore >= 60 ? 'var(--red)' : 'var(--orange)' }}>
+                          {scan.hotspotScore.toFixed(1)}
+                        </span>
+                      </div>
+                      <div style={{ height: 3, background: 'var(--score-bar-bg)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, (scan.hotspotScore / 150) * 100)}%`, background: scan.hotspotScore >= 60 ? 'var(--red)' : 'var(--orange)', borderRadius: 2, transition: 'width 0.4s ease' }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        {t('detail.hotspotDesc')}
+                      </div>
                     </div>
                   )}
-                </div>
-              );
-            })()}
 
-            {/* Hotspot */}
-            {scan.hotspotScore > 0 && (
-              <div style={{ marginTop: 18, padding: '12px 0', borderTop: '0.5px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500 }}>
-                    {t('detail.hotspot')}
-                  </span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: scan.hotspotScore >= 60 ? 'var(--red)' : 'var(--orange)' }}>
-                    {scan.hotspotScore.toFixed(1)}
-                  </span>
-                </div>
-                <div style={{ height: 3, background: 'var(--score-bar-bg)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
-                  <div style={{ height: '100%', width: `${Math.min(100, (scan.hotspotScore / 150) * 100)}%`, background: scan.hotspotScore >= 60 ? 'var(--red)' : 'var(--orange)', borderRadius: 2, transition: 'width 0.4s ease' }} />
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {t('detail.hotspotDesc')}
-                </div>
-              </div>
-            )}
-
-            {/* Language */}
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500 }}>
-                {t('detail.language')}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: "'SF Mono','Menlo',monospace" }}>
-                {scan.language}
-              </span>
+                  {/* Language */}
+                  <div style={{ marginTop: 16, paddingTop: 12, borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500 }}>
+                      {t('detail.language')}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: "'SF Mono','Menlo',monospace" }}>
+                      {scan.language}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
