@@ -197,149 +197,135 @@ function byProfile(profile: FileProfile): FileProfileInfo {
     return PROFILE_INFO[profile];
 }
 
-function pathSegments(filePath: string): string[] {
-    return filePath.split('/').filter(Boolean);
+interface FileProfileContext {
+    normalized:           string;
+    lower:                string;
+    name:                 string;
+    extension:            string;
+    nameWithoutExtension: string;
+    segments:             string[];
 }
 
-function hasSegment(segments: string[], names: string[]): boolean {
-    return segments.some(segment => names.includes(segment));
-}
+type FileProfileRule = {
+    profile: FileProfile;
+    matches: (ctx: FileProfileContext) => boolean;
+};
 
-function hasSegmentContaining(segments: string[], terms: string[]): boolean {
-    return segments.some(segment => terms.some(term => segment.includes(term)));
-}
-
-function hasNameToken(name: string, terms: string[]): boolean {
-    return terms.some(term => name.includes(term));
-}
-
-function isRootLikeEntrypoint(segments: string[], name: string): boolean {
-    if (!/^(?:index|main|app)\.(?:ts|tsx|js|jsx|mjs|cjs|py)$/.test(name)) return false;
-    const parent = segments.at(-2) ?? '';
-    return segments.length <= 2 || ['src', 'app', 'main', 'server', 'backend', 'frontend', 'renderer', 'preload', 'electron'].includes(parent);
-}
-
-export function inferFileProfile(filePath: string): FileProfileInfo {
+function createFileProfileContext(filePath: string): FileProfileContext {
     const normalized = normalizePath(filePath);
     const lower = normalized.toLowerCase();
     const name = lower.split('/').pop() ?? lower;
-    const segments = pathSegments(lower);
+    const extensionMatch = name.match(/\.([^.]+)$/);
+    const extension = extensionMatch?.[1] ?? '';
+    const nameWithoutExtension = extension ? name.slice(0, -(extension.length + 1)) : name;
 
-    if (name === 'readme.md' || name.endsWith('.md') || hasSegment(segments, ['docs', 'documentation'])) return byProfile('documentation');
-    if (/\.(css|scss|sass|less)$/.test(name)) return byProfile('style');
-    if (/(\.|_)(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/.test(name) || /^test_.*\.py$/.test(name) || /_test\.py$/.test(name) || /tests?\.swift$/.test(name) || hasSegmentContaining(segments, ['tests', '__tests__'])) return byProfile('test');
-    if (
-        /(?:^|[._-])(?:fixture|fixtures|mock|mocks|sample|samples|stub|stubs)(?:[._-]|$)/.test(name) ||
-        hasSegment(segments, ['fixtures', '__fixtures__', 'mocks', '__mocks__', 'samples', 'stubs'])
-    ) return byProfile('fixture_mock');
+    return {
+        normalized,
+        lower,
+        name,
+        extension,
+        nameWithoutExtension,
+        segments: lower.split('/').filter(Boolean),
+    };
+}
 
-    if (
-        name.includes('dependencyaudit') ||
-        name.includes('npmaudit') ||
-        name.includes('packageaudit') ||
-        (name.includes('audit') && hasNameToken(lower, ['dependency', 'dependencies', 'package', 'packages', 'advisory', 'advisories']))
-    ) return byProfile('dependency_audit');
+function hasSegment(ctx: FileProfileContext, names: string[]): boolean {
+    return ctx.segments.some(segment => names.includes(segment));
+}
 
-    if (
-        /(?:^|\/)(?:components|pages|views|screens)\//.test(lower) && /\.(?:tsx|jsx|js|ts)$/.test(name) ||
-        /view\.(?:tsx|jsx|ts|js|swift)$/.test(name) ||
-        /viewcontroller\.swift$/.test(name) ||
-        name === 'contentview.swift'
-    ) return byProfile('renderer_component');
+function hasSegmentContaining(ctx: FileProfileContext, terms: string[]): boolean {
+    return ctx.segments.some(segment => terms.some(term => segment.includes(term)));
+}
 
-    if (hasNameToken(lower, ['security', 'vulnerability', 'secret']) || (name.includes('audit') && !name.includes('dependencyaudit'))) return byProfile('security_scanner');
+function hasToken(value: string, terms: string[]): boolean {
+    return terms.some(term => value.includes(term));
+}
 
-    if (name === 'urls.py' || /^(?:routes|router)\.(?:ts|tsx|js|jsx|py)$/.test(name) || hasSegment(segments, ['routes', 'routers'])) return byProfile('routing');
+function matchesAny(value: string, patterns: RegExp[]): boolean {
+    return patterns.some(pattern => pattern.test(value));
+}
 
-    if (
-        name.includes('config') ||
-        name.includes('settings') ||
-        hasSegment(segments, ['config', 'configs', 'settings']) ||
-        /\.(?:config)\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(name) ||
-        /^(?:vite|vitest|eslint|prettier|tailwind)\.config\.(?:ts|js|mjs|cjs)$/.test(name) ||
-        ['pyproject.toml', 'package.json'].includes(name)
-    ) return byProfile('configuration');
+function isRootLikeEntrypoint(ctx: FileProfileContext): boolean {
+    if (!/^(?:index|main|app)\.(?:ts|tsx|js|jsx|mjs|cjs|py)$/.test(ctx.name)) return false;
+    const parent = ctx.segments.at(-2) ?? '';
+    return ctx.segments.length <= 2 || ['src', 'app', 'main', 'server', 'backend', 'frontend', 'renderer', 'preload', 'electron'].includes(parent);
+}
 
-    if (hasSegment(segments, ['scripts', 'script', 'bin', 'tools']) || name.endsWith('.sh') || name.endsWith('.command')) return byProfile('script');
+function fileProfileRule(profile: FileProfile, matches: FileProfileRule['matches']): FileProfileRule {
+    return { profile, matches };
+}
 
-    if (hasSegment(segments, ['controllers']) || name.includes('controller') || name === 'views.py') return byProfile('controller');
+const PROFILE_RULES: FileProfileRule[] = [
+    fileProfileRule('documentation', ctx => ctx.name === 'readme.md' || ctx.name.endsWith('.md') || hasSegment(ctx, ['docs', 'documentation'])),
+    fileProfileRule('style', ctx => ['css', 'scss', 'sass', 'less'].includes(ctx.extension)),
+    fileProfileRule('test', ctx =>
+        matchesAny(ctx.name, [/(\.|_)(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/, /^test_.*\.py$/, /_test\.py$/, /tests?\.swift$/]) ||
+        hasSegmentContaining(ctx, ['tests', '__tests__'])),
+    fileProfileRule('fixture_mock', ctx =>
+        /(?:^|[._-])(?:fixture|fixtures|mock|mocks|sample|samples|stub|stubs)(?:[._-]|$)/.test(ctx.name) ||
+        hasSegment(ctx, ['fixtures', '__fixtures__', 'mocks', '__mocks__', 'samples', 'stubs'])),
+    fileProfileRule('dependency_audit', ctx =>
+        ctx.name.includes('dependencyaudit') ||
+        ctx.name.includes('npmaudit') ||
+        ctx.name.includes('packageaudit') ||
+        (ctx.name.includes('audit') && hasToken(ctx.lower, ['dependency', 'dependencies', 'package', 'packages', 'advisory', 'advisories']))),
+    fileProfileRule('renderer_component', ctx =>
+        (/(?:^|\/)(?:components|pages|views|screens)\//.test(ctx.lower) && /\.(?:tsx|jsx|js|ts)$/.test(ctx.name)) ||
+        matchesAny(ctx.name, [/view\.(?:tsx|jsx|ts|js|swift)$/, /viewcontroller\.swift$/]) ||
+        ctx.name === 'contentview.swift'),
+    fileProfileRule('security_scanner', ctx => hasToken(ctx.lower, ['security', 'vulnerability', 'secret']) || (ctx.name.includes('audit') && !ctx.name.includes('dependencyaudit'))),
+    fileProfileRule('routing', ctx => ctx.name === 'urls.py' || /^(?:routes|router)\.(?:ts|tsx|js|jsx|py)$/.test(ctx.name) || hasSegment(ctx, ['routes', 'routers'])),
+    fileProfileRule('configuration', ctx =>
+        ctx.name.includes('config') ||
+        ctx.name.includes('settings') ||
+        hasSegment(ctx, ['config', 'configs', 'settings']) ||
+        /\.(?:config)\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(ctx.name) ||
+        /^(?:vite|vitest|eslint|prettier|tailwind)\.config\.(?:ts|js|mjs|cjs)$/.test(ctx.name) ||
+        ['pyproject.toml', 'package.json'].includes(ctx.name)),
+    fileProfileRule('script', ctx => hasSegment(ctx, ['scripts', 'script', 'bin', 'tools']) || ctx.name.endsWith('.sh') || ctx.name.endsWith('.command')),
+    fileProfileRule('controller', ctx => hasSegment(ctx, ['controllers']) || ctx.name.includes('controller') || ctx.name === 'views.py'),
+    fileProfileRule('validation_contract', ctx =>
+        hasToken(ctx.name, ['validator', 'validation', 'contract', 'schema']) ||
+        hasSegment(ctx, ['validators', 'validation', 'contracts', 'contract'])),
+    fileProfileRule('data_model', ctx =>
+        ctx.name === 'models.py' ||
+        ctx.name === 'serializers.py' ||
+        hasToken(ctx.name, ['model', 'serializer']) ||
+        hasSegment(ctx, ['models', 'entities'])),
+    fileProfileRule('data_access', ctx =>
+        ['db.ts', 'db.js', 'database.ts', 'database.js', 'storage.py'].includes(ctx.name) ||
+        hasToken(ctx.name, ['repository', 'dao', 'prisma', 'sqlite', 'sql', 'storage']) ||
+        hasSegmentContaining(ctx, ['migration', 'repository', 'repositories', 'prisma'])),
+    fileProfileRule('entrypoint', ctx => ['pulseapp.swift', 'app.swift', 'main.swift', 'manage.py', 'wsgi.py', 'asgi.py'].includes(ctx.name) || isRootLikeEntrypoint(ctx)),
+    fileProfileRule('parser', ctx => hasToken(ctx.name, ['parser', 'parse', 'lexer', 'ast'])),
+    fileProfileRule('decision_table', ctx => hasToken(ctx.name, ['diagnosis', 'classifier', 'rules', 'policy', 'fsm', 'state_machine', 'statemachine'])),
+    fileProfileRule('service', ctx => hasSegment(ctx, ['services']) || ctx.name.includes('service')),
+    fileProfileRule('report_builder', ctx => hasToken(ctx.name, ['report', 'export', 'markdown'])),
+    fileProfileRule('change_analysis', ctx => hasToken(ctx.lower, ['churn', 'commit', 'diff']) || ctx.name.includes('git') || (ctx.name.includes('history') && !/view\.(?:tsx|jsx|ts|js|swift)$/.test(ctx.name))),
+    fileProfileRule('summary', ctx => hasToken(ctx.name, ['summary', 'overview', 'digest', 'recap'])),
+    fileProfileRule('graph_layout', ctx => hasToken(ctx.name, ['graph', 'layout', 'dependency', 'relation', 'coupling'])),
+    fileProfileRule('formatter', ctx =>
+        hasToken(ctx.name, ['formatter', 'format', 'display', 'label', 'message', 'text', 'copy']) ||
+        hasSegment(ctx, ['formatters', 'messages', 'locales', 'translations'])),
+    fileProfileRule('state_management', ctx =>
+        /^(?:store|reducer|state|state_manager|statemanager)\.(?:ts|tsx|js|jsx|py|swift)$/.test(ctx.name) ||
+        hasToken(ctx.name, ['store', 'reducer', 'statemanager', 'state_manager']) ||
+        hasSegment(ctx, ['stores', 'reducers'])),
+    fileProfileRule('orchestration', ctx => hasToken(ctx.name, ['scanner', 'event_bus', 'eventbus', 'coordinator', 'orchestrator'])),
+    fileProfileRule('adapter_bridge', ctx =>
+        hasToken(ctx.name, ['adapter', 'bridge', 'provider', 'client', 'gateway', 'connector', 'integration', 'apiclient', 'stdio', 'protocol']) ||
+        hasSegment(ctx, ['adapters', 'bridges', 'providers', 'clients', 'gateways', 'connectors', 'integrations', 'protocols'])),
+    fileProfileRule('scoring_engine', ctx =>
+        hasToken(ctx.name, ['score', 'scorer', 'scoring', 'rank', 'ranking', 'ranker', 'weight', 'weighting', 'baseline', 'risk', 'signal']) ||
+        hasSegment(ctx, ['scoring', 'ranking', 'risk-score', 'risk_score', 'signals', 'baselines'])),
+    fileProfileRule('event_processing', ctx =>
+        hasToken(ctx.name, ['event', 'events', 'envelope', 'dispatcher', 'dispatch', 'activity', 'lifecycle', 'meaning', 'ingestion']) ||
+        hasSegment(ctx, ['events', 'eventing', 'dispatchers', 'ingestion', 'activities'])),
+    fileProfileRule('utility', ctx => hasSegment(ctx, ['utils', 'util', 'helpers', 'helper', 'hooks', 'lib']) || hasToken(ctx.name, ['normalize', 'constants', 'utils', 'helper'])),
+];
 
-    if (
-        name.includes('validator') ||
-        name.includes('validation') ||
-        name.includes('contract') ||
-        name.includes('schema') ||
-        hasSegment(segments, ['validators', 'validation', 'contracts', 'contract'])
-    ) return byProfile('validation_contract');
-
-    if (
-        name === 'models.py' ||
-        name === 'serializers.py' ||
-        name.includes('model') ||
-        name.includes('serializer') ||
-        hasSegment(segments, ['models', 'entities'])
-    ) return byProfile('data_model');
-
-    if (
-        name === 'db.ts' ||
-        name === 'db.js' ||
-        name === 'database.ts' ||
-        name === 'database.js' ||
-        name === 'storage.py' ||
-        name.includes('repository') ||
-        name.includes('dao') ||
-        name.includes('prisma') ||
-        name.includes('sqlite') ||
-        name.includes('sql') ||
-        name.includes('storage') ||
-        hasSegmentContaining(segments, ['migration', 'repository', 'repositories', 'prisma'])
-    ) return byProfile('data_access');
-
-    if (name === 'pulseapp.swift' || name === 'app.swift' || name === 'main.swift' || name === 'manage.py' || name === 'wsgi.py' || name === 'asgi.py' || isRootLikeEntrypoint(segments, name)) return byProfile('entrypoint');
-
-    if (hasNameToken(name, ['parser', 'parse', 'lexer', 'ast'])) return byProfile('parser');
-
-    if (hasNameToken(name, ['diagnosis', 'classifier', 'rules', 'policy', 'fsm', 'state_machine', 'statemachine'])) return byProfile('decision_table');
-
-    if (hasSegment(segments, ['services']) || name.includes('service')) return byProfile('service');
-
-    if (hasNameToken(name, ['report', 'export', 'markdown'])) return byProfile('report_builder');
-
-    if (hasNameToken(lower, ['churn', 'commit', 'diff']) || name.includes('git') || (name.includes('history') && !/view\.(?:tsx|jsx|ts|js|swift)$/.test(name))) return byProfile('change_analysis');
-
-    if (hasNameToken(name, ['summary', 'overview', 'digest', 'recap'])) return byProfile('summary');
-
-    if (hasNameToken(name, ['graph', 'layout', 'dependency', 'relation', 'coupling'])) return byProfile('graph_layout');
-
-    if (
-        hasNameToken(name, ['formatter', 'format', 'display', 'label', 'message', 'text', 'copy']) ||
-        hasSegment(segments, ['formatters', 'messages', 'locales', 'translations'])
-    ) return byProfile('formatter');
-
-    if (
-        /^(?:store|reducer|state|state_manager|statemanager)\.(?:ts|tsx|js|jsx|py|swift)$/.test(name) ||
-        hasNameToken(name, ['store', 'reducer', 'statemanager', 'state_manager']) ||
-        hasSegment(segments, ['stores', 'reducers'])
-    ) return byProfile('state_management');
-
-    if (hasNameToken(name, ['scanner', 'event_bus', 'eventbus', 'coordinator', 'orchestrator'])) return byProfile('orchestration');
-
-    if (
-        hasNameToken(name, ['adapter', 'bridge', 'provider', 'client', 'gateway', 'connector', 'integration', 'apiclient', 'stdio', 'protocol']) ||
-        hasSegment(segments, ['adapters', 'bridges', 'providers', 'clients', 'gateways', 'connectors', 'integrations', 'protocols'])
-    ) return byProfile('adapter_bridge');
-
-    if (
-        hasNameToken(name, ['score', 'scorer', 'scoring', 'rank', 'ranking', 'ranker', 'weight', 'weighting', 'baseline', 'risk', 'signal']) ||
-        hasSegment(segments, ['scoring', 'ranking', 'risk-score', 'risk_score', 'signals', 'baselines'])
-    ) return byProfile('scoring_engine');
-
-    if (
-        hasNameToken(name, ['event', 'events', 'envelope', 'dispatcher', 'dispatch', 'activity', 'lifecycle', 'meaning', 'ingestion']) ||
-        hasSegment(segments, ['events', 'eventing', 'dispatchers', 'ingestion', 'activities'])
-    ) return byProfile('event_processing');
-
-    if (hasSegment(segments, ['utils', 'util', 'helpers', 'helper', 'hooks', 'lib']) || hasNameToken(name, ['normalize', 'constants', 'utils', 'helper'])) return byProfile('utility');
-
-    return byProfile('unknown');
+export function inferFileProfile(filePath: string): FileProfileInfo {
+    const ctx = createFileProfileContext(filePath);
+    const matched = PROFILE_RULES.find(rule => rule.matches(ctx));
+    return byProfile(matched?.profile ?? 'unknown');
 }

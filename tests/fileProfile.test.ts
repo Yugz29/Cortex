@@ -105,6 +105,7 @@ describe('file profile inference', () => {
         ['src/parser/eventParser.ts', 'parser'],
         ['src/components/EventView.tsx', 'renderer_component'],
         ['src/features/sessionManager.ts', 'unknown'],
+        ['src/cortex/diagnostics/fileProfile.ts', 'unknown'],
     ])('respecte les priorités de collision pour %s', (filePath, expected) => {
         expect(inferFileProfile(filePath).profile).toBe(expected);
     });
