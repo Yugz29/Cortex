@@ -1,12 +1,12 @@
 # Cortex
 
-> Un moniteur local-first de qualité de code qui tourne discrètement en arrière-plan et indique où concentrer la revue avant que la dette ne devienne un problème.
+> Un moniteur local-first de qualité de code qui indique quels fichiers inspecter en priorité avant que la dette ne devienne un problème.
 
 ---
 
 ## Présentation
 
-Cortex est une application desktop qui surveille un dépôt de code en temps réel. Elle observe les fichiers, analyse la complexité du code et l’activité Git, puis fait ressortir les fichiers qui méritent une revue en priorité.
+Cortex est une application desktop qui surveille un dépôt de code en temps réel. Elle observe les fichiers, analyse la complexité du code et l’activité Git, puis fait ressortir les fichiers à inspecter en priorité.
 
 ---
 
@@ -14,7 +14,7 @@ Cortex est une application desktop qui surveille un dépôt de code en temps ré
 
 **Surveillance continue du projet**
 
-Cortex tourne en arrière-plan et détecte les changements de fichiers. À chaque sauvegarde, il peut relancer une analyse : complexité, taille des fonctions, profondeur d’imbrication, churn, couplage et dépendances.
+Tant que l’application desktop est ouverte, Cortex détecte les changements de fichiers. À chaque sauvegarde, il peut relancer une analyse : complexité, taille des fonctions, profondeur d’imbrication, churn, couplage et dépendances.
 
 **Score par fichier de 0 à 100**
 
@@ -30,7 +30,7 @@ Chaque scan est stocké. Il est possible de voir si un fichier s’améliore ou 
 
 **Snapshots structurés du projet**
 
-Après chaque scan, Cortex écrit un snapshot JSON structuré du projet : scores, historique, couplages, tendances et couverture d’analyse. Ce snapshot sert de contexte de maintenance pour relire les parties analysées du codebase.
+Après chaque analyse effective, Cortex écrit un snapshot JSON structuré du projet : scores, historique, couplages, tendances et couverture d’analyse. Ce snapshot sert de contexte de maintenance pour relire les parties analysées du codebase.
 
 ---
 
@@ -49,10 +49,10 @@ Après chaque scan, Cortex écrit un snapshot JSON structuré du projet : scores
 | **Détection de hotspots** | Fichiers combinant complexité et modifications fréquentes |
 | **Multi-projets** | Passage d’un projet à l’autre sans redémarrer l’application |
 | **Vue graphe** | Graphe basé sur les imports résolus et les références de types Swift — mode LAYERS et mode ALL LINKS ; zoom, déplacement, clic et focus au survol |
-| **Scan sécurité** | Détection par patterns de secrets/injections + vérification des vulnérabilités via `npm audit` |
+| **Scan sécurité** | Patterns locaux de revue sécurité + audit optionnel des dépendances Node.js via `npm audit` |
 | **Fichiers ignorés** | Exclusion de fichiers du scoring depuis la sidebar, ou exclusion complète du scan depuis les réglages |
 | **Préférences UI** | Largeur de la sidebar, hauteur du panneau d’activité, mode de graphe et granularité persistés entre les sessions |
-| **Snapshot projet** | `cortex-snapshot.json` écrit après chaque scan — contexte de maintenance structuré avec couverture d’analyse |
+| **Snapshot projet** | `cortex-snapshot.json` écrit après chaque scan appliqué — contexte de maintenance structuré avec couverture d’analyse |
 | **Export** | Rapport Markdown + JSON généré depuis l’onglet Overview |
 | **Lecteur de code** | Visualisation syntax-highlighted du code, ouverture directe sur une fonction, édition rapide via CodeMirror 6 et rescan instantané à la sauvegarde |
 | **Arborescence fichiers** | Bascule entre liste plate et arbre de dossiers dans la sidebar, avec tri par score |
@@ -80,9 +80,32 @@ Le score doit être lu comme un signal de priorisation pour la revue, pas comme 
 
 ---
 
+## Couverture d'analyse
+
+| Langage | Couverture |
+|---|---|
+| TypeScript / JavaScript | Analyse structurelle et graphe d'imports internes solides pour `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` |
+| Python | Analyse structurelle via tree-sitter avec fallback ; imports internes résolus partiellement selon la structure du projet, sans résolution complète d'environnement Python |
+| Swift | Analyse par parsing pragmatique ; graphe basé sur les références de types locales, sans résolution complète Xcode/SPM |
+
+La couverture exacte dépend de la structure du dépôt, des imports résolus et des fichiers exclus.
+
+---
+
+## Sécurité
+
+L'écran Sécurité combine deux types de signaux :
+
+- **Patterns locaux** : secrets potentiels, clés privées, chaînes de connexion avec identifiants, injections, XSS, crypto faible, HTTP clair, vérification SSL désactivée et `debugger` oublié.
+- **Audit des dépendances** : exécution de `npm audit` pour les projets Node.js détectés. Cet audit nécessite un lockfile compatible, un accès réseau au registre npm et peut être partiel si certains sous-projets échouent ou ne sont pas auditables.
+
+Ces résultats sont des signaux de revue. Cortex ne remplace pas un audit sécurité complet, un outil spécialisé comme Snyk, ni une revue manuelle.
+
+---
+
 ## Contexte de maintenance
 
-Après chaque scan, Cortex écrit `cortex-snapshot.json`. Ce fichier contient :
+Après chaque analyse effective, Cortex écrit `cortex-snapshot.json`. Ce fichier contient :
 
 - un résumé du projet : nombre total de fichiers, fichiers critiques / sous pression / sains, score moyen ;
 - les scores par fichier avec métriques brutes, langage et date du dernier scan ;
@@ -90,7 +113,9 @@ Après chaque scan, Cortex écrit `cortex-snapshot.json`. Ce fichier contient :
 - la carte de couplage : fichiers qui changent souvent ensemble ;
 - un résumé de couverture d’analyse : parties entièrement, partiellement ou non analysées.
 
-Cortex est utile comme **générateur de contexte de maintenance**. Le snapshot capture l’état du code analysé, les fichiers qui ressortent, les tendances et les zones où une revue humaine est la plus utile.
+Cortex est utile comme **contexte de maintenance structuré**. Le snapshot capture l’état du code analysé, les fichiers qui ressortent, les tendances et les zones où une revue humaine est la plus utile.
+
+L'export produit un contexte Markdown/JSON pour relire les hotspots, les tendances et les limites d'analyse.
 
 Le score concerne le code analysé. Il ne doit pas être interprété comme un jugement complet sur tous les fichiers du dépôt.
 
@@ -103,8 +128,8 @@ Le score concerne le code analysé. Il ne doit pas être interprété comme un j
 | Shell desktop | Electron 40 + electron-vite |
 | UI | React 19 + TypeScript |
 | Analyse TS/JS | ts-morph (AST) |
-| Analyse Python | tree-sitter (AST) + fallback regex |
-| Analyse Swift | Parser pragmatique dédié + graphe local de références de types |
+| Analyse Python | tree-sitter (AST) + fallback regex, graphe partiel d'imports internes |
+| Analyse Swift | Parser pragmatique dédié + graphe local approximatif de références de types |
 | Couverture d’analyse | Résumé par langage dans les snapshots et les logs de scan |
 | Éditeur de code | CodeMirror 6 |
 | Git / churn | simple-git |
@@ -132,6 +157,25 @@ npm run build && npm start
 ```
 
 Au premier lancement, cliquer sur **Add project** et sélectionner un dossier. Cortex commencera alors à surveiller et scorer le projet.
+
+## Commandes de développement
+
+```bash
+# Lancer l'application en développement
+npm run dev
+
+# Lancer la build packagée en preview
+npm run start
+
+# Vérifier les types TypeScript
+npm run typecheck
+
+# Lancer les tests
+npm test
+
+# Lancer les tests en mode watch
+npm run test:watch
+```
 
 ### Linux — dépendances système
 
@@ -180,9 +224,27 @@ src/
 
 ---
 
+## Limites connues
+
+- Cortex repose sur une analyse statique approximative : il aide à prioriser la revue, mais ne prouve pas qu'un fichier est correct, sûr ou bien conçu.
+- Le graphe Python dépend des imports internes résolus et ne modélise pas complètement l'environnement Python.
+- Le graphe Swift repose sur des références de types locales et ne fait pas de résolution complète Xcode/SPM.
+- L'audit npm dépend des lockfiles, du réseau et du registre npm ; il peut être indisponible ou partiel selon les sous-projets.
+- Cortex n'intègre pas d'IA, ne remplace pas SonarQube, Snyk, ni un audit manuel.
+- Cortex ne collecte pas de télémétrie.
+
+---
+
+## Documentation complémentaire
+
+- [Contrat du score](docs/FR/score_contract.md) : décrit ce que le score Cortex mesure, ce qu'il ne mesure pas et comment l'interpréter.
+- [Contrat des patterns](docs/FR/pattern_contract.md) : décrit les contrats internes des patterns de maintenance et les limites de leur interprétation.
+
+---
+
 ## Vie privée
 
-- **100 % local** — aucune donnée ne quitte la machine
+- **Local-first** — l’analyse, le scoring, l’historique et les exports restent locaux. Seul l’audit npm optionnel peut nécessiter un accès réseau vers le registre npm.
 - **Aucun compte** — pas de connexion, pas de télémétrie, pas d’analytics
 - **Vos données** — stockées dans SQLite sur le disque, supprimables à tout moment
 - **Pas d’IA intégrée** — Cortex n’appelle aucun modèle de langage
