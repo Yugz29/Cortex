@@ -4,7 +4,7 @@ import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils'
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
 import { getScanFileProfile, shouldShowScanFileProfile } from '../fileProfileDisplay';
-import { selectResponsibleFunctions, type ResponsibleFunctionItem } from '../responsibleFunctions';
+import { selectResponsibleFunctions, type ResponsibleFunctionItem, type ResponsibleFunctionReason } from '../responsibleFunctions';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
 import ScoreGraph from './shared/ScoreGraph';
@@ -55,7 +55,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   });
 
   const namedFunctions = functions.filter(fn => fn.name !== 'anonymous');
-  const responsibleFunctions = selectResponsibleFunctions(scan, namedFunctions, diagnosis.dominantSignal?.metric);
+  const responsibleFunctions = selectResponsibleFunctions(namedFunctions, diagnosis.dominantSignal?.metric);
   const topFunction = namedFunctions.reduce<{ fn: FunctionDetail; priority: number } | null>((best, fn) => {
     const fnDiagnosis = diagnoseFunction(fn);
     if (fnDiagnosis.priority < 30) return best;
@@ -399,8 +399,8 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
 
 // ── ResponsibleFunctionsPanel ────────────────────────────────────────────────
 
-function responsibleMetricLabel(item: ResponsibleFunctionItem, t: (key: TranslationKey) => string): string {
-  switch (item.metricKey) {
+function responsibleMetricLabel(metricKey: ResponsibleFunctionReason['metricKey'], t: (key: TranslationKey) => string): string {
+  switch (metricKey) {
     case 'cyclomatic_complexity': return t('responsible.metric.cyclomatic');
     case 'cognitive_complexity':  return t('responsible.metric.cognitive');
     case 'line_count':            return t('responsible.metric.size');
@@ -409,8 +409,12 @@ function responsibleMetricLabel(item: ResponsibleFunctionItem, t: (key: Translat
   }
 }
 
-function responsibleMetricValue(item: ResponsibleFunctionItem): string {
-  return item.metricKey === 'line_count' ? `${item.metricValue}L` : String(item.metricValue);
+function responsibleMetricValue(reason: ResponsibleFunctionReason): string {
+  return reason.metricKey === 'line_count' ? `${reason.metricValue}L` : String(reason.metricValue);
+}
+
+function responsibleReasonLabel(reason: ResponsibleFunctionReason, t: (key: TranslationKey) => string): string {
+  return `${responsibleMetricLabel(reason.metricKey, t)} ${responsibleMetricValue(reason)}`;
 }
 
 function ResponsibleFunctionsPanel({
@@ -461,7 +465,7 @@ function ResponsibleFunctionsPanel({
                 {item.fn.name}
               </span>
               <span style={{ color: 'var(--text-secondary)' }}>
-                {' — '}{responsibleMetricLabel(item, t)} {responsibleMetricValue(item)}
+                {' — '}{item.reasons.map(reason => responsibleReasonLabel(reason, t)).join(' · ')}
               </span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.45, marginTop: 2 }}>

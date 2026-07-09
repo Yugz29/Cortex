@@ -4,6 +4,13 @@
  */
 
 import { inferFileProfile } from '../../cortex/diagnostics/fileProfile.js';
+import {
+    selectResponsibleFunctions,
+    type FunctionMetricInput,
+    type FunctionMetricKey,
+    type ResponsibleFunctionItem,
+    type ResponsibleFunctionReason,
+} from '../../cortex/diagnostics/responsibleFunctions.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +88,66 @@ function topMetricKey(s: any): string {
     return candidates.sort((a, b) => b.v - a.v)[0]?.key ?? '?';
 }
 
+type FunctionsByFile = Map<string, FunctionMetricInput[]>;
+
+function functionReasonLabel(metricKey: FunctionMetricKey): string {
+    switch (metricKey) {
+        case 'cyclomatic_complexity': return 'Cyclomatic complexity';
+        case 'cognitive_complexity':  return 'Cognitive complexity';
+        case 'line_count':            return 'Largest function';
+        case 'max_depth':             return 'Nesting depth';
+        case 'parameter_count':       return 'Parameters';
+    }
+}
+
+function responsibleFunctionsFor(s: any, functionsByFile?: FunctionsByFile): ResponsibleFunctionItem[] {
+    const functions = functionsByFile?.get(s.filePath) ?? [];
+    return selectResponsibleFunctions(functions, topMetricKey(s)).items;
+}
+
+function responsibleFunctionJson(item: ResponsibleFunctionItem) {
+    return {
+        name:                 item.fn.name,
+        reason:               item.metricKey,
+        reasonLabel:          functionReasonLabel(item.metricKey),
+        reasons:              item.reasons.map(reason => ({
+            reason:           reason.metricKey,
+            reasonLabel:      functionReasonLabel(reason.metricKey),
+            value:            reason.metricValue,
+            isDominantSignal: reason.isDominantSignal,
+        })),
+        startLine:            item.startLine,
+        endLine:              item.endLine,
+        lineCount:            item.fn.line_count,
+        cyclomaticComplexity: item.fn.cyclomatic_complexity,
+        cognitiveComplexity:  item.fn.cognitive_complexity,
+        parameterCount:       item.fn.parameter_count,
+        maxDepth:             item.fn.max_depth,
+        isDominantSignal:     item.isDominantSignal,
+    };
+}
+
+function mdResponsibleReason(reason: ResponsibleFunctionReason): string {
+    return `${functionReasonLabel(reason.metricKey)} ${reason.metricValue}`;
+}
+
+function mdResponsibleFunctions(s: any, functionsByFile?: FunctionsByFile): string {
+    const result = selectResponsibleFunctions(functionsByFile?.get(s.filePath) ?? [], topMetricKey(s));
+    if (result.items.length === 0) return '';
+
+    const lines = [`**Responsible functions:**\n`];
+    for (const item of result.items) {
+        const dominant = item.isDominantSignal ? ' _(dominant signal)_' : '';
+        const reasons = item.reasons.map(mdResponsibleReason).join(' · ');
+        lines.push(`- \`${item.fn.name}\` — ${reasons} · lines ${item.startLine}-${item.endLine}${dominant}`);
+    }
+    if (result.dominantSignalIsWholeFile) {
+        lines.push(`_The dominant signal applies to the whole file, not to a specific function._`);
+    }
+    lines.push('');
+    return lines.join('\n');
+}
+
 function avgRisk(scans: any[]): number {
     return scans.length > 0 ? scans.reduce((acc, s) => acc + s.globalScore, 0) / scans.length : 0;
 }
@@ -128,7 +195,7 @@ function mdMetricsGuide(): string {
     ].join('\n');
 }
 
-function mdCriticalFile(s: any): string {
+function mdCriticalFile(s: any, functionsByFile?: FunctionsByFile): string {
     const trend  = s.trend === '↑' ? ' ↑ higher pressure' : s.trend === '↓' ? ' ↓ lower pressure' : '';
     const issues = [
         metricExplain('complexity',   s.rawComplexity,          s.complexityScore ?? 0),
@@ -151,17 +218,19 @@ function mdCriticalFile(s: any): string {
         issues.forEach(i => lines.push(`- ${i}`));
         lines.push('');
     }
+    const responsible = mdResponsibleFunctions(s, functionsByFile);
+    if (responsible) lines.push(responsible);
     lines.push(`**Raw metrics:** cx ${s.rawComplexity} · cog ${s.rawCognitiveComplexity ?? '—'} · largest fn ${s.rawFunctionSize}L · churn ${s.rawChurn} · depth ${s.rawDepth} · params ${s.rawParams} · fan-in ${s.fanIn}\n`);
     return lines.join('\n');
 }
 
-function mdCriticalSection(scans: any[]): string {
+function mdCriticalSection(scans: any[], functionsByFile?: FunctionsByFile): string {
     const critical = scans.filter(s => s.globalScore >= 50).sort((a, b) => b.globalScore - a.globalScore);
     if (!critical.length) return '';
     return [
         `---\n\n## Files to Inspect First (${critical.length})\n`,
         `These files concentrate the strongest maintenance signals. They should be inspected first, but the score is not a diagnosis.\n`,
-        ...critical.map(mdCriticalFile),
+        ...critical.map(s => mdCriticalFile(s, functionsByFile)),
     ].join('\n');
 }
 
@@ -231,11 +300,11 @@ function mdAiSection(scans: any[], projName: string): string {
 
 // ── Builders publics ──────────────────────────────────────────────────────────
 
-function buildMarkdown(scans: any[], projectPath: string, projName: string, date: string, security?: any): string {
+function buildMarkdown(scans: any[], projectPath: string, projName: string, date: string, security?: any, functionsByFile?: FunctionsByFile): string {
     return [
         mdSummary(scans, projName, date),
         mdMetricsGuide(),
-        mdCriticalSection(scans),
+        mdCriticalSection(scans, functionsByFile),
         mdStressedSection(scans),
         mdHotspotsSection(scans),
         mdHubsSection(scans),
@@ -244,7 +313,7 @@ function buildMarkdown(scans: any[], projectPath: string, projName: string, date
     ].join('\n');
 }
 
-function buildJson(scans: any[], projectPath: string, projName: string, date: string, security?: any): string {
+function buildJson(scans: any[], projectPath: string, projName: string, date: string, security?: any, functionsByFile?: FunctionsByFile): string {
     const avg         = avgRisk(scans);
     const critical    = scans.filter(s => s.globalScore >= 50);
     const stressed    = scans.filter(s => s.globalScore >= 20 && s.globalScore < 50);
@@ -294,6 +363,7 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
                         profileDescription: profile.description,
                         trend:              s.trend,
                         dominantSignal:     topMetricKey(s),
+                        responsibleFunctions: responsibleFunctionsFor(s, functionsByFile).map(responsibleFunctionJson),
                         lines:              s.rawFunctionSize,
                         fanIn:              s.fanIn,
                         layer:              getLayer(s.filePath, projectPath)?.label ?? 'unknown',
@@ -336,6 +406,7 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
                 trend:    s.trend,
                 topIssue: topMetricKey(s),
                 dominantSignal: topMetricKey(s),
+                responsibleFunctions: responsibleFunctionsFor(s, functionsByFile).map(responsibleFunctionJson),
                 cx: s.rawComplexity, cog: s.rawCognitiveComplexity,
                 lines: s.rawFunctionSize, depth: s.rawDepth,
                 churn: s.rawChurn, fanIn: s.fanIn, fanOut: s.fanOut,
@@ -427,11 +498,11 @@ function mdSecuritySection(security: any): string {
     return lines.join('\n');
 }
 
-export function buildReport(scans: any[], projectPath: string, security?: any): { markdown: string; json: string } {
+export function buildReport(scans: any[], projectPath: string, security?: any, functionsByFile?: FunctionsByFile): { markdown: string; json: string } {
     const projName = projectPath.split('/').pop() ?? projectPath;
     const date     = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
     return {
-        markdown: buildMarkdown(scans, projectPath, projName, date, security),
-        json:     buildJson(scans, projectPath, projName, date, security),
+        markdown: buildMarkdown(scans, projectPath, projName, date, security, functionsByFile),
+        json:     buildJson(scans, projectPath, projName, date, security, functionsByFile),
     };
 }

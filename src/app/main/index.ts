@@ -665,13 +665,14 @@ app.whenReady().then(async () => {
 
     const ignoredSet = new Set(loadSettings().ignoredFiles);
     const scans      = (getLatestScans(projectPath) as any[]).filter(s => !ignoredSet.has(s.filePath));
+    const functionsByFile = new Map(scans.map(s => [s.filePath, getFunctions(s.filePath)]));
     let security: any = null;
     try {
       const key       = projectPath.replace(/[^a-zA-Z0-9]/g, '_').slice(-60);
       const cachePath = join(app.getPath('userData'), `security_${key}.json`);
       if (fs.existsSync(cachePath)) security = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
     } catch { /* non-fatal */ }
-    const { markdown, json } = buildReport(scans, projectPath, security);
+    const { markdown, json } = buildReport(scans, projectPath, security, functionsByFile);
     const isJson = filePath.endsWith('.json');
     fs.writeFileSync(filePath, isJson ? json : markdown, 'utf-8');
 

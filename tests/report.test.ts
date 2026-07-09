@@ -27,9 +27,34 @@ function scan(overrides: Record<string, unknown> = {}) {
     };
 }
 
+function functionsByFile() {
+    return new Map([
+        [`${projectPath}/src/app/main/scanner.ts`, [
+            {
+                name:                  'scanProject',
+                start_line:            120,
+                line_count:            90,
+                cyclomatic_complexity: 24,
+                cognitive_complexity:  45,
+                parameter_count:       3,
+                max_depth:             4,
+            },
+            {
+                name:                  'buildEdges',
+                start_line:            240,
+                line_count:            48,
+                cyclomatic_complexity: 12,
+                cognitive_complexity:  18,
+                parameter_count:       2,
+                max_depth:             3,
+            },
+        ]],
+    ]);
+}
+
 describe('maintenance report export', () => {
     it('utilise un vocabulaire prudent dans le Markdown sans changer les metriques', () => {
-        const { markdown, json } = buildReport([scan()], projectPath);
+        const { markdown, json } = buildReport([scan()], projectPath, undefined, functionsByFile());
 
         expect(markdown).toContain('## Files to Inspect First (1)');
         expect(markdown).not.toContain('## Critical Files');
@@ -41,6 +66,9 @@ describe('maintenance report export', () => {
         expect(markdown).toContain('Maintenance Signal 61.4');
         expect(markdown).not.toContain('Maintenance Pressure 61.4');
         expect(markdown).toContain('Profile: Orchestration');
+        expect(markdown).toContain('**Responsible functions:**');
+        expect(markdown).toContain('`scanProject` — Cyclomatic complexity 24 · Cognitive complexity 45 · Largest function 90 · Nesting depth 4 · lines 120-209 _(dominant signal)_');
+        expect(markdown).not.toContain('Parameters 3');
         expect(markdown).toContain('Files to inspect first');
 
         const parsed = JSON.parse(json);
@@ -54,6 +82,47 @@ describe('maintenance report export', () => {
         expect(parsed.summary.topReviewCandidates[0].profileLabel).toBe('Orchestration');
         expect(parsed.summary.topReviewCandidates[0].profileDescription).toContain('Coordination files');
         expect(parsed.summary.topReviewCandidates[0].dominantSignal).toBe('complexity');
+        expect(parsed.summary.topReviewCandidates[0].responsibleFunctions[0]).toMatchObject({
+            name:                 'scanProject',
+            reason:               'cyclomatic_complexity',
+            reasonLabel:          'Cyclomatic complexity',
+            startLine:            120,
+            endLine:              209,
+            lineCount:            90,
+            cyclomaticComplexity: 24,
+            cognitiveComplexity:  45,
+            parameterCount:       3,
+            maxDepth:             4,
+            isDominantSignal:     true,
+        });
+        expect(parsed.summary.topReviewCandidates[0].responsibleFunctions[0].reasons).toEqual([
+            {
+                reason:           'cyclomatic_complexity',
+                reasonLabel:      'Cyclomatic complexity',
+                value:            24,
+                isDominantSignal: true,
+            },
+            {
+                reason:           'cognitive_complexity',
+                reasonLabel:      'Cognitive complexity',
+                value:            45,
+                isDominantSignal: false,
+            },
+            {
+                reason:           'line_count',
+                reasonLabel:      'Largest function',
+                value:            90,
+                isDominantSignal: false,
+            },
+            {
+                reason:           'max_depth',
+                reasonLabel:      'Nesting depth',
+                value:            4,
+                isDominantSignal: false,
+            },
+        ]);
+        expect(parsed.summary.topReviewCandidates[0].responsibleFunctions[0].reasons)
+            .not.toContainEqual(expect.objectContaining({ reason: 'parameter_count', value: 3 }));
 
         expect(parsed.summary.critical).toBe(1);
         expect(parsed.summary.stressed).toBe(0);
@@ -67,6 +136,8 @@ describe('maintenance report export', () => {
         expect(parsed.files[0].profileLabel).toBe('Orchestration');
         expect(parsed.files[0].profileDescription).toContain('Coordination files');
         expect(parsed.files[0].dominantSignal).toBe('complexity');
+        expect(parsed.files[0].responsibleFunctions[0].name).toBe('scanProject');
+        expect(parsed.files[0].responsibleFunctions[0].reason).toBe('cyclomatic_complexity');
         expect(parsed.files[0].risk).toBe(61.4);
         expect(parsed.files[0].lines).toBe(90);
         expect(parsed.files[0].status).toBe('critical');
