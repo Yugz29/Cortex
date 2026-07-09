@@ -11,6 +11,7 @@ import {
     type ResponsibleFunctionItem,
     type ResponsibleFunctionReason,
 } from '../../cortex/diagnostics/responsibleFunctions.js';
+import { describeIsolatedFile } from '../../cortex/diagnostics/isolatedFile.js';
 import { shouldIgnorePath } from './scanPathFilter.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,6 +72,15 @@ function isDeadFile(s: any): boolean {
 
 function isIgnoredScan(s: any): boolean {
     return typeof s.filePath === 'string' && shouldIgnorePath(s.filePath);
+}
+
+function isolatedFileEntry(s: any, projectPath: string) {
+    const info = describeIsolatedFile(s.filePath);
+    return {
+        file:     s.filePath.replace(projectPath + '/', ''),
+        category: info.category,
+        reason:   info.reason,
+    };
 }
 
 function getLayer(filePath: string, projectPath: string) {
@@ -282,6 +292,22 @@ function mdHubsSection(scans: any[]): string {
     ].join('\n');
 }
 
+function mdIsolatedFilesSection(scans: any[], projectPath: string): string {
+    const isolatedFiles = scans.filter(isDeadFile).map(s => isolatedFileEntry(s, projectPath));
+    if (!isolatedFiles.length) return '';
+
+    const lines = [
+        `---\n\n## Files without static graph links (${isolatedFiles.length})\n`,
+        `These files have no static import/reference edges in Cortex's graph. This is a review signal, not proof that the files are unused.\n`,
+    ];
+    for (const file of isolatedFiles.slice(0, 20)) {
+        lines.push(`- **${file.file}** — ${file.category} · ${file.reason}`);
+    }
+    if (isolatedFiles.length > 20) lines.push(`- _…and ${isolatedFiles.length - 20} more_`);
+    lines.push('');
+    return lines.join('\n');
+}
+
 function mdAiSection(scans: any[], projName: string): string {
     const avg         = avgRisk(scans);
     const pressureLabel = avg >= 50 ? 'High pressure' : avg >= 20 ? 'Elevated' : 'Low pressure';
@@ -313,6 +339,7 @@ function buildMarkdown(scans: any[], projectPath: string, projName: string, date
         mdStressedSection(scans),
         mdHotspotsSection(scans),
         mdHubsSection(scans),
+        mdIsolatedFilesSection(scans, projectPath),
         mdSecuritySection(security),
         mdAiSection(scans, projName),
     ].join('\n');
@@ -324,7 +351,8 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
     const stressed    = scans.filter(s => s.globalScore >= 20 && s.globalScore < 50);
     const lowPressure = scans.filter(s => s.globalScore < 20);
     const activeScans = scans.filter(s => !isDeadFile(s) || s.globalScore >= 50);
-    const deadFiles   = scans.filter(isDeadFile).map(s => s.filePath.replace(projectPath + '/', ''));
+    const isolatedFiles = scans.filter(isDeadFile).map(s => isolatedFileEntry(s, projectPath));
+    const deadFiles   = isolatedFiles.map(file => file.file);
     const overallPressureLevel = avg >= 50 ? 'high_pressure' : avg >= 20 ? 'elevated' : 'low_pressure';
 
     const layerSummary: Record<string, { role: string; fileCount: number; avgMaintenancePressure: number; avgRisk: number }> = {};
@@ -348,6 +376,7 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
         summary: {
             totalFiles:  scans.length,
             activeFiles: activeScans.length,
+            isolatedFiles,
             deadFiles,
             overallPressureLevel,
             highPressure: critical.length,

@@ -76,6 +76,7 @@ describe('maintenance report export', () => {
         expect(parsed.summary.elevated).toBe(0);
         expect(parsed.summary.lowPressure).toBe(0);
         expect(parsed.summary.avgMaintenancePressure).toBe(61.4);
+        expect(parsed.summary.isolatedFiles).toEqual([]);
         expect(parsed.summary.topReviewCandidates[0].maintenancePressure).toBe(61.4);
         expect(parsed.summary.topReviewCandidates[0].pressureLevel).toBe('high_pressure');
         expect(parsed.summary.topReviewCandidates[0].profile).toBe('orchestration');
@@ -164,10 +165,51 @@ describe('maintenance report export', () => {
         const parsed = JSON.parse(json);
 
         expect(parsed.summary.totalFiles).toBe(1);
+        expect(parsed.summary.isolatedFiles).toEqual([]);
         expect(parsed.summary.deadFiles).toEqual([]);
         expect(parsed.files.map((file: { file: string }) => file.file)).toEqual(['src/buildReport.ts']);
         expect(markdown).toContain('src/buildReport.ts');
         expect(json).not.toContain('GeneratedAssetSymbols.swift');
         expect(markdown).not.toContain('GeneratedAssetSymbols.swift');
+    });
+
+    it('classe les fichiers sans liens statiques sans les presenter comme inutilises', () => {
+        const { markdown, json } = buildReport([
+            scan({
+                filePath: `${projectPath}/daemon/core/__init__.py`,
+                fanIn: 0,
+                fanOut: 0,
+                globalScore: 0,
+            }),
+            scan({
+                filePath: `${projectPath}/tests/test_e2e.py`,
+                fanIn: 0,
+                fanOut: 0,
+                globalScore: 0,
+            }),
+            scan({
+                filePath: `${projectPath}/daemon/memory/daydream.py`,
+                fanIn: 0,
+                fanOut: 0,
+                globalScore: 0,
+            }),
+        ], projectPath);
+
+        const parsed = JSON.parse(json);
+
+        expect(parsed.summary.isolatedFiles).toEqual([
+            { file: 'daemon/core/__init__.py', category: 'package_marker', reason: 'no_static_graph_edges' },
+            { file: 'tests/test_e2e.py', category: 'test_file', reason: 'no_static_graph_edges' },
+            { file: 'daemon/memory/daydream.py', category: 'source_isolated', reason: 'no_static_graph_edges' },
+        ]);
+        expect(parsed.summary.deadFiles).toEqual([
+            'daemon/core/__init__.py',
+            'tests/test_e2e.py',
+            'daemon/memory/daydream.py',
+        ]);
+        expect(markdown).toContain('## Files without static graph links (3)');
+        expect(markdown).toContain('This is a review signal, not proof that the files are unused.');
+        expect(markdown).toContain('daemon/core/__init__.py');
+        expect(markdown.toLowerCase()).not.toContain('dead files');
     });
 });
