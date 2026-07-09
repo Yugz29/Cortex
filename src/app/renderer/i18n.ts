@@ -191,6 +191,8 @@ const translations = {
   'detail.hotspot':        { en: 'HOTSPOT',   fr: 'POINT CHAUD'},
   'detail.hotspotDesc':    { en: 'Combination of structural load and recent change activity. High values point to a file that stands out on both signals.', fr: 'Combinaison de charge structurelle et d’activité de changement récente. Des valeurs élevées indiquent un fichier qui ressort sur les deux signaux.' },
   'detail.profile':        { en: 'PROFILE',   fr: 'PROFIL'     },
+  'detail.responsibleFunctions': { en: 'RESPONSIBLE FUNCTIONS', fr: 'FONCTIONS RESPONSABLES DU SIGNAL' },
+  'detail.responsibleWholeFileSignal': { en: 'The dominant signal applies to the whole file, not to a specific function.', fr: 'Le signal dominant est lié au fichier entier, pas à une fonction précise.' },
   'detail.language':       { en: 'LANGUAGE',  fr: 'LANGAGE'    },
   'detail.noFunctions':    { en: 'No named functions found.', fr: 'Aucune fonction nommée trouvée.' },
   'detail.fanIn':          { en: 'fan-in',    fr: 'fan-in'     },
@@ -266,6 +268,14 @@ const translations = {
   'fn.depth.critical': { en: 'Deep nesting — strong contributor to structural load.',                    fr: 'Imbrication profonde — forte contribution à la charge structurelle.'             },
   'fn.depth.warn':     { en: 'Nesting contributes to structural load.',                                 fr: 'L’imbrication contribue à la charge structurelle.'                                   },
   'fn.depth.ok':       { en: 'Nesting is not a major signal.',                               fr: 'L’imbrication n’est pas un signal majeur.'                               },
+
+  // ── Responsible function summary ───────────────────────────────────────────
+  'responsible.metric.cyclomatic': { en: 'cyclomatic complexity', fr: 'complexité cyclomatique' },
+  'responsible.metric.cognitive':  { en: 'cognitive complexity',  fr: 'complexité cognitive'    },
+  'responsible.metric.size':       { en: 'largest function',      fr: 'fonction la plus longue' },
+  'responsible.metric.depth':      { en: 'nesting depth',         fr: 'profondeur d’imbrication' },
+  'responsible.metric.params':     { en: 'parameters',            fr: 'paramètres'              },
+  'responsible.dominant':          { en: 'dominant signal',       fr: 'signal dominant'         },
 
   // ── Code view ──────────────────────────────────────────────────────────────
   'code.back':         { en: '← Back',                   fr: '← Retour'                       },

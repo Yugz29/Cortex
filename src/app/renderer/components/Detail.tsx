@@ -4,6 +4,7 @@ import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils'
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
 import { getScanFileProfile, shouldShowScanFileProfile } from '../fileProfileDisplay';
+import { selectResponsibleFunctions, type ResponsibleFunctionItem } from '../responsibleFunctions';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
 import ScoreGraph from './shared/ScoreGraph';
@@ -54,6 +55,7 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   });
 
   const namedFunctions = functions.filter(fn => fn.name !== 'anonymous');
+  const responsibleFunctions = selectResponsibleFunctions(scan, namedFunctions, diagnosis.dominantSignal?.metric);
   const topFunction = namedFunctions.reduce<{ fn: FunctionDetail; priority: number } | null>((best, fn) => {
     const fnDiagnosis = diagnoseFunction(fn);
     if (fnDiagnosis.priority < 30) return best;
@@ -254,6 +256,15 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
               </div>
             )}
 
+            {responsibleFunctions.items.length > 0 && (
+              <ResponsibleFunctionsPanel
+                items={responsibleFunctions.items}
+                showWholeFileNote={responsibleFunctions.dominantSignalIsWholeFile}
+                onSelect={handleSelectFunction}
+                t={t}
+              />
+            )}
+
             {/* History */}
             {history.length >= 1 && (
               <div style={{ marginBottom: 20 }}>
@@ -380,6 +391,93 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
           selectedFn
             ? <FunctionDetailPanel fn={selectedFn} onBack={() => { onCloseCodeView(); setSelectedFn(null); }} />
             : <FunctionList fns={namedFunctions} onSelect={handleSelectFunction} t={t} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── ResponsibleFunctionsPanel ────────────────────────────────────────────────
+
+function responsibleMetricLabel(item: ResponsibleFunctionItem, t: (key: TranslationKey) => string): string {
+  switch (item.metricKey) {
+    case 'cyclomatic_complexity': return t('responsible.metric.cyclomatic');
+    case 'cognitive_complexity':  return t('responsible.metric.cognitive');
+    case 'line_count':            return t('responsible.metric.size');
+    case 'max_depth':             return t('responsible.metric.depth');
+    case 'parameter_count':       return t('responsible.metric.params');
+  }
+}
+
+function responsibleMetricValue(item: ResponsibleFunctionItem): string {
+  return item.metricKey === 'line_count' ? `${item.metricValue}L` : String(item.metricValue);
+}
+
+function ResponsibleFunctionsPanel({
+  items, showWholeFileNote, onSelect, t,
+}: {
+  items: ResponsibleFunctionItem[];
+  showWholeFileNote: boolean;
+  onSelect: (fn: FunctionDetail) => void;
+  t: (key: TranslationKey, p?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 8 }}><SectionLabel>{t('detail.responsibleFunctions')}</SectionLabel></div>
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border)',
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}>
+        {items.map(item => (
+          <button
+            key={`${item.fn.name}:${item.startLine}:${item.metricKey}`}
+            type="button"
+            onClick={() => onSelect(item.fn)}
+            style={{
+              width: '100%',
+              padding: '9px 10px',
+              border: 'none',
+              borderBottom: '0.5px solid var(--border)',
+              background: 'transparent',
+              cursor: 'pointer',
+              textAlign: 'left',
+              font: 'inherit',
+              display: 'block',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{
+              fontSize: 11,
+              color: 'var(--text-primary)',
+              lineHeight: 1.45,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ fontFamily: "'SF Mono','Menlo',monospace", fontWeight: 600 }}>
+                {item.fn.name}
+              </span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {' — '}{responsibleMetricLabel(item, t)} {responsibleMetricValue(item)}
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.45, marginTop: 2 }}>
+              {t('detail.lines')} {item.startLine}-{item.endLine}
+              {item.isDominantSignal && (
+                <span style={{ color: 'var(--blue)', marginLeft: 6 }}>
+                  · {t('responsible.dominant')}
+                </span>
+              )}
+            </div>
+          </button>
+        ))}
+        {showWholeFileNote && (
+          <div style={{ padding: '8px 10px', fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            {t('detail.responsibleWholeFileSignal')}
+          </div>
         )}
       </div>
     </div>
