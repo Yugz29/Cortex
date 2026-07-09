@@ -14,6 +14,9 @@ export type FileProfile =
     | 'validation_contract'
     | 'state_management'
     | 'fixture_mock'
+    | 'adapter_bridge'
+    | 'scoring_engine'
+    | 'event_processing'
     | 'data_access'
     | 'utility'
     | 'routing'
@@ -108,6 +111,21 @@ const PROFILE_INFO: Record<FileProfile, FileProfileInfo> = {
         profile:     'fixture_mock',
         label:       'Fixture/mock',
         description: 'Fixture and mock files provide sample data or substitutes for tests and local workflows.',
+    },
+    adapter_bridge: {
+        profile:     'adapter_bridge',
+        label:       'Adapter/bridge',
+        description: 'Adapter and bridge files connect the project to an API, protocol or provider.',
+    },
+    scoring_engine: {
+        profile:     'scoring_engine',
+        label:       'Scoring engine',
+        description: 'Scoring engine files calculate scores, weights, rankings or baselines.',
+    },
+    event_processing: {
+        profile:     'event_processing',
+        label:       'Event processing',
+        description: 'Event processing files normalize, interpret or distribute events.',
     },
     data_access: {
         profile:     'data_access',
@@ -209,11 +227,11 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (name === 'readme.md' || name.endsWith('.md') || hasSegment(segments, ['docs', 'documentation'])) return byProfile('documentation');
     if (/\.(css|scss|sass|less)$/.test(name)) return byProfile('style');
+    if (/(\.|_)(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/.test(name) || /^test_.*\.py$/.test(name) || /_test\.py$/.test(name) || /tests?\.swift$/.test(name) || hasSegmentContaining(segments, ['tests', '__tests__'])) return byProfile('test');
     if (
         /(?:^|[._-])(?:fixture|fixtures|mock|mocks|sample|samples|stub|stubs)(?:[._-]|$)/.test(name) ||
         hasSegment(segments, ['fixtures', '__fixtures__', 'mocks', '__mocks__', 'samples', 'stubs'])
     ) return byProfile('fixture_mock');
-    if (/(\.|_)(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/.test(name) || /^test_.*\.py$/.test(name) || /_test\.py$/.test(name) || hasSegment(segments, ['tests', '__tests__'])) return byProfile('test');
 
     if (
         name.includes('dependencyaudit') ||
@@ -305,6 +323,21 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
     ) return byProfile('state_management');
 
     if (hasNameToken(name, ['scanner', 'event_bus', 'eventbus', 'coordinator', 'orchestrator'])) return byProfile('orchestration');
+
+    if (
+        hasNameToken(name, ['adapter', 'bridge', 'provider', 'client', 'gateway', 'connector', 'integration', 'apiclient', 'stdio', 'protocol']) ||
+        hasSegment(segments, ['adapters', 'bridges', 'providers', 'clients', 'gateways', 'connectors', 'integrations', 'protocols'])
+    ) return byProfile('adapter_bridge');
+
+    if (
+        hasNameToken(name, ['score', 'scorer', 'scoring', 'rank', 'ranking', 'ranker', 'weight', 'weighting', 'baseline', 'risk', 'signal']) ||
+        hasSegment(segments, ['scoring', 'ranking', 'risk-score', 'risk_score', 'signals', 'baselines'])
+    ) return byProfile('scoring_engine');
+
+    if (
+        hasNameToken(name, ['event', 'events', 'envelope', 'dispatcher', 'dispatch', 'activity', 'lifecycle', 'meaning', 'ingestion']) ||
+        hasSegment(segments, ['events', 'eventing', 'dispatchers', 'ingestion', 'activities'])
+    ) return byProfile('event_processing');
 
     if (hasSegment(segments, ['utils', 'util', 'helpers', 'helper', 'hooks', 'lib']) || hasNameToken(name, ['normalize', 'constants', 'utils', 'helper'])) return byProfile('utility');
 

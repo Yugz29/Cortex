@@ -117,6 +117,9 @@ describe('file profile display', () => {
         ['validation_contract', 'Validation/contrat'],
         ['state_management', 'Gestion d’état'],
         ['fixture_mock', 'Fixture/mock'],
+        ['adapter_bridge', 'Adaptateur/bridge'],
+        ['scoring_engine', 'Moteur de scoring'],
+        ['event_processing', 'Traitement d’événements'],
     ])('localizes the %s profile label in French', (profileName, expectedLabel) => {
         const profile = getScanFileProfile(scan({
             profile: profileName,
@@ -143,7 +146,10 @@ describe('file profile display', () => {
         ['/project/src/formatters/dateFormatter.ts', 'Formatter'],
         ['/project/src/contracts/paymentContract.ts', 'Validation/contract'],
         ['/project/src/reducers/sessionReducer.ts', 'State management'],
-        ['/project/tests/fixtures/user.json', 'Fixture/mock'],
+        ['/project/fixtures/user.json', 'Fixture/mock'],
+        ['/project/src/adapters/httpClient.ts', 'Adapter/bridge'],
+        ['/project/src/scoring/engine.py', 'Scoring engine'],
+        ['/project/src/events/activityEvents.ts', 'Event processing'],
     ])('keeps the inferred profile label in English for %s', (filePath, expectedLabel) => {
         const profile = getScanFileProfile(scan({
             filePath,

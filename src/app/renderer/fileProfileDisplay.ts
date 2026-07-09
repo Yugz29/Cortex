@@ -18,6 +18,9 @@ const KNOWN_PROFILES: ReadonlySet<FileProfile> = new Set([
   'validation_contract',
   'state_management',
   'fixture_mock',
+  'adapter_bridge',
+  'scoring_engine',
+  'event_processing',
   'data_access',
   'utility',
   'routing',
@@ -96,6 +99,18 @@ const FR_PROFILE_DISPLAY: Record<Exclude<FileProfile, 'unknown'>, Pick<FileProfi
   fixture_mock: {
     label:       'Fixture/mock',
     description: 'Les fixtures et mocks fournissent des données d’exemple ou des substituts pour les tests et workflows locaux.',
+  },
+  adapter_bridge: {
+    label:       'Adaptateur/bridge',
+    description: 'Les adaptateurs et bridges connectent le projet à une API, un protocole ou un provider.',
+  },
+  scoring_engine: {
+    label:       'Moteur de scoring',
+    description: 'Les moteurs de scoring calculent scores, pondérations, rankings ou baselines.',
+  },
+  event_processing: {
+    label:       'Traitement d’événements',
+    description: 'Les fichiers de traitement d’événements normalisent, interprètent ou distribuent des événements.',
   },
   data_access: {
     label:       'Accès aux données',

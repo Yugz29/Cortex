@@ -38,6 +38,7 @@ describe('file profile inference', () => {
         ['daemon/storage.py', 'data_access'],
         ['app/PulseApp.swift', 'entrypoint'],
         ['app/ContentView.swift', 'renderer_component'],
+        ['AppTests/PulseViewModelInteractionsTests.swift', 'test'],
         ['scripts/dev.py', 'script'],
     ])('classe un chemin Pulse/macOS %s comme %s', (filePath, expected) => {
         expect(inferFileProfile(filePath).profile).toBe(expected);
@@ -76,9 +77,22 @@ describe('file profile inference', () => {
         ['src/store.ts', 'state_management'],
         ['src/reducers/sessionReducer.ts', 'state_management'],
         ['app/stateManager.py', 'state_management'],
-        ['tests/fixtures/user.json', 'fixture_mock'],
+        ['fixtures/user.json', 'fixture_mock'],
         ['src/__mocks__/fetchClient.ts', 'fixture_mock'],
         ['samples/demoPayload.py', 'fixture_mock'],
+        ['src/integrations/paymentProvider.ts', 'adapter_bridge'],
+        ['src/api/httpClient.ts', 'adapter_bridge'],
+        ['src/bridge/DaemonBridge.swift', 'adapter_bridge'],
+        ['daemon/llm/ollama_provider.py', 'adapter_bridge'],
+        ['mcp/stdio_server.py', 'adapter_bridge'],
+        ['src/scoring/engine.py', 'scoring_engine'],
+        ['src/risk-score/referenceBaselines.ts', 'scoring_engine'],
+        ['src/core/signal_scorer.py', 'scoring_engine'],
+        ['ranking/ranker.ts', 'scoring_engine'],
+        ['src/events/activityEvents.ts', 'event_processing'],
+        ['src/core/event_envelope.py', 'event_processing'],
+        ['runtime/runtime_ingestion.py', 'event_processing'],
+        ['src/events/eventMeaning.ts', 'event_processing'],
     ])('classe un chemin générique %s comme %s', (filePath, expected) => {
         expect(inferFileProfile(filePath).profile).toBe(expected);
     });
@@ -87,7 +101,10 @@ describe('file profile inference', () => {
         ['src/app/renderer/components/GraphView.tsx', 'renderer_component'],
         ['src/analyzer/formatParser.ts', 'parser'],
         ['src/config/userSchema.ts', 'configuration'],
-        ['tests/fixtures/parserFixture.ts', 'fixture_mock'],
+        ['tests/fixtures/parserFixture.ts', 'test'],
+        ['src/parser/eventParser.ts', 'parser'],
+        ['src/components/EventView.tsx', 'renderer_component'],
+        ['src/features/sessionManager.ts', 'unknown'],
     ])('respecte les priorités de collision pour %s', (filePath, expected) => {
         expect(inferFileProfile(filePath).profile).toBe(expected);
     });
