@@ -8,12 +8,13 @@ import { buildChurnCache, clearChurnCache, getChurnScore, buildCouplingMap } fro
 import type { FileMetrics } from '../../cortex/analyzer/parser.js';
 import { buildSwiftTypeGraph } from './swiftTypeGraph.js';
 import { summarizeProjectAnalysisCoverage } from '../../cortex/coverage/analysisCoverage.js';
+import { shouldIgnorePath } from './scanPathFilter.js';
 
 export const SUPPORTED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.swift']);
 const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.vite', 'vendor', '__pycache__'];
 export const SCANNER_FINGERPRINT_VERSION = 'scanner-v2';
 const IGNORE_FILE_PATTERNS = ['.min.js', '.min.ts', '.d.ts', '.map', '.spec.', '.test.', '__tests__'];
-// Dossiers toujours exclus peu importe les settings — artefacts de build, caches
+// Dossiers deja exclus par le scanner historique, conserves pour compatibilite.
 const ALWAYS_IGNORE = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'assets', '.vite', '__pycache__', 'venv', '.venv', 'env', 'site-packages', 'migrations']);
 
 function shouldIgnoreFile(filename: string): boolean {
@@ -30,8 +31,8 @@ export function getFiles(dir: string, ignore: string[], fileList: string[] = [],
     try { entries = fs.readdirSync(dir); } catch { return fileList; }
 
     for (const entry of entries) {
-        if (ALWAYS_IGNORE.has(entry) || ignore.includes(entry)) continue;
         const fullPath = path.join(dir, entry);
+        if (ALWAYS_IGNORE.has(entry) || ignore.includes(entry) || shouldIgnorePath(fullPath)) continue;
         let stat;
         try { stat = fs.statSync(fullPath); } catch { continue; }
         if (stat.isDirectory()) { getFiles(fullPath, ignore, fileList, visited); continue; }

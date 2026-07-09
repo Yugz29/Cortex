@@ -84,6 +84,27 @@ describe('project fingerprint', () => {
         expect(second.fingerprint).not.toBe(first.fingerprint);
     });
 
+    it('ignore les artefacts generes et conserve les fichiers source dans le fingerprint', () => {
+        const projectPath = makeProject();
+        writeFile(projectPath, 'src/a.ts', 'export const a = 1;\n');
+        writeFile(projectPath, 'src/buildReport.ts', 'export const report = 1;\n');
+        writeFile(projectPath, 'src/coverage/analysisCoverage.ts', 'export const coverage = 1;\n');
+        writeFile(
+            projectPath,
+            '.derivedData/Build/Intermediates.noindex/App.build/DerivedSources/GeneratedAssetSymbols.swift',
+            'enum GeneratedAssetSymbols {}\n',
+        );
+
+        const fingerprint = buildProjectFingerprint(projectPath);
+        const paths = (JSON.parse(fingerprint.fingerprint) as { files: Array<{ path: string }> }).files.map(file => file.path);
+
+        expect(paths).toEqual([
+            'src/a.ts',
+            'src/buildReport.ts',
+            'src/coverage/analysisCoverage.ts',
+        ]);
+    });
+
     it('change si un fichier scannable est supprime', () => {
         const projectPath = makeProject();
         writeFile(projectPath, 'src/a.ts', 'export const a = 1;\n');
