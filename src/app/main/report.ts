@@ -7,12 +7,12 @@
 
 export function metricExplain(name: string, raw: number, score: number): string {
     if (score < 30) return '';
-    const level = score >= 60 ? 'critical' : 'elevated';
+    const level = score >= 60 ? 'high pressure' : 'elevated';
     const map: Record<string, string> = {
-        complexity:   `Cyclomatic complexity of ${raw} (${level}) — structural load is being driven by branching complexity. This file is a strong candidate for review before further changes.`,
-        cognitive:    `Cognitive complexity of ${raw} (${level}) — structural load is being driven by nesting or non-linear control flow. Review this file for readability and change cost.`,
-        functionSize: `Largest function is ${raw} lines (${level}) — large routines are contributing to structural load and likely maintenance cost.`,
-        churn:        `${raw} commits in the last 30 days (${level}) — recent change activity is a major part of this file's score. Repeated changes make it a candidate for review.`,
+        complexity:   `Cyclomatic complexity of ${raw} (${level}) — structural load is being driven by branching complexity. This file should be inspected before planning larger changes.`,
+        cognitive:    `Cognitive complexity of ${raw} (${level}) — structural load is being driven by nesting or non-linear control flow. A focused review may help clarify readability and future change cost.`,
+        functionSize: `Largest detected function is ${raw} lines (${level}) — large routines contribute to structural load and may increase maintenance cost.`,
+        churn:        `${raw} commits in the last 30 days (${level}) — recent change activity is a notable part of this file's score. Repeated changes make it useful to inspect.`,
         depth:        `Nesting depth of ${raw} (${level}) — deep nesting is contributing to structural load and review friction.`,
         params:       `${raw} parameters on the largest function (${level}) — interface complexity is contributing to structural load.`,
         fanIn:        `Imported by ${raw} other files (${level}) — dependency centrality is high, so changes here may affect many other files.`,
@@ -103,7 +103,7 @@ function mdSummary(scans: any[], projName: string, date: string): string {
         `## Executive Summary\n`,
         `**Overall maintenance pressure: ${pressureLabel}** (score ${avg.toFixed(1)}/100)\n`,
         `| Metric | Value |\n|---|---|`,
-        `| Total modules | ${scans.length} |`,
+        `| Total files | ${scans.length} |`,
         `| High pressure (score ≥ 50) | ${critical} |`,
         `| Elevated (score 20–50) | ${stressed} |`,
         `| Low pressure (score < 20) | ${healthy} |`,
@@ -118,7 +118,7 @@ function mdMetricsGuide(): string {
         `| Metric | What it measures | Why it matters |\n|---|---|---|`,
         `| Cyclomatic Complexity | Number of independent execution paths | Higher values increase structural load |`,
         `| Cognitive Complexity | How hard the code is to read | Higher values increase structural load and review cost |`,
-        `| Function Size | Lines in the largest function | Larger routines often raise structural load |`,
+        `| Largest Function | Lines in the largest detected function | Larger routines often raise structural load |`,
         `| Churn | Commits in the last 30 days | High churn reflects repeated recent change activity |`,
         `| Nesting Depth | Max depth of nested blocks | Deep nesting adds structural load |`,
         `| Parameters | Max params in any function | Higher counts increase interface complexity |`,
@@ -139,7 +139,7 @@ function mdCriticalFile(s: any): string {
     ].filter(Boolean);
 
     const lines = [
-        `### ${fname(s)} — Maintenance Pressure ${s.globalScore.toFixed(1)}${trend}\n`,
+        `### ${fname(s)} — Maintenance Signal ${s.globalScore.toFixed(1)}${trend}\n`,
         `\`${s.filePath}\`\n`,
     ];
     if (issues.length > 0) {
@@ -147,7 +147,7 @@ function mdCriticalFile(s: any): string {
         issues.forEach(i => lines.push(`- ${i}`));
         lines.push('');
     }
-    lines.push(`**Raw metrics:** cx ${s.rawComplexity} · cog ${s.rawCognitiveComplexity ?? '—'} · size ${s.rawFunctionSize}L · churn ${s.rawChurn} · depth ${s.rawDepth} · params ${s.rawParams} · fan-in ${s.fanIn}\n`);
+    lines.push(`**Raw metrics:** cx ${s.rawComplexity} · cog ${s.rawCognitiveComplexity ?? '—'} · largest fn ${s.rawFunctionSize}L · churn ${s.rawChurn} · depth ${s.rawDepth} · params ${s.rawParams} · fan-in ${s.fanIn}\n`);
     return lines.join('\n');
 }
 
@@ -155,8 +155,8 @@ function mdCriticalSection(scans: any[]): string {
     const critical = scans.filter(s => s.globalScore >= 50).sort((a, b) => b.globalScore - a.globalScore);
     if (!critical.length) return '';
     return [
-        `---\n\n## Critical Files (${critical.length})\n`,
-        `These files score ≥ 50 and are the strongest candidates for near-term review.\n`,
+        `---\n\n## Files to Inspect First (${critical.length})\n`,
+        `These files concentrate the strongest maintenance signals. They should be inspected first, but the score is not a diagnosis.\n`,
         ...critical.map(mdCriticalFile),
     ].join('\n');
 }
@@ -165,7 +165,7 @@ function mdStressedSection(scans: any[]): string {
     const stressed = scans.filter(s => s.globalScore >= 20 && s.globalScore < 50).sort((a, b) => b.globalScore - a.globalScore);
     if (!stressed.length) return '';
 
-    const lines = [`---\n\n## Elevated Files (${stressed.length})\n`];
+    const lines = [`---\n\n## Elevated Pressure Files (${stressed.length})\n`];
     const worsening = stressed.filter(s => s.trend === '↑');
     if (worsening.length) {
         lines.push(`**Higher recent pressure:**\n`);
@@ -187,7 +187,7 @@ function mdHotspotsSection(scans: any[]): string {
     if (!hotspots.length) return '';
     return [
         `---\n\n## Hotspots — Structural Load + Recent Change Activity\n`,
-        `These files stand out because both structural load and recent change activity are high.\n`,
+        `These files combine structural load with recent change activity, making them useful candidates for review.\n`,
         ...hotspots.slice(0, 5).map(s => `- **${fname(s)}** — hotspot ${s.hotspotScore.toFixed(0)} · cx ${s.rawComplexity} · churn ${s.rawChurn}`),
         '',
     ].join('\n');
@@ -197,8 +197,8 @@ function mdHubsSection(scans: any[]): string {
     const hubs = scans.filter(s => s.fanIn >= 8).sort((a, b) => b.fanIn - a.fanIn);
     if (!hubs.length) return '';
     return [
-        `---\n\n## Critical Hubs — High Dependency Centrality\n`,
-        `These files stand out because many other files depend on them.\n`,
+        `---\n\n## Dependency Hubs — High Dependency Centrality\n`,
+        `These files are imported by many others. Changes here may have wider impact.\n`,
         ...hubs.slice(0, 5).map(s => `- **${fname(s)}** — imported by ${s.fanIn} files · maintenance pressure ${s.globalScore.toFixed(1)}`),
         '',
     ].join('\n');
@@ -215,7 +215,7 @@ function mdAiSection(scans: any[], projName: string): string {
         `I have a ${projName} project analyzed by Cortex. Overall maintenance pressure: **${pressureLabel}** (score ${avg.toFixed(1)}/100). Cortex uses this score as a ranking signal, not a diagnosis.\n`,
     ];
     if (critical.length) {
-        lines.push(`**Priority files for review:**\n`);
+        lines.push(`**Files to inspect first:**\n`);
         critical.slice(0, 5).forEach((s, i) =>
             lines.push(`${i + 1}. \`${fname(s)}\` — maintenance pressure ${s.globalScore.toFixed(1)}, cx ${s.rawComplexity}, churn ${s.rawChurn}/30d, fan-in ${s.fanIn}`)
         );
@@ -263,6 +263,8 @@ function buildJson(scans: any[], projectPath: string, projName: string, date: st
         l.avgRisk = l.avgMaintenancePressure;
     }
 
+    // Modern maintenance vocabulary uses maintenancePressure/pressureLevel/highPressure.
+    // risk/status/critical/stressed/healthy remain as legacy aliases for old exports and consumers.
     return JSON.stringify({
         meta: { project: projName, date, generatedBy: 'Cortex', version: '1.0', stack: ['TypeScript', 'Electron', 'React', 'SQLite', 'ts-morph'] },
         summary: {
