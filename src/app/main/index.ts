@@ -248,7 +248,7 @@ function startScheduledScan(projectPath: string, reason: string): void {
 
 async function runScan(projectPath: string, scanToken: number): Promise<ScanOutcome> {
   try {
-    emit('scan-start', 'analysis triggered', 'info');
+    emit('scan-start', '', 'info', { code: 'analysis_triggered' });
 
     const settings = loadSettings();
     const currentFingerprint = buildProjectFingerprint(projectPath, settings.ignore, settings.ignoredFiles);
@@ -264,7 +264,7 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
       const scans = getLatestScans(projectPath);
       lastScoreSnapshot = new Map(scans.map(s => [s.filePath, s.globalScore]));
       console.log(`[Cortex] Scan skipped — project unchanged (${currentFingerprint.fileCount} files)`);
-      emit('scan-done', `${currentFingerprint.fileCount} modules · unchanged`, 'info');
+      emit('scan-done', '', 'info', { code: 'scan_unchanged', fileCount: currentFingerprint.fileCount });
       console.log(`[Cortex] Emitting scan-complete — ${projectLabel(projectPath)} (skipped)`);
       mainWindow?.webContents.send('scan-complete', { projectPath, skipped: true });
       return 'applied';
@@ -279,8 +279,8 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
     lastEdgesProjectPath = projectPath;
 
     const thresholdHit: { name: string; filePath: string; score: number }[] = [];
-    const degraded:     string[] = [];
-    const improved:     string[] = [];
+    const degraded:     { name: string; delta: number }[] = [];
+    const improved:     { name: string; delta: number }[] = [];
 
     for (const file of result.files) {
       const prev = lastScoreSnapshot.get(file.filePath);
@@ -289,22 +289,27 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
       if (prev === undefined) continue;
       const delta = curr - prev;
       if (prev < 50 && curr >= 50) thresholdHit.push({ name, filePath: file.filePath, score: curr });
-      else if (delta >= 8)         degraded.push(`${name} +${delta.toFixed(0)}`);
-      else if (delta <= -8)        improved.push(`${name} ${delta.toFixed(0)}`);
+      else if (delta >= 8)         degraded.push({ name, delta });
+      else if (delta <= -8)        improved.push({ name, delta });
     }
 
     if (thresholdHit.length > 0) {
       for (const t of thresholdHit) {
-        emit('threshold', `${t.name} · crossed critical threshold`, 'critical');
+        emit('threshold', '', 'critical', {
+          code: 'critical_threshold_crossed',
+          fileName: t.name,
+          filePath: t.filePath,
+          score: t.score,
+        });
       }
       if (Notification.isSupported()) {
         const toNotify = thresholdHit.slice(0, 3);
         const extra    = thresholdHit.length - toNotify.length;
         const body     = [
           ...toNotify.map(t => `${t.name}  ·  score ${t.score.toFixed(0)}`),
-          ...(extra > 0 ? [`+${extra} more`] : []),
+          ...(extra > 0 ? [`+${extra} de plus`] : []),
         ].join('\n');
-        const notif = new Notification({ title: '⚠ Cortex — Critical', body, silent: false });
+        const notif = new Notification({ title: '⚠ Cortex — Critique', body, silent: false });
         notif.on('click', () => {
           if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
@@ -315,16 +320,32 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
         notif.show();
       }
     }
-    if (degraded.length > 0) emit('degraded', `${degraded.slice(0, 2).join(', ')}${degraded.length > 2 ? ` +${degraded.length - 2} more` : ''} · score up`, 'warn');
-    if (improved.length > 0) emit('improved', `${improved.slice(0, 2).join(', ')}${improved.length > 2 ? ` +${improved.length - 2} more` : ''} · score down`, 'ok');
+    if (degraded.length > 0) {
+      emit('degraded', '', 'warn', {
+        code: 'score_up',
+        changes: degraded.slice(0, 2),
+        extraCount: Math.max(0, degraded.length - 2),
+      });
+    }
+    if (improved.length > 0) {
+      emit('improved', '', 'ok', {
+        code: 'score_down',
+        changes: improved.slice(0, 2),
+        extraCount: Math.max(0, improved.length - 2),
+      });
+    }
 
     const totalDegraded = degraded.length + thresholdHit.length;
-    const summary = totalDegraded > 0
-      ? `${result.files.length} modules · ${totalDegraded} degraded`
-      : improved.length > 0 ? `${result.files.length} modules · ${improved.length} improved`
-      : `${result.files.length} modules · stable`;
+    const summaryCode = totalDegraded > 0
+      ? 'scan_degraded'
+      : improved.length > 0 ? 'scan_improved'
+      : 'scan_stable';
 
-    emit('scan-done', summary, totalDegraded > 0 ? 'warn' : improved.length > 0 ? 'ok' : 'info');
+    emit('scan-done', '', totalDegraded > 0 ? 'warn' : improved.length > 0 ? 'ok' : 'info', {
+      code: summaryCode,
+      fileCount: result.files.length,
+      count: totalDegraded > 0 ? totalDegraded : improved.length,
+    });
     lastScoreSnapshot = new Map(result.files.map(f => [f.filePath, f.globalScore]));
 
     const avgScore = result.files.length > 0
@@ -343,7 +364,7 @@ async function runScan(projectPath: string, scanToken: number): Promise<ScanOutc
       return 'stale';
     }
     console.error('[Cortex] Scan error:', err);
-    emit('scan-error', 'scan failed · check console', 'critical');
+    emit('scan-error', '', 'critical', { code: 'scan_failed' });
     return 'failed';
   }
 }
@@ -381,7 +402,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('add-project', async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {
-      properties: ['openDirectory'], title: 'Add project folder',
+      properties: ['openDirectory'], title: 'Ajouter un dossier de projet',
     });
     if (result.canceled || !result.filePaths[0]) return null;
     const newPath = result.filePaths[0];
@@ -390,7 +411,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info', { projectPath: newPath });
+    emit('project-switch', '', 'info', { code: 'project_switched', projectName: newPath.split('/').pop(), projectPath: newPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
     requestScan('add-project');
@@ -406,7 +427,7 @@ app.whenReady().then(async () => {
     const w = (global as any).__cortexWatcher;
     if (updated.activeProjectPath && updated.activeProjectPath !== projectPath) {
       // Bascule sur le projet suivant
-      emit('project-switch', `switched · ${updated.activeProjectPath.split('/').pop()}`, 'info', { projectPath: updated.activeProjectPath });
+      emit('project-switch', '', 'info', { code: 'project_switched', projectName: updated.activeProjectPath.split('/').pop(), projectPath: updated.activeProjectPath });
       if (w) w.restart(updated.activeProjectPath, loadSettings().ignore);
       requestScan('remove-project');
     } else if (!updated.activeProjectPath) {
@@ -599,7 +620,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${projectPath.split('/').pop()}`, 'info', { projectPath });
+    emit('project-switch', '', 'info', { code: 'project_switched', projectName: projectPath.split('/').pop(), projectPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(projectPath, loadSettings().ignore);
     requestScan('switch-project');
@@ -608,7 +629,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('pick-project', async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {
-      properties: ['openDirectory'], title: 'Select project folder',
+      properties: ['openDirectory'], title: 'Sélectionner un dossier de projet',
     });
     if (result.canceled || !result.filePaths[0]) return null;
     const newPath = result.filePaths[0];
@@ -617,7 +638,7 @@ app.whenReady().then(async () => {
     lastScoreSnapshot = new Map();
     lastEdges = [];
     lastEdgesProjectPath = '';
-    emit('project-switch', `switched · ${newPath.split('/').pop()}`, 'info', { projectPath: newPath });
+    emit('project-switch', '', 'info', { code: 'project_switched', projectName: newPath.split('/').pop(), projectPath: newPath });
     const w = (global as any).__cortexWatcher;
     if (w) await w.restart(newPath, loadSettings().ignore);
     requestScan('pick-project');
@@ -632,7 +653,7 @@ app.whenReady().then(async () => {
     const baseName    = `cortex-report-${projName}-${dateStr}`;
 
     const { filePath, canceled } = await dialog.showSaveDialog(mainWindow!, {
-      title:       'Export Cortex Report',
+      title:       'Exporter le rapport Cortex',
       defaultPath: baseName + '.md',
       filters: [
         { name: 'Markdown', extensions: ['md'] },
@@ -678,7 +699,7 @@ app.whenReady().then(async () => {
   const debouncedScan = (filePath: string, eventType: string) => {
     const file = filePath.split('/').pop() ?? '';
     mainWindow?.webContents.send('cortex-event', {
-      type: eventType, file, filePath, message: `${file} · ${eventType}`,
+      type: eventType, file, filePath, message: '', code: `file_${eventType}`,
       level: 'info', ts: Date.now(),
     });
     // Invalider le cache sécurité si un fichier de dépendances change
@@ -698,7 +719,7 @@ app.whenReady().then(async () => {
   watcher.emitter.on('file:added',   (p: string) => debouncedScan(p, 'added'));
   watcher.emitter.on('file:deleted', (p: string) => debouncedScan(p, 'deleted'));
   watcher.emitter.on('watcher:restarted', (newPath: string) => {
-    emit('watcher-restarted', `watching · ${newPath.split('/').pop()}`, 'info');
+    emit('watcher-restarted', '', 'info', { code: 'watching_project', projectName: newPath.split('/').pop() });
   });
 
   (global as any).__cortexWatcher = watcher;

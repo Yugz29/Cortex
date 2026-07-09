@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { scoreColor, scoreColorHex } from '../../utils';
+import { useLocale } from '../../hooks/useLocale';
 
 interface Props {
   history:    { score: number; scanned_at: string }[];
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function ScoreGraph({ history, width = 260, height = 80, showDates = false }: Props) {
+  const { t } = useLocale();
   const [tooltip, setTooltip] = useState<{ x: number; y: number; score: number; date: string } | null>(null);
 
   if (history.length === 0) return null;
@@ -22,7 +24,7 @@ export default function ScoreGraph({ history, width = 260, height = 80, showDate
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, height, paddingLeft: 6 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: col, boxShadow: `0 0 6px ${colH}88` }} />
         <span style={{ fontFamily: "'SF Mono','Menlo',monospace", fontSize: 11, color: col, fontWeight: 500 }}>{s.toFixed(1)}</span>
-        <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>today only — history builds over time</span>
+        <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>{t('scoreGraph.singlePoint')}</span>
       </div>
     );
   }

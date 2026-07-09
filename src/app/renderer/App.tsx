@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Scan, Edge } from './types';
 import { avgRiskScore, projectHealthStatus } from './utils';
 import { useLocale } from './hooks/useLocale';
+import { formatActivityEvent, type ActivityEventPayload } from './activityEvents';
 import ProjectsPanel from './components/ProjectsPanel';
 import CortexView from './components/CortexView';
 import WelcomeView from './components/WelcomeView';
@@ -37,7 +38,7 @@ export default function App() {
   const [view,           setView]           = useState<'cortex' | 'projects'>('cortex');
   const [scans,          setScans]          = useState<Scan[]>([]);
   const [edges,          setEdges]          = useState<Edge[]>([]);
-  const [events,         setEvents]         = useState<{ message: string; level: string; type: string; ts: number }[]>([]);
+  const [events,         setEvents]         = useState<(ActivityEventPayload & { message: string; level: string; ts: number })[]>([]);
   const [projectPath,    setProjectPath]    = useState('');
   const [projectHistory, setProjectHistory] = useState<{ date: string; score: number; healthPct: number }[]>([]);
   const [selected,       setSelected]       = useState<Scan | null>(null);
@@ -85,7 +86,7 @@ export default function App() {
       setSwitching(false);
     });
     window.api.onEvent((e: any) => {
-      if (e.type === 'scan-start') { setScanStatus('scanning…'); return; }
+      if (e.type === 'scan-start') { setScanStatus(t('topbar.scanning')); return; }
       if (e.type === 'scan-done')  { setScanStatus(''); return; }
       if (e.type === 'scan-error') { setScanStatus(''); setSwitching(false); return; }
       if (e.type === 'project-switch') {
@@ -101,21 +102,21 @@ export default function App() {
         }
         setEvents(prev => [
           ...prev.filter(ev => ev.type !== 'project-switch' && ev.type !== 'watcher-restarted'),
-          { message: e.message, level: e.level ?? 'info', type: e.type, ts: e.ts ?? Date.now() },
+          { ...e, message: formatActivityEvent(e, t), level: e.level ?? 'info', type: e.type, ts: e.ts ?? Date.now() },
         ]);
         return;
       }
       if (e.type === 'watcher-restarted') {
         setEvents(prev => [
           ...prev.filter(ev => ev.type !== 'watcher-restarted'),
-          { message: e.message, level: 'info', type: e.type, ts: e.ts ?? Date.now() },
+          { ...e, message: formatActivityEvent(e, t), level: 'info', type: e.type, ts: e.ts ?? Date.now() },
         ]);
         return;
       }
-      const msg = e.type === 'changed' ? `${e.file} · modified`
-                : e.type === 'added'   ? `${e.file} · added`
-                : e.type === 'deleted' ? `${e.file} · deleted`
-                : e.message ?? '';
+      const msg = e.type === 'changed' ? `${e.file} · ${t('activity.modified')}`
+                : e.type === 'added'   ? `${e.file} · ${t('activity.added')}`
+                : e.type === 'deleted' ? `${e.file} · ${t('activity.deleted')}`
+                : formatActivityEvent(e, t);
       if (msg) setEvents(prev => [...prev.slice(-99), { message: msg, level: e.level ?? 'info', type: e.type, ts: e.ts ?? Date.now(), filePath: e.filePath ?? null }]);
     });
     // Détection plein écran via events natifs Electron

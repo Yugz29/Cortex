@@ -18,6 +18,7 @@ const translations = {
 
   // ── Topbar ─────────────────────────────────────────────────────────────────
   'topbar.scan':     { en: 'Run scan',       fr: 'Lancer un scan'      },
+  'topbar.scanning': { en: 'scanning…',      fr: 'analyse…'            },
   'topbar.export':   { en: 'Export Report', fr: 'Exporter le rapport' },
   'topbar.exported': { en: 'Exported ✓',    fr: 'Exporté ✓'           },
 
@@ -28,7 +29,7 @@ const translations = {
   'tab.security': { en: 'Security', fr: 'Sécurité'       },
 
   // ── Sidebar ────────────────────────────────────────────────────────────────
-  'sidebar.search':    { en: 'Search modules…',     fr: 'Rechercher…'                    },
+  'sidebar.search':    { en: 'Search files…',       fr: 'Rechercher des fichiers…'       },
   'sidebar.modules':   { en: 'modules',             fr: 'modules'                        },
   'sidebar.noMatch':   { en: 'No match.',           fr: 'Aucun résultat.'                },
   'sidebar.awaiting':  { en: 'Awaiting first scan…', fr: 'En attente du premier scan…'  },
@@ -37,6 +38,21 @@ const translations = {
   'sidebar.clear':     { en: 'clear',               fr: 'effacer'                        },
   'sidebar.activity':  { en: 'Activity',            fr: 'Activité'                       },
   'sidebar.noEvents':  { en: 'No events yet.',      fr: 'Aucun événement.'               },
+  'activity.modified': { en: 'modified',            fr: 'modifié'                        },
+  'activity.added':    { en: 'added',               fr: 'ajouté'                         },
+  'activity.deleted':  { en: 'deleted',             fr: 'supprimé'                       },
+  'activity.analysisTriggered': { en: 'analysis triggered', fr: 'analyse lancée' },
+  'activity.scanUnchanged':     { en: '{n} files · unchanged', fr: '{n} fichiers · inchangé' },
+  'activity.criticalThreshold': { en: '{file} · crossed critical threshold', fr: '{file} · seuil critique franchi' },
+  'activity.more':              { en: '+{n} more', fr: '+{n} de plus' },
+  'activity.scoreUp':           { en: 'score up', fr: 'score en hausse' },
+  'activity.scoreDown':         { en: 'score down', fr: 'score en baisse' },
+  'activity.scanDegraded':      { en: '{files} files · {count} degraded', fr: '{files} fichiers · {count} dégradé{s}' },
+  'activity.scanImproved':      { en: '{files} files · {count} improved', fr: '{files} fichiers · {count} amélioré{s}' },
+  'activity.scanStable':        { en: '{files} files · stable', fr: '{files} fichiers · stable' },
+  'activity.scanFailed':        { en: 'scan failed · check console', fr: 'analyse échouée · consulte la console' },
+  'activity.projectSwitched':   { en: 'switched · {project}', fr: 'projet actif · {project}' },
+  'activity.watchingProject':   { en: 'watching · {project}', fr: 'surveillance · {project}' },
 
   // ── Filter chips ───────────────────────────────────────────────────────────
   'filter.all':      { en: 'All',      fr: 'Tout'         },
@@ -262,6 +278,9 @@ const translations = {
   'code.cancel':       { en: 'Cancel',                   fr: 'Annuler'                        },
   'code.writeFailed':  { en: 'write failed',             fr: 'échec écriture'                 },
 
+  // ── Shared charts ─────────────────────────────────────────────────────────
+  'scoreGraph.singlePoint': { en: 'today only — history builds over time', fr: 'aujourd’hui seulement — l’historique se construira avec le temps' },
+
   // ── Welcome screen ─────────────────────────────────────────────────────────
   'welcome.title':      { en: 'Welcome to Cortex',              fr: 'Bienvenue sur Cortex'            },
   'welcome.yourProjects': { en: 'Your projects',                fr: 'Vos projets'                     },
@@ -279,6 +298,24 @@ const translations = {
   'switcher.addProject': { en: 'Add new project…', fr: 'Ajouter un projet…' },
   'switcher.active':     { en: 'active',            fr: 'actif'              },
   'switcher.noScan':     { en: 'no scan',           fr: 'pas de scan'        },
+  'projects.title':      { en: 'Projects',          fr: 'Projets'            },
+  'projects.loading':    { en: 'Loading…',          fr: 'Chargement…'        },
+  'projects.empty':      { en: 'No projects yet.',  fr: 'Aucun projet.'      },
+  'projects.emptyHint':  { en: 'Add a folder to get started.', fr: 'Ajoutez un dossier pour commencer.' },
+  'projects.active':     { en: 'ACTIVE',            fr: 'ACTIF'              },
+  'projects.remove':     { en: 'Remove project',    fr: 'Retirer le projet'  },
+  'projects.opening':    { en: 'Opening…',          fr: 'Ouverture…'         },
+  'projects.add':        { en: '+ Add project',     fr: '+ Ajouter un projet' },
+  'projects.switchHint': { en: 'Click a project to switch · Cortex rescans automatically', fr: 'Cliquez sur un projet pour basculer · Cortex relance l’analyse automatiquement' },
+  'projects.daysAgo':    { en: '{n}d ago',          fr: 'il y a {n}j'        },
+  'projects.hoursAgo':   { en: '{n}h ago',          fr: 'il y a {n}h'        },
+  'projects.minutesAgo': { en: '{n}m ago',          fr: 'il y a {n}min'      },
+  'projects.justNow':    { en: 'just now',          fr: 'à l’instant'        },
+  'securityFinding.title':    { en: 'Security Finding', fr: 'Signal de sécurité' },
+  'securityFinding.location': { en: 'Location',         fr: 'Emplacement'        },
+  'securityFinding.rule':     { en: 'Rule',             fr: 'Règle'              },
+  'securityFinding.snippet':  { en: 'Snippet',          fr: 'Extrait'            },
+  'securityFinding.category': { en: 'Category',         fr: 'Catégorie'          },
   'security.in':         { en: 'in',                fr: 'dans'               },
   'security.range':      { en: 'range',             fr: 'plage'              },
   'security.via':        { en: 'via',               fr: 'via'                },
@@ -337,6 +374,14 @@ const translations = {
   'security.patternCriticalMulti':  { en: '{n} Critical', fr: '{n} patterns critiques' },
   'security.patternInfoSingle':     { en: '1 Info',       fr: '1 pattern informatif'  },
   'security.patternInfoMulti':      { en: '{n} Info',     fr: '{n} patterns informatifs' },
+  'security.categorySecret':        { en: 'Secret',       fr: 'Secrets' },
+  'security.categoryInjection':     { en: 'Injection',    fr: 'Injection' },
+  'security.categoryCrypto':        { en: 'Crypto',       fr: 'Crypto' },
+  'security.categoryXss':           { en: 'XSS',          fr: 'XSS' },
+  'security.categoryMisc':          { en: 'Misc',         fr: 'Divers' },
+  'security.patternHardcodedSecret': { en: 'Potential hardcoded secret — move to environment variable.', fr: 'Secret potentiellement codé en dur — déplacez-le dans une variable d’environnement.' },
+  'security.patternPrivateKeyBlock': { en: 'Private key block found in source code.', fr: 'Bloc de clé privée détecté dans le code source.' },
+  'security.patternConnectionString': { en: 'Database connection string with embedded credentials.', fr: 'Chaîne de connexion contenant des identifiants intégrés.' },
   'security.patternMathRandom':     { en: 'Math.random() is not cryptographically secure — use crypto.randomBytes() for tokens or IDs.', fr: 'Math.random() n’est pas cryptographiquement sûr — utilisez une API cryptographique adaptée pour les tokens ou identifiants.' },
   'security.auditNotAvail':   { en: 'Dependency audit not available.',   fr: 'Audit des dépendances indisponible.'               },
   'security.auditNoProject':  { en: 'No compatible Node.js project found.', fr: 'Aucun projet Node.js compatible trouvé.'       },

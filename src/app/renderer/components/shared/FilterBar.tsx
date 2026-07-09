@@ -44,7 +44,7 @@ export default function FilterBar({
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search modules…"
+            placeholder={t('sidebar.search')}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               fontSize: 11, color: 'var(--text-secondary)',

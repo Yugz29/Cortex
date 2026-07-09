@@ -207,7 +207,7 @@ export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
           <span
             role="button"
             onClick={handleClear}
-            title="Clear"
+            title={t('sidebar.clear')}
             style={{
               fontSize: 9, color: 'var(--text-faint)', padding: '1px 5px',
               borderRadius: 4, cursor: 'pointer', letterSpacing: '0.05em',
@@ -242,9 +242,9 @@ export default function ActivityPanel({ events, scans, onSelectScan }: Props) {
                 {t('sidebar.noEvents')}
               </div>
             ) : visible.map((ev, i) => {
-              const action = ev.type === 'changed' ? 'modified'
-                           : ev.type === 'added'   ? 'added'
-                           : ev.type === 'deleted' ? 'deleted'
+              const action = ev.type === 'changed' ? t('activity.modified')
+                           : ev.type === 'added'   ? t('activity.added')
+                           : ev.type === 'deleted' ? t('activity.deleted')
                            : null;
               const scan = ev.filePath ? scans.find(s => s.filePath === ev.filePath) ?? null : null;
               const isClickable = !!scan;

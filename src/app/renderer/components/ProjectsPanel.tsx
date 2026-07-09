@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useLocale } from '../hooks/useLocale';
 
 interface Project { path: string; name: string; addedAt: string; }
 interface Props { onClose: () => void; activeProject: string; }
 
 export default function ProjectsPanel({ onClose, activeProject }: Props) {
+  const { t } = useLocale();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -39,10 +41,10 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
     const d  = Math.floor(ms / 86400000);
     const h  = Math.floor(ms / 3600000);
     const m  = Math.floor(ms / 60000);
-    if (d > 0) return `${d}d ago`;
-    if (h > 0) return `${h}h ago`;
-    if (m > 0) return `${m}m ago`;
-    return 'just now';
+    if (d > 0) return t('projects.daysAgo', { n: d });
+    if (h > 0) return t('projects.hoursAgo', { n: h });
+    if (m > 0) return t('projects.minutesAgo', { n: m });
+    return t('projects.justNow');
   }
 
   return (
@@ -60,7 +62,7 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
         WebkitAppRegion: 'drag' as any,
       }}>
         <div style={{ width: 72 }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Projects</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{t('projects.title')}</span>
         <div style={{ flex: 1 }} />
         <button
           onClick={onClose}
@@ -73,11 +75,11 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 12px' }}>
         {loading ? (
-          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>Loading…</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('projects.loading')}</div>
         ) : projects.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>No projects yet.</div>
-            <div style={{ fontSize: 10, color: 'var(--text-ghost)' }}>Add a folder to get started.</div>
+            <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('projects.empty')}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-ghost)' }}>{t('projects.emptyHint')}</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
@@ -116,7 +118,7 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
 
                   <div style={{ flexShrink: 0, textAlign: 'right' }}>
                     {isActive ? (
-                      <span style={{ fontSize: 9, fontWeight: 500, padding: '2px 8px', borderRadius: 20, color: '#0a84ff', background: 'rgba(10,132,255,0.12)', border: '0.5px solid rgba(10,132,255,0.25)' }}>ACTIVE</span>
+                      <span style={{ fontSize: 9, fontWeight: 500, padding: '2px 8px', borderRadius: 20, color: '#0a84ff', background: 'rgba(10,132,255,0.12)', border: '0.5px solid rgba(10,132,255,0.25)' }}>{t('projects.active')}</span>
                     ) : (
                       <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>{timeAgo(p.addedAt)}</span>
                     )}
@@ -128,7 +130,7 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-ghost)', fontSize: 16, padding: '0 4px', lineHeight: 1, flexShrink: 0, transition: 'color 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.color = '#ff453a'}
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-ghost)'}
-                    title="Remove project"
+                    title={t('projects.remove')}
                   >
                     {removing === p.path ? '…' : '×'}
                   </button>
@@ -155,10 +157,10 @@ export default function ProjectsPanel({ onClose, activeProject }: Props) {
           onMouseEnter={e => { if (!adding) e.currentTarget.style.background = 'rgba(10,132,255,0.2)'; }}
           onMouseLeave={e => { if (!adding) e.currentTarget.style.background = 'rgba(10,132,255,0.12)'; }}
         >
-          {adding ? 'Opening…' : '+ Add project'}
+          {adding ? t('projects.opening') : t('projects.add')}
         </button>
         <div style={{ fontSize: 9, color: 'var(--text-ghost)', textAlign: 'center', marginTop: 8 }}>
-          Click a project to switch · Cortex rescans automatically
+          {t('projects.switchHint')}
         </div>
       </div>
     </div>

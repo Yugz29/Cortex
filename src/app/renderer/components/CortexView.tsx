@@ -15,6 +15,7 @@ import HistoryView from './HistoryView';
 import SettingsView from './SettingsView';
 import SecurityView from './SecurityView';
 import type { SecurityFinding, SecurityScanResult } from '../types';
+import { securityCategoryLabel, securityFindingMessage } from '../securityText';
 
 interface Project { path: string; name: string; addedAt: string; }
 interface ProjectHealth { path: string; avgScore: number | null; }
@@ -364,6 +365,8 @@ const SEV_COLOR_PANEL: Record<string, string> = {
 };
 
 function SecurityFindingPanel({ finding, onClose }: { finding: SecurityFinding; onClose: () => void }) {
+  const { t } = useLocale();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}>
 
@@ -372,13 +375,13 @@ function SecurityFindingPanel({ finding, onClose }: { finding: SecurityFinding; 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
           <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, fontWeight: 500 }}>
-              Security Finding
+              {t('securityFinding.title')}
             </div>
             <div style={{
               fontSize: 12, color: SEV_COLOR_PANEL[finding.severity] ?? 'var(--text-primary)',
               fontWeight: 600, lineHeight: 1.4,
             }}>
-              {finding.message}
+              {securityFindingMessage(finding, t)}
             </div>
           </div>
           <button
@@ -407,22 +410,22 @@ function SecurityFindingPanel({ finding, onClose }: { finding: SecurityFinding; 
 
         {/* Localisation */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Location</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>{t('securityFinding.location')}</div>
           <div style={{ fontSize: 10, fontFamily: "'SF Mono','Menlo',monospace", color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             <div style={{ marginBottom: 2, wordBreak: 'break-all' }}>{finding.filePath.split('/').slice(-3).join('/')}</div>
-            <div style={{ color: 'var(--text-muted)' }}>line {finding.line}</div>
+            <div style={{ color: 'var(--text-muted)' }}>{t('code.line')} {finding.line}</div>
           </div>
         </div>
 
         {/* Rule */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Rule</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>{t('securityFinding.rule')}</div>
           <div style={{ fontSize: 10, fontFamily: "'SF Mono','Menlo',monospace", color: 'var(--text-secondary)' }}>{finding.rule}</div>
         </div>
 
         {/* Snippet */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Snippet</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>{t('securityFinding.snippet')}</div>
           <div style={{
             padding: '10px 12px',
             background: 'var(--bg-card)', border: '0.5px solid var(--border)', borderRadius: 6,
@@ -437,8 +440,8 @@ function SecurityFindingPanel({ finding, onClose }: { finding: SecurityFinding; 
 
         {/* Category */}
         <div>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Category</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{finding.category}</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>{t('securityFinding.category')}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{securityCategoryLabel(finding.category, t)}</div>
         </div>
       </div>
     </div>

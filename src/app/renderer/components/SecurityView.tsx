@@ -3,6 +3,7 @@ import type { SecurityScanResult, SecurityFinding, AuditVuln, Severity, Category
 import SectionLabel from './shared/SectionLabel';
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
+import { securityCategoryLabel, securityFindingMessage } from '../securityText';
 
 // ── COULEURS & LABELS ─────────────────────────────────────────────────────────
 
@@ -38,14 +39,6 @@ const CAT_COLORS: Record<Category, string> = {
     misc:      'var(--text-muted)',
 };
 
-const CAT_LABEL: Record<Category, string> = {
-    secret:    'Secret',
-    injection: 'Injection',
-    crypto:    'Crypto',
-    xss:       'XSS',
-    misc:      'Misc',
-};
-
 // ── COMPOSANTS ────────────────────────────────────────────────────────────────
 
 type TFn = (key: TranslationKey, vars?: Record<string, string | number>) => string;
@@ -74,10 +67,6 @@ const PATTERN_SUMMARY_KEYS: Record<Severity, { single: TranslationKey; multi: Tr
     info:     { single: 'security.patternInfoSingle',     multi: 'security.patternInfoMulti'     },
 };
 
-const FINDING_MESSAGE_KEYS: Partial<Record<string, TranslationKey>> = {
-    'math-random-security': 'security.patternMathRandom',
-};
-
 function severityPatternSummary(severity: Severity, count: number, t: TFn) {
     const keys = PATTERN_SUMMARY_KEYS[severity];
     return t(count === 1 ? keys.single : keys.multi, { n: count });
@@ -85,11 +74,6 @@ function severityPatternSummary(severity: Severity, count: number, t: TFn) {
 
 function severityLabel(severity: Severity, t: TFn) {
     return t(SEVERITY_LABEL_KEYS[severity]);
-}
-
-function findingMessage(finding: SecurityFinding, t: TFn) {
-    const key = FINDING_MESSAGE_KEYS[finding.rule];
-    return key ? t(key) : finding.message;
 }
 
 function SevBadge({ severity, t }: { severity: Severity; t: TFn }) {
@@ -142,7 +126,7 @@ function FindingRow({ finding, projectPath, onViewInCode, t }: {
                     letterSpacing: 0,
                 }}>{CAT_ICON[finding.category]}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {findingMessage(finding, t)}
+                    {securityFindingMessage(finding, t)}
                 </span>
                 <SevBadge severity={finding.severity} t={t} />
                 <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0, marginLeft: 4 }}>
@@ -153,7 +137,7 @@ function FindingRow({ finding, projectPath, onViewInCode, t }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 10, fontFamily: "'SF Mono','Menlo',monospace" }}>
                 <span style={{ color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{rel}</span>
                 <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>:{finding.line}</span>
-                <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>· {CAT_LABEL[finding.category]}</span>
+                <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>· {securityCategoryLabel(finding.category, t)}</span>
                 <button
                     onClick={e => { e.stopPropagation(); onViewInCode(finding.filePath, finding.line, finding.rule, finding); }}
                     style={{
@@ -436,7 +420,7 @@ export default function SecurityView({ projectPath, result, onResultChange, onVi
                                                 cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
                                             }}
                                         >
-                                            {cat === 'all' ? `${t('security.filterAll')} · ${count}` : `${CAT_LABEL[cat as Category]} · ${count}`}
+                                            {cat === 'all' ? `${t('security.filterAll')} · ${count}` : `${securityCategoryLabel(cat as Category, t)} · ${count}`}
                                         </button>
                                     );
                                 })}
