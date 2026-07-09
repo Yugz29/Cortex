@@ -47,8 +47,39 @@ interface Rule {
     category:   Category;
     message:    string;
     languages?: string[];
-    skip?:      (line: string, match: RegExpExecArray) => boolean;
+    skip?:      (line: string, match: RegExpExecArray, context: RuleContext) => boolean;
     skipFile?:  (filePath: string) => boolean;
+}
+
+interface RuleContext {
+    filePath: string;
+    line:     string;
+}
+
+const SENSITIVE_RANDOM_WORDS = /\b(token|password|passwd|pwd|auth|session|secret|crypto|nonce|uuid|key|reset|invite)\b/i;
+const VISUAL_RANDOM_WORDS = /\b(x|y|position|layout|node|graph|force|angle|radius|animation|delay|jitter|color)\b/i;
+
+export function isLikelyI18nKey(value: string): boolean {
+    return /^(?:[a-z][\w-]*\.)+[a-z][\w-]*$/i.test(value.trim());
+}
+
+export function isLikelyTranslationContext(filePath: string, line: string): boolean {
+    const name = path.basename(filePath).toLowerCase();
+    const trimmed = line.trim();
+    const isTranslationFile = /(?:^|\.)(i18n|locale|locales|translations?|messages?)\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(name);
+    if (!isTranslationFile) return false;
+
+    return /^['"`][\w.-]+['"`]\s*:/.test(trimmed)
+        || /\b(?:en|fr|de|es|it|pt|ja|ko|zh)\s*:/.test(trimmed);
+}
+
+export function isSensitiveRandomContext(line: string, filePath = ''): boolean {
+    return SENSITIVE_RANDOM_WORDS.test(line) || SENSITIVE_RANDOM_WORDS.test(path.basename(filePath));
+}
+
+function isLikelyVisualRandomContext(line: string, filePath: string): boolean {
+    const name = path.basename(filePath).toLowerCase();
+    return VISUAL_RANDOM_WORDS.test(line) || /\b(graph|layout|canvas|animation|visual)\b/.test(name);
 }
 
 const RULES: Rule[] = [
@@ -65,6 +96,7 @@ const RULES: Rule[] = [
                 || l.trim().startsWith('//') || l.trim().startsWith('*') || l.trim().startsWith('#')) return true;
             // Ignorer les valeurs CSS
             const value = match[1] ?? '';
+            if (isLikelyI18nKey(value)) return true;
             if (value.startsWith('var(') || value.startsWith('rgba') || value.startsWith('rgb')
                 || value.startsWith('#') || !/[a-zA-Z0-9]{4}/.test(value)) return true;
             // Ignorer les labels UI (mot capitalisé court)
@@ -185,11 +217,13 @@ const RULES: Rule[] = [
         severity: 'medium', category: 'crypto',
         message: 'Math.random() is not cryptographically secure — use crypto.randomBytes() for tokens or IDs.',
         languages: ['typescript', 'javascript'],
-        skip: (line) => {
+        skip: (line, _match, context) => {
             const l = line.toLowerCase();
-            return l.includes('color') || l.includes('position') || l.includes('animation')
-                || l.includes('delay') || l.includes('jitter') || l.includes('test')
-                || l.includes('mock') || l.trim().startsWith('//') || l.trim().startsWith('*');
+            if (l.trim().startsWith('//') || l.trim().startsWith('*')) return true;
+            if (isLikelyTranslationContext(context.filePath, line)) return true;
+            if (isSensitiveRandomContext(line, context.filePath)) return false;
+            if (isLikelyVisualRandomContext(line, context.filePath)) return true;
+            return true;
         },
     },
     {
@@ -261,7 +295,7 @@ export function scanFileForPatterns(filePath: string, source: string): SecurityF
             pat.lastIndex = 0;
             const match = pat.exec(line);
             if (!match) return;
-            if (rule.skip?.(line, match)) return;
+            if (rule.skip?.(line, match, { filePath, line })) return;
 
             findings.push({
                 filePath,
