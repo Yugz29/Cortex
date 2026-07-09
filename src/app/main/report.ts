@@ -11,6 +11,7 @@ import {
     type ResponsibleFunctionItem,
     type ResponsibleFunctionReason,
 } from '../../cortex/diagnostics/responsibleFunctions.js';
+import { shouldIgnorePath } from './scanPathFilter.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,10 @@ function isDeadFile(s: any): boolean {
     if (isEntryPoint(s.filePath)) return false;
     if (UTILITY_MODULE_PATTERNS.some(p => p.test(s.filePath))) return false;
     return s.fanIn === 0 && s.fanOut === 0;
+}
+
+function isIgnoredScan(s: any): boolean {
+    return typeof s.filePath === 'string' && shouldIgnorePath(s.filePath);
 }
 
 function getLayer(filePath: string, projectPath: string) {
@@ -501,8 +506,9 @@ function mdSecuritySection(security: any): string {
 export function buildReport(scans: any[], projectPath: string, security?: any, functionsByFile?: FunctionsByFile): { markdown: string; json: string } {
     const projName = projectPath.split('/').pop() ?? projectPath;
     const date     = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+    const reportScans = scans.filter(s => !isIgnoredScan(s));
     return {
-        markdown: buildMarkdown(scans, projectPath, projName, date, security, functionsByFile),
-        json:     buildJson(scans, projectPath, projName, date, security, functionsByFile),
+        markdown: buildMarkdown(reportScans, projectPath, projName, date, security, functionsByFile),
+        json:     buildJson(reportScans, projectPath, projName, date, security, functionsByFile),
     };
 }

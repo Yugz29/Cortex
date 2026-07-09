@@ -143,4 +143,31 @@ describe('maintenance report export', () => {
         expect(parsed.files[0].status).toBe('critical');
         expect(parsed.files[0].topIssue).toBe('complexity');
     });
+
+    it('exclut les artefacts generes des fichiers exportes et des dead files', () => {
+        const generatedPath = `${projectPath}/.derivedData/Build/Intermediates.noindex/Pulse.build/Debug/App.build/DerivedSources/GeneratedAssetSymbols.swift`;
+        const { markdown, json } = buildReport([
+            scan({
+                filePath: `${projectPath}/src/buildReport.ts`,
+                fanIn: 0,
+                fanOut: 1,
+                globalScore: 55,
+            }),
+            scan({
+                filePath: generatedPath,
+                fanIn: 0,
+                fanOut: 0,
+                globalScore: 0,
+            }),
+        ], projectPath);
+
+        const parsed = JSON.parse(json);
+
+        expect(parsed.summary.totalFiles).toBe(1);
+        expect(parsed.summary.deadFiles).toEqual([]);
+        expect(parsed.files.map((file: { file: string }) => file.file)).toEqual(['src/buildReport.ts']);
+        expect(markdown).toContain('src/buildReport.ts');
+        expect(json).not.toContain('GeneratedAssetSymbols.swift');
+        expect(markdown).not.toContain('GeneratedAssetSymbols.swift');
+    });
 });
