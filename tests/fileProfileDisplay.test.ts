@@ -111,6 +111,12 @@ describe('file profile display', () => {
         ['script', 'Script'],
         ['style', 'Style'],
         ['documentation', 'Documentation'],
+        ['summary', 'Résumé'],
+        ['graph_layout', 'Graphe/layout'],
+        ['formatter', 'Formatage'],
+        ['validation_contract', 'Validation/contrat'],
+        ['state_management', 'Gestion d’état'],
+        ['fixture_mock', 'Fixture/mock'],
     ])('localizes the %s profile label in French', (profileName, expectedLabel) => {
         const profile = getScanFileProfile(scan({
             profile: profileName,
@@ -129,5 +135,21 @@ describe('file profile display', () => {
         expect(profile.profile).toBe('routing');
         expect(profile.label).toBe('Routing');
         expect(profile.description).toContain('Routing files');
+    });
+
+    it.each([
+        ['/project/src/features/orderSummary.ts', 'Summary'],
+        ['/project/src/graphs/dependencyGraph.ts', 'Graph/layout'],
+        ['/project/src/formatters/dateFormatter.ts', 'Formatter'],
+        ['/project/src/contracts/paymentContract.ts', 'Validation/contract'],
+        ['/project/src/reducers/sessionReducer.ts', 'State management'],
+        ['/project/tests/fixtures/user.json', 'Fixture/mock'],
+    ])('keeps the inferred profile label in English for %s', (filePath, expectedLabel) => {
+        const profile = getScanFileProfile(scan({
+            filePath,
+        }), 'en');
+
+        expect(profile.label).toBe(expectedLabel);
+        expect(profile.description.length).toBeGreaterThan(0);
     });
 });

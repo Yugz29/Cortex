@@ -47,7 +47,7 @@ describe('file profile inference', () => {
         ['src/components/Button.tsx', 'renderer_component'],
         ['src/services/authService.ts', 'service'],
         ['src/routes/router.ts', 'routing'],
-        ['src/utils/formatDate.ts', 'utility'],
+        ['src/utils/formatDate.ts', 'formatter'],
         ['src/config/settings.ts', 'configuration'],
         ['tests/parser.test.ts', 'test'],
         ['README.md', 'documentation'],
@@ -58,5 +58,37 @@ describe('file profile inference', () => {
 
     it('garde unknown quand aucun signal clair ne ressort', () => {
         expect(inferFileProfile('src/features/account/preferences.ts').profile).toBe('unknown');
+    });
+
+    it.each([
+        ['src/features/orders/orderSummary.ts', 'summary'],
+        ['backend/reports/overview.py', 'summary'],
+        ['lib/digest.js', 'summary'],
+        ['src/graphs/dependencyGraph.ts', 'graph_layout'],
+        ['src/layout/forceLayout.ts', 'graph_layout'],
+        ['lib/couplingMap.py', 'graph_layout'],
+        ['src/formatters/dateFormatter.ts', 'formatter'],
+        ['src/i18n/messageBuilder.js', 'formatter'],
+        ['app/displayLabels.swift', 'formatter'],
+        ['src/validators/userValidator.ts', 'validation_contract'],
+        ['api/contracts/paymentContract.ts', 'validation_contract'],
+        ['backend/schema.py', 'validation_contract'],
+        ['src/store.ts', 'state_management'],
+        ['src/reducers/sessionReducer.ts', 'state_management'],
+        ['app/stateManager.py', 'state_management'],
+        ['tests/fixtures/user.json', 'fixture_mock'],
+        ['src/__mocks__/fetchClient.ts', 'fixture_mock'],
+        ['samples/demoPayload.py', 'fixture_mock'],
+    ])('classe un chemin générique %s comme %s', (filePath, expected) => {
+        expect(inferFileProfile(filePath).profile).toBe(expected);
+    });
+
+    it.each([
+        ['src/app/renderer/components/GraphView.tsx', 'renderer_component'],
+        ['src/analyzer/formatParser.ts', 'parser'],
+        ['src/config/userSchema.ts', 'configuration'],
+        ['tests/fixtures/parserFixture.ts', 'fixture_mock'],
+    ])('respecte les priorités de collision pour %s', (filePath, expected) => {
+        expect(inferFileProfile(filePath).profile).toBe(expected);
     });
 });

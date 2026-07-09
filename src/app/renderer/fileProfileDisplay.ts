@@ -12,6 +12,12 @@ const KNOWN_PROFILES: ReadonlySet<FileProfile> = new Set([
   'security_scanner',
   'dependency_audit',
   'change_analysis',
+  'summary',
+  'graph_layout',
+  'formatter',
+  'validation_contract',
+  'state_management',
+  'fixture_mock',
   'data_access',
   'utility',
   'routing',
@@ -66,6 +72,30 @@ const FR_PROFILE_DISPLAY: Record<Exclude<FileProfile, 'unknown'>, Pick<FileProfi
   change_analysis: {
     label:       'Analyse des changements',
     description: 'L’analyse Git/churn regroupe souvent le parsing des logs, les commits et les métriques de changement.',
+  },
+  summary: {
+    label:       'Résumé',
+    description: 'Les fichiers de résumé condensent état, métriques ou événements en vues courtes pour les lecteurs.',
+  },
+  graph_layout: {
+    label:       'Graphe/layout',
+    description: 'Les fichiers de graphe et de layout modélisent souvent relations, positions ou structure de dépendances.',
+  },
+  formatter: {
+    label:       'Formatage',
+    description: 'Les fichiers de formatage et d’affichage préparent libellés, messages ou valeurs pour la présentation.',
+  },
+  validation_contract: {
+    label:       'Validation/contrat',
+    description: 'Les fichiers de validation et de contrat définissent formes acceptées, contraintes ou attentes d’API.',
+  },
+  state_management: {
+    label:       'Gestion d’état',
+    description: 'Les fichiers de gestion d’état coordonnent stores, reducers ou transitions de l’état applicatif.',
+  },
+  fixture_mock: {
+    label:       'Fixture/mock',
+    description: 'Les fixtures et mocks fournissent des données d’exemple ou des substituts pour les tests et workflows locaux.',
   },
   data_access: {
     label:       'Accès aux données',

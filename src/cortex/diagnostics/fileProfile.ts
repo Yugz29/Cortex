@@ -8,6 +8,12 @@ export type FileProfile =
     | 'security_scanner'
     | 'dependency_audit'
     | 'change_analysis'
+    | 'summary'
+    | 'graph_layout'
+    | 'formatter'
+    | 'validation_contract'
+    | 'state_management'
+    | 'fixture_mock'
     | 'data_access'
     | 'utility'
     | 'routing'
@@ -72,6 +78,36 @@ const PROFILE_INFO: Record<FileProfile, FileProfileInfo> = {
         profile:     'change_analysis',
         label:       'Change analysis',
         description: 'Git/churn analysis often groups log parsing, commit grouping and change metrics.',
+    },
+    summary: {
+        profile:     'summary',
+        label:       'Summary',
+        description: 'Summary files condense state, metrics or events into concise views for readers.',
+    },
+    graph_layout: {
+        profile:     'graph_layout',
+        label:       'Graph/layout',
+        description: 'Graph and layout files often model relationships, positions or dependency structure.',
+    },
+    formatter: {
+        profile:     'formatter',
+        label:       'Formatter',
+        description: 'Formatting and text-display files shape labels, messages or values for presentation.',
+    },
+    validation_contract: {
+        profile:     'validation_contract',
+        label:       'Validation/contract',
+        description: 'Validation and contract files define accepted shapes, constraints or API expectations.',
+    },
+    state_management: {
+        profile:     'state_management',
+        label:       'State management',
+        description: 'State management files coordinate stores, reducers or transitions over application state.',
+    },
+    fixture_mock: {
+        profile:     'fixture_mock',
+        label:       'Fixture/mock',
+        description: 'Fixture and mock files provide sample data or substitutes for tests and local workflows.',
     },
     data_access: {
         profile:     'data_access',
@@ -173,6 +209,10 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (name === 'readme.md' || name.endsWith('.md') || hasSegment(segments, ['docs', 'documentation'])) return byProfile('documentation');
     if (/\.(css|scss|sass|less)$/.test(name)) return byProfile('style');
+    if (
+        /(?:^|[._-])(?:fixture|fixtures|mock|mocks|sample|samples|stub|stubs)(?:[._-]|$)/.test(name) ||
+        hasSegment(segments, ['fixtures', '__fixtures__', 'mocks', '__mocks__', 'samples', 'stubs'])
+    ) return byProfile('fixture_mock');
     if (/(\.|_)(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/.test(name) || /^test_.*\.py$/.test(name) || /_test\.py$/.test(name) || hasSegment(segments, ['tests', '__tests__'])) return byProfile('test');
 
     if (
@@ -191,9 +231,12 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (hasNameToken(lower, ['security', 'vulnerability', 'secret']) || (name.includes('audit') && !name.includes('dependencyaudit'))) return byProfile('security_scanner');
 
+    if (name === 'urls.py' || /^(?:routes|router)\.(?:ts|tsx|js|jsx|py)$/.test(name) || hasSegment(segments, ['routes', 'routers'])) return byProfile('routing');
+
     if (
         name.includes('config') ||
         name.includes('settings') ||
+        hasSegment(segments, ['config', 'configs', 'settings']) ||
         /\.(?:config)\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(name) ||
         /^(?:vite|vitest|eslint|prettier|tailwind)\.config\.(?:ts|js|mjs|cjs)$/.test(name) ||
         ['pyproject.toml', 'package.json'].includes(name)
@@ -201,16 +244,22 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (hasSegment(segments, ['scripts', 'script', 'bin', 'tools']) || name.endsWith('.sh') || name.endsWith('.command')) return byProfile('script');
 
-    if (name === 'urls.py' || /^(?:routes|router)\.(?:ts|tsx|js|jsx|py)$/.test(name) || hasSegment(segments, ['routes', 'routers'])) return byProfile('routing');
     if (hasSegment(segments, ['controllers']) || name.includes('controller') || name === 'views.py') return byProfile('controller');
+
+    if (
+        name.includes('validator') ||
+        name.includes('validation') ||
+        name.includes('contract') ||
+        name.includes('schema') ||
+        hasSegment(segments, ['validators', 'validation', 'contracts', 'contract'])
+    ) return byProfile('validation_contract');
 
     if (
         name === 'models.py' ||
         name === 'serializers.py' ||
         name.includes('model') ||
-        name.includes('schema') ||
         name.includes('serializer') ||
-        hasSegment(segments, ['models', 'schemas', 'entities'])
+        hasSegment(segments, ['models', 'entities'])
     ) return byProfile('data_model');
 
     if (
@@ -232,7 +281,7 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (hasNameToken(name, ['parser', 'parse', 'lexer', 'ast'])) return byProfile('parser');
 
-    if (hasNameToken(name, ['diagnosis', 'classifier', 'rules', 'policy', 'validator', 'fsm', 'state_machine', 'statemachine'])) return byProfile('decision_table');
+    if (hasNameToken(name, ['diagnosis', 'classifier', 'rules', 'policy', 'fsm', 'state_machine', 'statemachine'])) return byProfile('decision_table');
 
     if (hasSegment(segments, ['services']) || name.includes('service')) return byProfile('service');
 
@@ -240,9 +289,24 @@ export function inferFileProfile(filePath: string): FileProfileInfo {
 
     if (hasNameToken(lower, ['churn', 'commit', 'diff']) || name.includes('git') || (name.includes('history') && !/view\.(?:tsx|jsx|ts|js|swift)$/.test(name))) return byProfile('change_analysis');
 
+    if (hasNameToken(name, ['summary', 'overview', 'digest', 'recap'])) return byProfile('summary');
+
+    if (hasNameToken(name, ['graph', 'layout', 'dependency', 'relation', 'coupling'])) return byProfile('graph_layout');
+
+    if (
+        hasNameToken(name, ['formatter', 'format', 'display', 'label', 'message', 'text', 'copy']) ||
+        hasSegment(segments, ['formatters', 'messages', 'locales', 'translations'])
+    ) return byProfile('formatter');
+
+    if (
+        /^(?:store|reducer|state|state_manager|statemanager)\.(?:ts|tsx|js|jsx|py|swift)$/.test(name) ||
+        hasNameToken(name, ['store', 'reducer', 'statemanager', 'state_manager']) ||
+        hasSegment(segments, ['stores', 'reducers'])
+    ) return byProfile('state_management');
+
     if (hasNameToken(name, ['scanner', 'event_bus', 'eventbus', 'coordinator', 'orchestrator'])) return byProfile('orchestration');
 
-    if (hasSegment(segments, ['utils', 'util', 'helpers', 'helper', 'hooks', 'lib']) || hasNameToken(name, ['format', 'normalize', 'constants', 'utils', 'helper'])) return byProfile('utility');
+    if (hasSegment(segments, ['utils', 'util', 'helpers', 'helper', 'hooks', 'lib']) || hasNameToken(name, ['normalize', 'constants', 'utils', 'helper'])) return byProfile('utility');
 
     return byProfile('unknown');
 }
