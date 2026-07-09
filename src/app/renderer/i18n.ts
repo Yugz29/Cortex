@@ -190,6 +190,7 @@ const translations = {
   'detail.coupling':       { en: 'COUPLING',  fr: 'COUPLAGE'   },
   'detail.hotspot':        { en: 'HOTSPOT',   fr: 'POINT CHAUD'},
   'detail.hotspotDesc':    { en: 'Combination of structural load and recent change activity. High values point to a file that stands out on both signals.', fr: 'Combinaison de charge structurelle et d’activité de changement récente. Des valeurs élevées indiquent un fichier qui ressort sur les deux signaux.' },
+  'detail.profile':        { en: 'PROFILE',   fr: 'PROFIL'     },
   'detail.language':       { en: 'LANGUAGE',  fr: 'LANGAGE'    },
   'detail.noFunctions':    { en: 'No named functions found.', fr: 'Aucune fonction nommée trouvée.' },
   'detail.fanIn':          { en: 'fan-in',    fr: 'fan-in'     },

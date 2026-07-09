@@ -13,6 +13,9 @@ export interface Scan {
   fanIn:                   number;
   fanOut:                  number;
   language:                string;
+  profile?:                string;
+  profileLabel?:           string;
+  profileDescription?:     string;
   trend:                   '↑' | '↓' | '↔';
   scannedAt:               string;
   rawComplexity:           number;

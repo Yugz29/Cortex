@@ -3,6 +3,7 @@ import type { Scan, Edge, FunctionDetail } from '../types';
 import { scoreColor, classifyLayer, LAYER_LABELS, LAYER_COLORS } from '../utils';
 import { useLocale } from '../hooks/useLocale';
 import type { TranslationKey } from '../i18n';
+import { getScanFileProfile, shouldShowScanFileProfile } from '../fileProfileDisplay';
 import { diagnoseScore } from '../../../cortex/diagnostics/scoreDiagnosis';
 import { diagnoseFunction } from '../../../cortex/diagnostics/functionDiagnosis';
 import ScoreGraph from './shared/ScoreGraph';
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseCodeView }: Props) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [functions,   setFunctions]   = useState<FunctionDetail[]>([]);
   const [history,     setHistory]     = useState<{ score: number; scanned_at: string }[]>([]);
   const [activeTab,   setActiveTab]   = useState<'metrics' | 'functions'>('metrics');
@@ -40,6 +41,8 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
   const l     = classifyLayer(scan.filePath);
   const lc    = LAYER_COLORS[l];
   const diagnosis = diagnoseScore(scan);
+  const fileProfile = getScanFileProfile(scan, locale);
+  const showFileProfile = shouldShowScanFileProfile(fileProfile);
 
   const tabStyle = (tab: 'metrics' | 'functions'): React.CSSProperties => ({
     flex: 1, padding: '9px 0', fontSize: 11, letterSpacing: '0.06em', fontWeight: 500,
@@ -223,6 +226,33 @@ export default function Detail({ scan, onClose, edges, onFocusFunction, onCloseC
                 </button>
               )}
             </div>
+
+            {showFileProfile && (
+              <div style={{
+                marginBottom: 18,
+                padding: '10px 12px',
+                background: 'var(--bg-card)',
+                border: '0.5px solid var(--border)',
+                borderRadius: 8,
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  letterSpacing: '0.08em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  marginBottom: 4,
+                }}>
+                  {t('detail.profile')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 3 }}>
+                  {fileProfile.label}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {fileProfile.description}
+                </div>
+              </div>
+            )}
 
             {/* History */}
             {history.length >= 1 && (
