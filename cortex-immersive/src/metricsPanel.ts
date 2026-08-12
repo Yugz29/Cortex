@@ -13,9 +13,15 @@ import { classifyLayer, scoreColorHex, LAYER_LABELS } from '@cortex/utils';
 import type { PanelPose } from './panelPlacement';
 
 const W = 512, H = 360;
+const PANEL_W = 0.55;
+const PANEL_H = PANEL_W * (H / W);
 
 export class MetricsPanel {
   readonly mesh: THREE.Mesh;
+  /** Barre de préhension sous le panneau (cible de raycast du drag).
+   *  Enfant de `mesh` : elle suit le panneau et partage sa visibilité.
+   *  Le plane est plus grand que la barre dessinée → zone de visée confortable. */
+  readonly handle: THREE.Mesh;
   private canvas:  HTMLCanvasElement;
   private texture: THREE.CanvasTexture;
 
@@ -26,9 +32,39 @@ export class MetricsPanel {
     const material = new THREE.MeshBasicMaterial({
       map: this.texture, transparent: true, side: THREE.DoubleSide, depthWrite: false,
     });
-    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55 * (H / W)), material);
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(PANEL_W, PANEL_H), material);
     this.mesh.visible = false;
     this.mesh.renderOrder = 10;
+
+    this.handle = MetricsPanel.buildHandle();
+    this.handle.position.set(0, -(PANEL_H / 2) - 0.042, 0);
+    this.mesh.add(this.handle);
+  }
+
+  /** Fine barre horizontale style fenêtre Quest, dessinée au centre d'un plane
+   *  transparent plus large qui sert de zone de hit pour le rayon. */
+  private static buildHandle(): THREE.Mesh {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#aeaeb2';
+    ctx.globalAlpha = 0.95;
+    const bw = 150, bh = 13, r = bh / 2;
+    const x = (256 - bw) / 2, y = (64 - bh) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + bw, y, x + bw, y + bh, r);
+    ctx.arcTo(x + bw, y + bh, x, y + bh, r);
+    ctx.arcTo(x, y + bh, x, y, r);
+    ctx.arcTo(x, y, x + bw, y, r);
+    ctx.closePath();
+    ctx.fill();
+    const material = new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(canvas), transparent: true, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const handle = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.065), material);
+    handle.renderOrder = 10;
+    return handle;
   }
 
   /** Affiche le panneau à la pose « pupitre » donnée — position et orientation

@@ -87,13 +87,49 @@ function selectNode(mesh: THREE.Mesh | null): void {
 
   // Pupitre : pose calculée depuis la caméra à l'instant de la sélection,
   // puis fixe dans le monde (indépendante du nœud et du graphe).
+  // Un drag de panneau en cours devient caduc (le panneau vient d'être replacé).
+  panelDrag = null;
   const scan = mesh.userData['scan'] as Scan;
   panel.showAt(scan, panelPoseFor(activeCameraPose()));
 }
 
+/**
+ * Cible du rayon courant, par plus proche intersection :
+ * la barre de préhension du panneau est prioritaire uniquement si elle est
+ * réellement devant le premier nœud touché — pas de sélection accidentelle
+ * d'un nœud en visant la barre, ni l'inverse.
+ * (Le corps du panneau n'est pas une cible : comportement inchangé.)
+ */
+type RayTarget =
+  | { kind: 'handle' }
+  | { kind: 'node'; mesh: THREE.Mesh }
+  | { kind: 'none' };
+
+function targetFromRaycaster(): RayTarget {
+  const nodeHit   = raycaster.intersectObjects(nodeMeshes, false)[0];
+  const handleHit = panel.mesh.visible ? raycaster.intersectObject(panel.handle, false)[0] : undefined;
+  if (handleHit && (!nodeHit || handleHit.distance <= nodeHit.distance)) return { kind: 'handle' };
+  return nodeHit ? { kind: 'node', mesh: nodeHit.object as THREE.Mesh } : { kind: 'none' };
+}
+
 function pickFromRaycaster(): void {
-  const hit = raycaster.intersectObjects(nodeMeshes, false)[0];
-  selectNode(hit ? (hit.object as THREE.Mesh) : null);
+  const target = targetFromRaycaster();
+  if (target.kind === 'handle') return;               // la barre n'est pas une cible de sélection
+  selectNode(target.kind === 'node' ? target.mesh : null);
+}
+
+// ── Drag du panneau par sa barre de préhension ───────────────────────────────
+// Même principe que le grab une-main du graphe : oneHandGrabTransform est
+// réutilisée telle quelle (échelle 1), l'offset panneau↔contrôleur est capturé
+// au selectstart sur la barre puis réappliqué à chaque frame.
+
+let panelDrag: { controller: THREE.Object3D; startController: Pose; startPanel: GroupTransform } | null = null;
+
+function updatePanelDrag(): void {
+  if (!panelDrag) return;
+  applyTransform(panel.mesh, oneHandGrabTransform(
+    panelDrag.startController, panelDrag.startPanel, poseOf(panelDrag.controller),
+  ));
 }
 
 // Souris (préviz desktop) — clic = sélection
@@ -124,7 +160,16 @@ for (const i of [0, 1]) {
     tempMatrix.identity().extractRotation(controller.matrixWorld);
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
     raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-    pickFromRaycaster();
+    const target = targetFromRaycaster();
+    if (target.kind === 'handle') {
+      // Gâchette tenue sur la barre → le panneau suit rigidement le contrôleur
+      panelDrag = { controller, startController: poseOf(controller), startPanel: transformOf(panel.mesh) };
+    } else {
+      selectNode(target.kind === 'node' ? target.mesh : null);
+    }
+  });
+  controller.addEventListener('selectend', () => {
+    if (panelDrag?.controller === controller) panelDrag = null;   // le panneau reste où il est lâché
   });
   controller.addEventListener('squeezestart', () => { grabbing.add(controller); captureGrabBaseline(); });
   controller.addEventListener('squeezeend',   () => { grabbing.delete(controller); captureGrabBaseline(); });
@@ -163,7 +208,7 @@ function activeCameraPose(): Pose {
   return poseOf(cam);
 }
 
-function transformOf(g: THREE.Group): GroupTransform {
+function transformOf(g: THREE.Object3D): GroupTransform {
   return {
     position:   { x: g.position.x, y: g.position.y, z: g.position.z },
     quaternion: { x: g.quaternion.x, y: g.quaternion.y, z: g.quaternion.z, w: g.quaternion.w },
@@ -171,7 +216,7 @@ function transformOf(g: THREE.Group): GroupTransform {
   };
 }
 
-function applyTransform(g: THREE.Group, t: GroupTransform): void {
+function applyTransform(g: THREE.Object3D, t: GroupTransform): void {
   g.position.set(t.position.x, t.position.y, t.position.z);
   g.quaternion.set(t.quaternion.x, t.quaternion.y, t.quaternion.z, t.quaternion.w);
   g.scale.setScalar(t.scale);
@@ -293,6 +338,7 @@ async function init(): Promise<void> {
 renderer.setAnimationLoop(() => {
   controls.update();
   updateGrab();
+  updatePanelDrag();
   pollRecenterButton();
   renderer.render(scene, camera);
 });

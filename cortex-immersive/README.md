@@ -69,6 +69,7 @@ Puis dans le navigateur du Quest : **http://localhost:4517** → bouton
 | **Gâchette** (trigger)       | Raycast → sélection d'un nœud, surbrillance, panneau de métriques (score, complexité, cognitive, taille, churn, depth, params, fan in/out, hotspot). Le panneau apparaît en « pupitre » : ~0,55 m devant soi, sous la ligne de regard, face à l'utilisateur — posé à la sélection puis **fixe dans l'espace** (il ne suit ni le graphe ni la tête ; re-sélectionner un nœud le repose devant soi) |
 | **Grip une main** (squeeze maintenu) | Attrape le graphe : il suit la position **et** l'orientation du contrôleur ; reste où on le lâche |
 | **Grip deux mains** (squeeze des deux côtés) | Écarter/rapprocher = zoom (ratio des distances, borné [0.05×, 20×]) ; tourner les mains = rotation ; ancrage au milieu des deux mains (pas de dérive) |
+| **Gâchette sur la barre sous le panneau** | Déplace le panneau (style fenêtre Quest) : il suit la main tant que la gâchette est tenue, puis reste où on le lâche. Ne sélectionne jamais de nœud |
 | **A / X**                    | Recentre le graphe (position, orientation et échelle par défaut) |
 
 La bascule une main ↔ deux mains en cours de geste se fait sans saut visuel
