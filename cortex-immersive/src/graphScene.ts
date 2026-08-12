@@ -10,6 +10,9 @@
  */
 
 import * as THREE from 'three';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { Scan, Edge } from '@cortex/types';
 import { buildLayerLayout } from '@cortex/graphLayout';
 import { classifyLayer, scoreColorHex, LAYER_ORDER, LAYER_LABELS, LAYER_COLORS } from '@cortex/utils';
@@ -39,6 +42,20 @@ export function layerZ(filePath: string): number {
 
 /** Opacité de base des arêtes (état sans sélection). */
 export const EDGE_BASE_OPACITY = 0.35;
+/** Épaisseur des arêtes en pixels — LineMaterial (Line2), car le linewidth de
+ *  LineBasicMaterial n'est pas honoré par la plupart des drivers WebGL. */
+export const EDGE_LINEWIDTH_PX = 3;
+
+export interface EdgeLayers {
+  /** Toutes les arêtes — masqué pendant une sélection. */
+  all:   LineSegments2;
+  /** Surcouche du voisinage sélectionné — invisible par défaut ; sa géométrie
+   *  est reconstruite à la sélection à partir de `positions`/`colors`. */
+  focus: LineSegments2;
+  /** Buffers plats par arête (6 floats chacune) — même ordre que displayEdges. */
+  positions: Float32Array;
+  colors:    Float32Array;
+}
 
 export interface GraphSceneResult {
   group:      THREE.Group;
@@ -46,10 +63,8 @@ export interface GraphSceneResult {
   nodeMeshes: THREE.Mesh[];
   /** Arêtes affichées (filterDisplayEdges) — même ordre que les segments. */
   displayEdges: Edge[];
-  /** Calques de lignes : `all` (toutes les arêtes, atténuable globalement) et
-   *  `focus` (surcouche du voisinage sélectionné — mêmes buffers, sous-ensemble
-   *  choisi par index, invisible par défaut). Null si aucune arête. */
-  edgeLines: { all: THREE.LineSegments; focus: THREE.LineSegments } | null;
+  /** Calques de lignes — null si aucune arête. */
+  edgeLines: EdgeLayers | null;
 }
 
 export function buildGraphGroup(data: GraphData): GraphSceneResult {
@@ -110,32 +125,37 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
 
   let edgeLines: GraphSceneResult['edgeLines'] = null;
   if (linePositions.length > 0) {
-    const posAttr   = new THREE.Float32BufferAttribute(linePositions, 3);
-    const colorAttr = new THREE.Float32BufferAttribute(lineColors, 3);
+    const makeMaterial = (opacity: number): LineMaterial => {
+      const mat = new LineMaterial({
+        vertexColors: true,
+        transparent:  true,
+        opacity,
+        linewidth:    EDGE_LINEWIDTH_PX,   // pixels (worldUnits: false)
+      });
+      mat.resolution.set(window.innerWidth, window.innerHeight);
+      return mat;
+    };
 
-    const allGeo = new THREE.BufferGeometry();
-    allGeo.setAttribute('position', posAttr);
-    allGeo.setAttribute('color',    colorAttr);
-    const all = new THREE.LineSegments(
-      allGeo,
-      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: EDGE_BASE_OPACITY }),
-    );
+    const allGeo = new LineSegmentsGeometry();
+    allGeo.setPositions(linePositions);
+    allGeo.setColors(lineColors);
+    const all = new LineSegments2(allGeo, makeMaterial(EDGE_BASE_OPACITY));
 
-    // Surcouche focus : mêmes attributs, sous-ensemble d'arêtes via l'index —
-    // mis à jour uniquement à la sélection/désélection.
-    const focusGeo = new THREE.BufferGeometry();
-    focusGeo.setAttribute('position', posAttr);
-    focusGeo.setAttribute('color',    colorAttr);
-    focusGeo.setIndex([]);
-    const focus = new THREE.LineSegments(
-      focusGeo,
-      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }),
-    );
+    // Surcouche focus : géométrie remplacée à la sélection (sous-ensemble des
+    // buffers ci-dessous) — initialisée pleine mais invisible.
+    const focusGeo = new LineSegmentsGeometry();
+    focusGeo.setPositions(linePositions);
+    focusGeo.setColors(lineColors);
+    const focus = new LineSegments2(focusGeo, makeMaterial(0.95));
     focus.visible = false;
 
     group.add(all);
     group.add(focus);
-    edgeLines = { all, focus };
+    edgeLines = {
+      all, focus,
+      positions: Float32Array.from(linePositions),
+      colors:    Float32Array.from(lineColors),
+    };
   }
 
   // Étiquettes de couches — un sprite texte par couche active, placé sur son plan Z
@@ -149,6 +169,42 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
   }
 
   return { group, nodeMeshes, displayEdges, edgeLines };
+}
+
+/**
+ * Étiquette de nom de fichier au-dessus d'un nœud — même technique
+ * CanvasTexture/Sprite que les étiquettes de couche (billboard natif).
+ * Fond sombre translucide pour rester lisible sur le graphe.
+ */
+export function makeNodeLabelSprite(text: string): THREE.Sprite {
+  const W = 320, H = 48;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.font = 'bold 26px -apple-system, Segoe UI, Roboto, sans-serif';
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '…').width > W - 24) t = t.slice(0, -1);
+  if (t !== text) t += '…';
+
+  const textW = ctx.measureText(t).width;
+  ctx.fillStyle = 'rgba(16, 16, 20, 0.72)';
+  ctx.beginPath();
+  ctx.roundRect((W - textW) / 2 - 10, 4, textW + 20, H - 8, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#e5e5ea';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(t, W / 2, H / 2 + 1);
+
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(canvas), transparent: true,
+    depthWrite: false,
+    depthTest:  false,   // surcouche d'annotation : jamais occultée par les sphères
+  }));
+  sprite.scale.set(0.30, 0.045, 1);
+  sprite.renderOrder = 5;
+  return sprite;
 }
 
 function makeTextSprite(text: string, colorHex: string): THREE.Sprite {

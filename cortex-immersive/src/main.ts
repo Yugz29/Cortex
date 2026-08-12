@@ -12,9 +12,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ARButton } from 'three/addons/webxr/ARButton.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import type { Scan, Edge } from '@cortex/types';
-import { fetchGraph, buildGraphGroup, EDGE_BASE_OPACITY, type GraphSceneResult } from './graphScene';
+import { fetchGraph, buildGraphGroup, makeNodeLabelSprite, type GraphSceneResult } from './graphScene';
 import { selectionNeighborhood } from './graphNeighborhood';
+import { fileBasename } from './nodeLabels';
 import { MetricsPanel } from './metricsPanel';
 import {
   oneHandGrabTransform, twoHandGrabTransform,
@@ -63,6 +65,11 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  // LineMaterial calcule l'épaisseur en pixels à partir de cette résolution
+  if (edgeLines) {
+    edgeLines.all.material.resolution.set(window.innerWidth, window.innerHeight);
+    edgeLines.focus.material.resolution.set(window.innerWidth, window.innerHeight);
+  }
 });
 
 // ── Sélection / surbrillance ─────────────────────────────────────────────────
@@ -78,13 +85,29 @@ let edgeLines: GraphSceneResult['edgeLines'] = null;
 
 // ── Mise en évidence contextuelle du voisinage sélectionné ───────────────────
 // Voisins directs + arêtes du nœud : apparence normale (arêtes accentuées via
-// la surcouche focus) ; tout le reste atténué. Recalculé UNE fois à chaque
-// sélection/désélection — rien par frame.
+// la surcouche focus, calque `all` entièrement masqué) ; nœuds non connectés
+// atténués ; noms de fichiers affichés au-dessus du voisinage. Recalculé UNE
+// fois à chaque sélection/désélection — rien par frame.
 
 const DIM_NODE_OPACITY = 0.15;
-const DIM_EDGE_OPACITY = 0.05;
+
+// Sprites de noms de fichiers du voisinage courant (enfants du graphGroup :
+// ils suivent le graphe pendant sa manipulation).
+const labelSprites: THREE.Sprite[] = [];
+
+function clearNodeLabels(): void {
+  for (const s of labelSprites) {
+    s.parent?.remove(s);
+    const mat = s.material as THREE.SpriteMaterial;
+    mat.map?.dispose();
+    mat.dispose();
+  }
+  labelSprites.length = 0;
+}
 
 function applyNeighborhoodFocus(mesh: THREE.Mesh | null): void {
+  clearNodeLabels();
+
   if (!mesh) {
     for (const m of nodeMeshes) {
       const mat = m.material as THREE.MeshStandardMaterial;
@@ -92,7 +115,7 @@ function applyNeighborhoodFocus(mesh: THREE.Mesh | null): void {
       mat.opacity = 1;
     }
     if (edgeLines) {
-      (edgeLines.all.material as THREE.LineBasicMaterial).opacity = EDGE_BASE_OPACITY;
+      edgeLines.all.visible = true;
       edgeLines.focus.visible = false;
     }
     return;
@@ -103,17 +126,43 @@ function applyNeighborhoodFocus(mesh: THREE.Mesh | null): void {
 
   for (const m of nodeMeshes) {
     const mat  = m.material as THREE.MeshStandardMaterial;
-    const kept = hood.nodes.has((m.userData['scan'] as Scan).filePath);
+    const scan = m.userData['scan'] as Scan;
+    const kept = hood.nodes.has(scan.filePath);
     mat.transparent = !kept;
     mat.opacity = kept ? 1 : DIM_NODE_OPACITY;
+
+    // Nom de fichier au-dessus du nœud sélectionné et de chaque voisin
+    if (kept && graphGroup) {
+      const label = makeNodeLabelSprite(fileBasename(scan.filePath));
+      label.position.copy(m.position);
+      label.position.y += (m.userData['baseRadius'] as number) * 1.5 + 0.06;
+      graphGroup.add(label);
+      labelSprites.push(label);
+    }
   }
+
   if (edgeLines) {
-    (edgeLines.all.material as THREE.LineBasicMaterial).opacity = DIM_EDGE_OPACITY;
-    // Surcouche focus : 2 sommets par arête, dans l'ordre des displayEdges
-    const indices: number[] = [];
-    for (const i of hood.edges) indices.push(2 * i, 2 * i + 1);
-    edgeLines.focus.geometry.setIndex(indices);
-    edgeLines.focus.visible = indices.length > 0;
+    // Hors voisinage : les arêtes disparaissent entièrement (pas d'atténuation)
+    edgeLines.all.visible = false;
+    // Surcouche focus : sous-ensemble des buffers, 6 floats par arête
+    const pos: number[] = [];
+    const col: number[] = [];
+    for (const i of hood.edges) {
+      for (let k = 0; k < 6; k++) {
+        pos.push(edgeLines.positions[6 * i + k]!);
+        col.push(edgeLines.colors[6 * i + k]!);
+      }
+    }
+    if (pos.length > 0) {
+      const geo = new LineSegmentsGeometry();
+      geo.setPositions(pos);
+      geo.setColors(col);
+      edgeLines.focus.geometry.dispose();
+      edgeLines.focus.geometry = geo;
+      edgeLines.focus.visible = true;
+    } else {
+      edgeLines.focus.visible = false;
+    }
   }
 }
 
