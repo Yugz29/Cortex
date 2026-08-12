@@ -26,6 +26,7 @@ import type { FileEdge } from './scanner.js';
 import { loadSettings, saveSettings, addProject, removeProject, setActiveProject, ignoreFile, unignoreFile, excludeFile, includeFile, type AppSettings } from './settings.js';
 import { startWatcher } from '../../cortex/watcher/watcher.js';
 import { buildReport } from './report.js';
+import { startImmersiveServer, type ImmersiveServerHandle } from './immersiveServer.js';
 import { getDb } from '../../database/db.js';
 import { summarizeProjectAnalysisCoverage } from '../../cortex/coverage/analysisCoverage.js';
 
@@ -375,18 +376,22 @@ app.whenReady().then(async () => {
   if (cleaned > 0) console.log(`[Cortex] Cleaned ${cleaned} deleted file(s) from DB.`);
   purgeIgnoredFromDb();
 
-  // ── IPC handlers ──────────────────────────────────────────────────────────
-  ipcMain.handle('get-scans', () => {
+  // ── Accès graphe — source unique pour l'IPC (Desktop) et l'HTTP (Immersive) ─
+  const getGraphScans = () => {
     const ignoredSet = new Set(loadSettings().ignoredFiles);
     return getLatestScans(getActiveProjectPath()).filter(s => !ignoredSet.has(s.filePath));
-  });
-  ipcMain.handle('get-project-path',        () => getActiveProjectPath());
-  ipcMain.handle('get-edges',               () => {
+  };
+  const getGraphEdges = () => {
     const projectPath = getActiveProjectPath();
     return lastEdges.length > 0 && lastEdgesProjectPath === projectPath
       ? lastEdges
       : getImportEdges(projectPath);
-  });
+  };
+
+  // ── IPC handlers ──────────────────────────────────────────────────────────
+  ipcMain.handle('get-scans', () => getGraphScans());
+  ipcMain.handle('get-project-path',        () => getActiveProjectPath());
+  ipcMain.handle('get-edges',               () => getGraphEdges());
   ipcMain.handle('get-functions',           (_e, filePath: string) => getFunctions(filePath));
   ipcMain.handle('get-score-history',       (_e, filePath: string) => getScoreHistory(filePath));
   ipcMain.handle('get-project-score-history', () => getProjectScoreHistory(getActiveProjectPath()));
@@ -687,6 +692,24 @@ app.whenReady().then(async () => {
   createWindow();
   requestScan('startup');
 
+  // ── Serveur HTTP immersif (WebXR) ──────────────────────────────────────────
+  // Même anchor que dumpSnapshot : en dev, app.getAppPath() = .../Cortex/out/main
+  // → on remonte jusqu'au dossier contenant package.json pour trouver le repo.
+  let immersiveServer: ImmersiveServerHandle | null = null;
+  try {
+    let repoRoot = app.getAppPath();
+    const candidate = join(app.getAppPath(), '..', '..', '..');
+    if (fs.existsSync(join(candidate, 'package.json'))) repoRoot = candidate;
+    const staticDir = join(repoRoot, 'cortex-immersive', 'dist');
+    immersiveServer = startImmersiveServer({
+      getScans:  getGraphScans,
+      getEdges:  getGraphEdges,
+      staticDir: fs.existsSync(staticDir) ? staticDir : undefined,
+    });
+  } catch (err) {
+    console.warn('[Cortex Immersive] Failed to start HTTP server (non-fatal):', err);
+  }
+
   // ── Watcher ────────────────────────────────────────────────────────────────
   const initialSettings = loadSettings();
   const watcher = startWatcher({
@@ -727,6 +750,7 @@ app.whenReady().then(async () => {
 
   app.on('before-quit', async () => {
     await watcher.close();
+    await immersiveServer?.close();
   });
 
   app.on('activate', () => {
