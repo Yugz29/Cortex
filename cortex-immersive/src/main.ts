@@ -85,36 +85,47 @@ function selectNode(mesh: THREE.Mesh | null): void {
   mat.emissive.copy(mat.color).multiplyScalar(0.55);
   mesh.scale.setScalar(mesh.userData['baseRadius'] * 1.45);
 
-  // Pupitre : pose calculée depuis la caméra à l'instant de la sélection,
-  // puis fixe dans le monde (indépendante du nœud et du graphe).
-  // Un drag de panneau en cours devient caduc (le panneau vient d'être replacé).
-  panelDrag = null;
   const scan = mesh.userData['scan'] as Scan;
-  panel.showAt(scan, panelPoseFor(activeCameraPose()));
+  panel.setScan(scan);
+  // Pupitre : pose recalculée depuis la caméra à l'instant de la sélection —
+  // sauf si le panneau est ancré (pin) : contenu rafraîchi, pose intacte.
+  if (!panel.pinned) {
+    // Un drag de panneau en cours devient caduc (le panneau vient d'être replacé).
+    panelDrag = null;
+    panel.placeAt(panelPoseFor(activeCameraPose()));
+  }
 }
 
 /**
  * Cible du rayon courant, par plus proche intersection :
- * la barre de préhension du panneau est prioritaire uniquement si elle est
- * réellement devant le premier nœud touché — pas de sélection accidentelle
- * d'un nœud en visant la barre, ni l'inverse.
+ * les éléments du panneau (barre de préhension, bouton d'ancrage) sont
+ * prioritaires uniquement s'ils sont réellement devant le premier nœud
+ * touché — pas de sélection accidentelle d'un nœud en les visant, ni
+ * l'inverse. Barre et pin sont côte à côte, jamais superposés entre eux ;
+ * un même rayon les départage aussi par distance.
  * (Le corps du panneau n'est pas une cible : comportement inchangé.)
  */
 type RayTarget =
   | { kind: 'handle' }
+  | { kind: 'pin' }
   | { kind: 'node'; mesh: THREE.Mesh }
   | { kind: 'none' };
 
 function targetFromRaycaster(): RayTarget {
-  const nodeHit   = raycaster.intersectObjects(nodeMeshes, false)[0];
-  const handleHit = panel.mesh.visible ? raycaster.intersectObject(panel.handle, false)[0] : undefined;
-  if (handleHit && (!nodeHit || handleHit.distance <= nodeHit.distance)) return { kind: 'handle' };
+  const nodeHit  = raycaster.intersectObjects(nodeMeshes, false)[0];
+  const panelHit = panel.mesh.visible
+    ? raycaster.intersectObjects([panel.handle, panel.pinButton], false)[0]   // trié par distance
+    : undefined;
+  if (panelHit && (!nodeHit || panelHit.distance <= nodeHit.distance)) {
+    return panelHit.object === panel.pinButton ? { kind: 'pin' } : { kind: 'handle' };
+  }
   return nodeHit ? { kind: 'node', mesh: nodeHit.object as THREE.Mesh } : { kind: 'none' };
 }
 
 function pickFromRaycaster(): void {
   const target = targetFromRaycaster();
   if (target.kind === 'handle') return;               // la barre n'est pas une cible de sélection
+  if (target.kind === 'pin')    { panel.togglePin(); return; }
   selectNode(target.kind === 'node' ? target.mesh : null);
 }
 
@@ -164,6 +175,8 @@ for (const i of [0, 1]) {
     if (target.kind === 'handle') {
       // Gâchette tenue sur la barre → le panneau suit rigidement le contrôleur
       panelDrag = { controller, startController: poseOf(controller), startPanel: transformOf(panel.mesh) };
+    } else if (target.kind === 'pin') {
+      panel.togglePin();                              // simple toggle, pas de drag
     } else {
       selectNode(target.kind === 'node' ? target.mesh : null);
     }

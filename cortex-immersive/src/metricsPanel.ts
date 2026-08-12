@@ -22,8 +22,14 @@ export class MetricsPanel {
    *  Enfant de `mesh` : elle suit le panneau et partage sa visibilité.
    *  Le plane est plus grand que la barre dessinée → zone de visée confortable. */
   readonly handle: THREE.Mesh;
+  /** Bouton d'ancrage (pin) à droite de la barre — toggle au select.
+   *  Ancré : la sélection d'un nœud ne met à jour que le contenu, plus la pose. */
+  readonly pinButton: THREE.Mesh;
   private canvas:  HTMLCanvasElement;
   private texture: THREE.CanvasTexture;
+  private pinCanvas:  HTMLCanvasElement;
+  private pinTexture: THREE.CanvasTexture;
+  private _pinned = false;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -39,6 +45,42 @@ export class MetricsPanel {
     this.handle = MetricsPanel.buildHandle();
     this.handle.position.set(0, -(PANEL_H / 2) - 0.042, 0);
     this.mesh.add(this.handle);
+
+    this.pinCanvas = document.createElement('canvas');
+    this.pinCanvas.width = 64; this.pinCanvas.height = 64;
+    this.pinTexture = new THREE.CanvasTexture(this.pinCanvas);
+    this.pinButton = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.06, 0.06),
+      new THREE.MeshBasicMaterial({ map: this.pinTexture, transparent: true, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    this.pinButton.renderOrder = 10;
+    this.pinButton.position.set(0.175, -(PANEL_H / 2) - 0.042, 0);
+    this.mesh.add(this.pinButton);
+    this.drawPin();
+  }
+
+  /** État courant de l'ancrage. */
+  get pinned(): boolean {
+    return this._pinned;
+  }
+
+  /** Bascule l'ancrage et met à jour le visuel du bouton. */
+  togglePin(): void {
+    this._pinned = !this._pinned;
+    this.drawPin();
+  }
+
+  private drawPin(): void {
+    const ctx = this.pinCanvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.beginPath();
+    ctx.arc(32, 32, 28, 0, 2 * Math.PI);
+    ctx.fillStyle = this._pinned ? '#34c759' : 'rgba(72, 72, 78, 0.92)';
+    ctx.fill();
+    ctx.font = '30px -apple-system, Segoe UI, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('📌', 32, 34);
+    this.pinTexture.needsUpdate = true;
   }
 
   /** Fine barre horizontale style fenêtre Quest, dessinée au centre d'un plane
@@ -67,13 +109,17 @@ export class MetricsPanel {
     return handle;
   }
 
-  /** Affiche le panneau à la pose « pupitre » donnée — position et orientation
-   *  fixées une seule fois, à l'instant de la sélection. */
-  showAt(scan: Scan, pose: PanelPose): void {
+  /** Met à jour le contenu (métriques du Scan) et rend le panneau visible —
+   *  sans toucher à sa pose. */
+  setScan(scan: Scan): void {
     this.draw(scan);
+    this.mesh.visible = true;
+  }
+
+  /** Place le panneau à la pose « pupitre » donnée (position + orientation). */
+  placeAt(pose: PanelPose): void {
     this.mesh.position.set(pose.position.x, pose.position.y, pose.position.z);
     this.mesh.quaternion.set(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w);
-    this.mesh.visible = true;
   }
 
   hide(): void {
