@@ -1,0 +1,186 @@
+/**
+ * Cortex Immersive — point d'entrée.
+ *
+ * - Desktop : prévisualisation OrbitControls (itération sans casque).
+ * - Quest 3 : WebXR via ARButton (immersive-ar / mixed reality) si supporté,
+ *   fallback VRButton (immersive-vr) sinon.
+ * - Interaction : raycasting (souris ou contrôleurs XR), sélection d'un nœud,
+ *   mise en évidence, panneau de métriques.
+ */
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import type { Scan } from '@cortex/types';
+import { fetchGraph, buildGraphGroup } from './graphScene';
+import { MetricsPanel } from './metricsPanel';
+
+const status = document.getElementById('status')!;
+
+function setStatus(html: string | null): void {
+  if (html === null) { status.classList.add('hidden'); return; }
+  status.classList.remove('hidden');
+  status.innerHTML = html;
+}
+
+// ── Renderer / scène / caméra ────────────────────────────────────────────────
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// Fond opaque en desktop/VR ; en AR le fond est rendu transparent au démarrage de session
+const DESKTOP_BG = new THREE.Color(0x0d0d0f);
+scene.background = DESKTOP_BG;
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.02, 100);
+camera.position.set(0, 1.6, 2.6);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 1.1));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+dirLight.position.set(2, 4, 3);
+scene.add(dirLight);
+
+// Le graphe est placé à hauteur des yeux, légèrement devant l'origine XR,
+// pour qu'on puisse marcher autour dans le Quest.
+const GRAPH_CENTER = new THREE.Vector3(0, 1.4, -1.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(GRAPH_CENTER);
+controls.enableDamping = true;
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Sélection / surbrillance ─────────────────────────────────────────────────
+
+const raycaster = new THREE.Raycaster();
+const panel = new MetricsPanel();
+scene.add(panel.mesh);
+
+let nodeMeshes: THREE.Mesh[] = [];
+let selected: THREE.Mesh | null = null;
+
+function selectNode(mesh: THREE.Mesh | null): void {
+  if (selected) {
+    (selected.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
+    selected.scale.setScalar(selected.userData['baseRadius']);
+  }
+  selected = mesh;
+  if (!mesh) { panel.hide(); return; }
+
+  const mat = mesh.material as THREE.MeshStandardMaterial;
+  mat.emissive.copy(mat.color).multiplyScalar(0.55);
+  mesh.scale.setScalar(mesh.userData['baseRadius'] * 1.45);
+
+  const scan = mesh.userData['scan'] as Scan;
+  const worldPos = mesh.getWorldPosition(new THREE.Vector3());
+  panel.showFor(scan, worldPos, mesh.userData['baseRadius'] * 1.45);
+}
+
+function pickFromRaycaster(): void {
+  const hit = raycaster.intersectObjects(nodeMeshes, false)[0];
+  selectNode(hit ? (hit.object as THREE.Mesh) : null);
+}
+
+// Souris (préviz desktop) — clic = sélection
+const pointer = new THREE.Vector2();
+let downAt = { x: 0, y: 0 };
+renderer.domElement.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerup', e => {
+  // Ignorer les drags d'orbite
+  if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+  pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  pickFromRaycaster();
+});
+
+// Contrôleurs XR — rayon visible + sélection au trigger
+const controllerRayGeo = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -5),
+]);
+const tempMatrix = new THREE.Matrix4();
+
+for (const i of [0, 1]) {
+  const controller = renderer.xr.getController(i);
+  const ray = new THREE.Line(controllerRayGeo, new THREE.LineBasicMaterial({ color: 0x8e8e93, transparent: true, opacity: 0.6 }));
+  ray.name = 'ray';
+  controller.add(ray);
+  controller.addEventListener('selectstart', () => {
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    pickFromRaycaster();
+  });
+  scene.add(controller);
+}
+
+// ── Bouton XR : AR (mixed reality) si supporté, sinon VR ─────────────────────
+
+async function setupXRButton(): Promise<void> {
+  if (!('xr' in navigator)) {
+    setStatus('WebXR unavailable in this browser — desktop preview only (drag to orbit, click a node).');
+    setTimeout(() => setStatus(null), 6000);
+    return;
+  }
+  const xr = navigator.xr!;
+  const arSupported = await xr.isSessionSupported('immersive-ar').catch(() => false);
+  const vrSupported = await xr.isSessionSupported('immersive-vr').catch(() => false);
+
+  let button: HTMLElement;
+  if (arSupported) {
+    button = ARButton.createButton(renderer, { optionalFeatures: ['local-floor'] });
+  } else if (vrSupported) {
+    button = VRButton.createButton(renderer);
+  } else {
+    setStatus('No immersive session supported here — desktop preview only.<br>On Quest: use <code>adb reverse tcp:4517 tcp:4517</code> then open <code>http://localhost:4517</code>.');
+    setTimeout(() => setStatus(null), 8000);
+    return;
+  }
+  document.body.appendChild(button);
+
+  // En AR (passthrough), le fond doit être transparent ; on le restaure en sortie.
+  renderer.xr.addEventListener('sessionstart', () => {
+    const session = renderer.xr.getSession();
+    const isAR = session?.environmentBlendMode !== 'opaque';
+    scene.background = isAR ? null : DESKTOP_BG;
+  });
+  renderer.xr.addEventListener('sessionend', () => { scene.background = DESKTOP_BG; });
+}
+
+// ── Chargement du graphe réel ────────────────────────────────────────────────
+
+async function init(): Promise<void> {
+  try {
+    const data = await fetchGraph();
+    if (data.scans.length === 0) {
+      setStatus('Connected, but no scan data. Run a scan in Cortex Desktop first.');
+      return;
+    }
+    const { group, nodeMeshes: meshes } = buildGraphGroup(data);
+    group.position.copy(GRAPH_CENTER);
+    scene.add(group);
+    nodeMeshes = meshes;
+    setStatus(`${data.scans.length} files · ${data.edges.length} edges — click/trigger a node for metrics.`);
+    setTimeout(() => setStatus(null), 6000);
+  } catch (err) {
+    setStatus(`Could not load the Cortex graph: <b>${(err as Error).message}</b><br>` +
+              'Make sure Cortex Desktop is running (it serves <code>/api/graph</code> on port 4517).');
+  }
+  await setupXRButton();
+}
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  panel.update(renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
+  renderer.render(scene, camera);
+});
+
+init();
