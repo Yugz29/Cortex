@@ -35,7 +35,8 @@ function setStatus(html: string | null): void {
 // ── Renderer / scène / caméra ────────────────────────────────────────────────
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+// Aligné sur l'écran, borné à 2 pour la perf (Quest inclus)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
@@ -45,13 +46,25 @@ const scene = new THREE.Scene();
 const DESKTOP_BG = new THREE.Color(0x0d0d0f);
 scene.background = DESKTOP_BG;
 
+// Fog de profondeur : estompe progressivement le lointain (lisibilité du
+// maillage + perception de profondeur en VR). Couleur = fond. Désactivé en AR
+// (fond passthrough transparent, un fondu vers le sombre serait incohérent).
+const FOG_DENSITY = 0.08;
+const SCENE_FOG = new THREE.FogExp2(DESKTOP_BG.getHex(), FOG_DENSITY);
+scene.fog = SCENE_FOG;
+
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.02, 100);
 camera.position.set(0, 1.6, 2.6);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 1.1));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
-dirLight.position.set(2, 4, 3);
-scene.add(dirLight);
+// Rig lumineux doux, sans ombres portées : hémisphère (dégradé ambiant
+// ciel/sol) + key light directionnelle + fill froid discret à l'opposé.
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x14141c, 0.85));
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.15);
+keyLight.position.set(2.5, 4, 2.5);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x8899bb, 0.35);
+fillLight.position.set(-3, 1.5, -2.5);
+scene.add(fillLight);
 
 // Le graphe est placé à hauteur des yeux, légèrement devant l'origine XR,
 // pour qu'on puisse marcher autour dans le Quest.
@@ -415,8 +428,12 @@ async function setupXRButton(): Promise<void> {
     const session = renderer.xr.getSession();
     const isAR = session?.environmentBlendMode !== 'opaque';
     scene.background = isAR ? null : DESKTOP_BG;
+    scene.fog        = isAR ? null : SCENE_FOG;
   });
-  renderer.xr.addEventListener('sessionend', () => { scene.background = DESKTOP_BG; });
+  renderer.xr.addEventListener('sessionend', () => {
+    scene.background = DESKTOP_BG;
+    scene.fog        = SCENE_FOG;
+  });
 }
 
 // ── Chargement du graphe réel ────────────────────────────────────────────────

@@ -9,7 +9,8 @@
 
 import * as THREE from 'three';
 import type { Scan } from '@cortex/types';
-import { classifyLayer, scoreColorHex, LAYER_LABELS } from '@cortex/utils';
+import { classifyLayer, LAYER_LABELS } from '@cortex/utils';
+import { statusColorHex } from './palette';
 import type { PanelPose } from './panelPlacement';
 
 const W = 512, H = 360;
@@ -135,7 +136,7 @@ export class MetricsPanel {
     roundRect(ctx, 0, 0, W, H, 18);
     ctx.fill();
 
-    const accent = scoreColorHex(scan.globalScore);
+    const accent = statusColorHex(scan.globalScore);
     ctx.fillStyle = accent;
     roundRect(ctx, 0, 0, W, 8, 4);
     ctx.fill();

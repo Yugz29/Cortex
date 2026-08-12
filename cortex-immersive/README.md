@@ -83,7 +83,7 @@ pures sans dépendance Three.js/WebXR, testées dans `tests/graphManipulation.te
 
 - **X/Y** : layout Cortex existant (`buildLayerLayout`, mode « layers » de GraphView), 1 px ≈ 1/150 m ;
 - **Z** : couche architecturale (`classifyLayer`) — UI, API, CORE, DATABASE, CONFIG espacées de 0,7 m ;
-- taille de nœud : `NodeLayout.r` existant ; couleur : `scoreColorHex` existant ;
+- taille de nœud : `NodeLayout.r` existant ; couleur : seuils de `scoreColorHex` existants, hex remappés côté immersif vers une palette de statut adoucie (`palette.ts` — sain `#0ca30c`, attention `#fab219`, critique `#d03b3b` ; arêtes de fond en gris-bleu neutre) ;
 - edges : filtrés comme dans `buildForceLayout` (endpoints présents dans les scans, pas de self-loop).
 
 Pas de moteur force-directed 3D dans cette V0 — délibéré.

@@ -15,8 +15,9 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { Scan, Edge } from '@cortex/types';
 import { buildLayerLayout } from '@cortex/graphLayout';
-import { classifyLayer, scoreColorHex, LAYER_ORDER, LAYER_LABELS, LAYER_COLORS } from '@cortex/utils';
+import { classifyLayer, LAYER_ORDER, LAYER_LABELS, LAYER_COLORS } from '@cortex/utils';
 import { filterDisplayEdges } from './graphNeighborhood';
+import { statusColorHex, EDGE_NEUTRAL_HEX } from './palette';
 
 export interface GraphData {
   scans: Scan[];
@@ -85,9 +86,9 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
     positions.set(scan.filePath, pos);
 
     const material = new THREE.MeshStandardMaterial({
-      color:     new THREE.Color(scoreColorHex(scan.globalScore)),
-      roughness: 0.45,
-      metalness: 0.1,
+      color:     new THREE.Color(statusColorHex(scan.globalScore)),
+      roughness: 0.55,
+      metalness: 0.0,
     });
     const mesh = new THREE.Mesh(sphereGeo, material);
     // Taille issue de la logique existante (nodeR via NodeLayout.r), boostée pour la lisibilité XR
@@ -109,7 +110,7 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
   const colorCache = new Map<string, THREE.Color>();
   const edgeColor = (path: string, score: number): THREE.Color => {
     let c = colorCache.get(path);
-    if (!c) { c = new THREE.Color(scoreColorHex(score)); colorCache.set(path, c); }
+    if (!c) { c = new THREE.Color(statusColorHex(score)); colorCache.set(path, c); }
     return c;
   };
   const scoreByPath = new Map(data.scans.map(s => [s.filePath, s.globalScore]));
@@ -125,28 +126,30 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
 
   let edgeLines: GraphSceneResult['edgeLines'] = null;
   if (linePositions.length > 0) {
-    const makeMaterial = (opacity: number): LineMaterial => {
+    const makeMaterial = (opts: { opacity: number; color?: string; vertexColors?: boolean }): LineMaterial => {
       const mat = new LineMaterial({
-        vertexColors: true,
+        vertexColors: opts.vertexColors ?? false,
         transparent:  true,
-        opacity,
+        opacity:      opts.opacity,
         linewidth:    EDGE_LINEWIDTH_PX,   // pixels (worldUnits: false)
+        ...(opts.color ? { color: new THREE.Color(opts.color).getHex() } : {}),
       });
       mat.resolution.set(window.innerWidth, window.innerHeight);
       return mat;
     };
 
+    // Calque `all` : couleur neutre uniforme — la couleur de statut reste
+    // l'information des nœuds, pas du maillage de fond.
     const allGeo = new LineSegmentsGeometry();
     allGeo.setPositions(linePositions);
-    allGeo.setColors(lineColors);
-    const all = new LineSegments2(allGeo, makeMaterial(EDGE_BASE_OPACITY));
+    const all = new LineSegments2(allGeo, makeMaterial({ opacity: EDGE_BASE_OPACITY, color: EDGE_NEUTRAL_HEX }));
 
     // Surcouche focus : géométrie remplacée à la sélection (sous-ensemble des
-    // buffers ci-dessous) — initialisée pleine mais invisible.
+    // buffers ci-dessous) — garde les couleurs de statut par sommet.
     const focusGeo = new LineSegmentsGeometry();
     focusGeo.setPositions(linePositions);
     focusGeo.setColors(lineColors);
-    const focus = new LineSegments2(focusGeo, makeMaterial(0.95));
+    const focus = new LineSegments2(focusGeo, makeMaterial({ opacity: 0.95, vertexColors: true }));
     focus.visible = false;
 
     group.add(all);
