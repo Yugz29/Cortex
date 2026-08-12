@@ -61,8 +61,21 @@ Puis dans le navigateur du Quest : **http://localhost:4517** → bouton
 **START AR** (passthrough / mixed reality) ou **ENTER VR** en fallback selon le support.
 
 - Le graphe apparaît à hauteur des yeux, ~1,6 m devant soi — on peut marcher autour.
-- Gâchette d'un contrôleur : raycast → sélection d'un nœud, surbrillance, panneau
-  de métriques (score, complexité, cognitive, taille, churn, depth, params, fan in/out, hotspot).
+
+### Contrôles
+
+| Geste                        | Effet                                                        |
+|------------------------------|--------------------------------------------------------------|
+| **Gâchette** (trigger)       | Raycast → sélection d'un nœud, surbrillance, panneau de métriques (score, complexité, cognitive, taille, churn, depth, params, fan in/out, hotspot) |
+| **Grip une main** (squeeze maintenu) | Attrape le graphe : il suit la position **et** l'orientation du contrôleur ; reste où on le lâche |
+| **Grip deux mains** (squeeze des deux côtés) | Écarter/rapprocher = zoom (ratio des distances, borné [0.05×, 20×]) ; tourner les mains = rotation ; ancrage au milieu des deux mains (pas de dérive) |
+| **A / X**                    | Recentre le graphe (position, orientation et échelle par défaut) |
+
+La bascule une main ↔ deux mains en cours de geste se fait sans saut visuel
+(la baseline est recapturée à chaque changement du nombre de mains tenues).
+Les calculs de transformation sont dans `src/graphManipulation.ts` — fonctions
+pures sans dépendance Three.js/WebXR, testées dans `tests/graphManipulation.test.ts`
+(racine du repo).
 
 ## Mapping 3D (V0)
 

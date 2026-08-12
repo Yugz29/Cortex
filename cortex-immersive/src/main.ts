@@ -15,6 +15,10 @@ import { VRButton } from 'three/addons/webxr/VRButton.js';
 import type { Scan } from '@cortex/types';
 import { fetchGraph, buildGraphGroup } from './graphScene';
 import { MetricsPanel } from './metricsPanel';
+import {
+  oneHandGrabTransform, twoHandGrabTransform,
+  type Pose, type GroupTransform,
+} from './graphManipulation';
 
 const status = document.getElementById('status')!;
 
@@ -82,7 +86,7 @@ function selectNode(mesh: THREE.Mesh | null): void {
 
   const scan = mesh.userData['scan'] as Scan;
   const worldPos = mesh.getWorldPosition(new THREE.Vector3());
-  panel.showFor(scan, worldPos, mesh.userData['baseRadius'] * 1.45);
+  panel.showFor(scan, worldPos, mesh.userData['baseRadius'] * 1.45 * (graphGroup?.scale.x ?? 1));
 }
 
 function pickFromRaycaster(): void {
@@ -102,7 +106,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   pickFromRaycaster();
 });
 
-// Contrôleurs XR — rayon visible + sélection au trigger
+// Contrôleurs XR — rayon visible + sélection au trigger (select),
+// manipulation du graphe au grip (squeeze) : jamais en conflit.
 const controllerRayGeo = new THREE.BufferGeometry().setFromPoints([
   new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -5),
 ]);
@@ -119,7 +124,106 @@ for (const i of [0, 1]) {
     raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
     pickFromRaycaster();
   });
+  controller.addEventListener('squeezestart', () => { grabbing.add(controller); captureGrabBaseline(); });
+  controller.addEventListener('squeezeend',   () => { grabbing.delete(controller); captureGrabBaseline(); });
   scene.add(controller);
+}
+
+// ── Manipulation spatiale du graphe (squeeze une main / deux mains) ──────────
+// Les events et l'application au Group sont ici ; tout le calcul est dans
+// graphManipulation.ts (fonctions pures, testées unitairement).
+
+let graphGroup: THREE.Group | null = null;
+
+type GrabState =
+  | { mode: 'none' }
+  | { mode: 'one'; controller: THREE.Object3D; startPose: Pose; startGroup: GroupTransform }
+  | { mode: 'two'; a: THREE.Object3D; b: THREE.Object3D; startA: Pose['position']; startB: Pose['position']; startGroup: GroupTransform };
+
+const grabbing = new Set<THREE.Object3D>();
+let grab: GrabState = { mode: 'none' };
+
+const _wp = new THREE.Vector3();
+const _wq = new THREE.Quaternion();
+
+function poseOf(c: THREE.Object3D): Pose {
+  c.getWorldPosition(_wp);
+  c.getWorldQuaternion(_wq);
+  return {
+    position:    { x: _wp.x, y: _wp.y, z: _wp.z },
+    orientation: { x: _wq.x, y: _wq.y, z: _wq.z, w: _wq.w },
+  };
+}
+
+function transformOf(g: THREE.Group): GroupTransform {
+  return {
+    position:   { x: g.position.x, y: g.position.y, z: g.position.z },
+    quaternion: { x: g.quaternion.x, y: g.quaternion.y, z: g.quaternion.z, w: g.quaternion.w },
+    scale:      g.scale.x,
+  };
+}
+
+function applyTransform(g: THREE.Group, t: GroupTransform): void {
+  g.position.set(t.position.x, t.position.y, t.position.z);
+  g.quaternion.set(t.quaternion.x, t.quaternion.y, t.quaternion.z, t.quaternion.w);
+  g.scale.setScalar(t.scale);
+}
+
+/**
+ * (Re)capture la baseline du geste à chaque changement du nombre de mains
+ * tenues — la transformation courante devient le point de départ, donc les
+ * bascules une main ↔ deux mains se font sans saut visuel.
+ */
+function captureGrabBaseline(): void {
+  if (!graphGroup) { grab = { mode: 'none' }; return; }
+  const held = [...grabbing];
+  if (held.length === 0) {
+    grab = { mode: 'none' };
+  } else if (held.length === 1) {
+    grab = { mode: 'one', controller: held[0]!, startPose: poseOf(held[0]!), startGroup: transformOf(graphGroup) };
+  } else {
+    grab = {
+      mode: 'two', a: held[0]!, b: held[1]!,
+      startA: poseOf(held[0]!).position, startB: poseOf(held[1]!).position,
+      startGroup: transformOf(graphGroup),
+    };
+  }
+}
+
+function updateGrab(): void {
+  if (!graphGroup) return;
+  if (grab.mode === 'one') {
+    applyTransform(graphGroup, oneHandGrabTransform(grab.startPose, grab.startGroup, poseOf(grab.controller)));
+  } else if (grab.mode === 'two') {
+    applyTransform(graphGroup, twoHandGrabTransform(
+      grab.startA, grab.startB, grab.startGroup,
+      poseOf(grab.a).position, poseOf(grab.b).position,
+    ));
+  }
+}
+
+// Recentrage : bouton A/X (index 4 du gamepad des Touch controllers) —
+// replace le graphe à sa position/orientation/échelle par défaut.
+let recenterPressed = false;
+
+function resetGraphTransform(): void {
+  if (!graphGroup) return;
+  grabbing.clear();
+  grab = { mode: 'none' };
+  graphGroup.position.copy(GRAPH_CENTER);
+  graphGroup.quaternion.identity();
+  graphGroup.scale.setScalar(1);
+}
+
+function pollRecenterButton(): void {
+  const session = renderer.xr.getSession();
+  if (!session) { recenterPressed = false; return; }
+  let pressed = false;
+  for (const src of session.inputSources) {
+    if (src.gamepad?.buttons[4]?.pressed) { pressed = true; break; }
+  }
+  if (pressed && !recenterPressed) resetGraphTransform();
+  recenterPressed = pressed;
 }
 
 // ── Bouton XR : AR (mixed reality) si supporté, sinon VR ─────────────────────
@@ -167,6 +271,7 @@ async function init(): Promise<void> {
     const { group, nodeMeshes: meshes } = buildGraphGroup(data);
     group.position.copy(GRAPH_CENTER);
     scene.add(group);
+    graphGroup = group;
     nodeMeshes = meshes;
     setStatus(`${data.scans.length} files · ${data.edges.length} edges — click/trigger a node for metrics.`);
     setTimeout(() => setStatus(null), 6000);
@@ -177,8 +282,17 @@ async function init(): Promise<void> {
   await setupXRButton();
 }
 
+const _panelPos   = new THREE.Vector3();
+const _panelScale = new THREE.Vector3();
+
 renderer.setAnimationLoop(() => {
   controls.update();
+  updateGrab();
+  pollRecenterButton();
+  // Le panneau suit le nœud sélectionné (le graphe peut être déplacé/zoomé)
+  if (selected) {
+    panel.moveTo(selected.getWorldPosition(_panelPos), selected.getWorldScale(_panelScale).x);
+  }
   panel.update(renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   renderer.render(scene, camera);
 });

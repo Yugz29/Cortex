@@ -28,9 +28,15 @@ export class MetricsPanel {
 
   showFor(scan: Scan, nodeWorldPos: THREE.Vector3, nodeRadius: number): void {
     this.draw(scan);
+    this.mesh.visible = true;
+    this.moveTo(nodeWorldPos, nodeRadius);
+  }
+
+  /** Repositionne le panneau sans redessiner (suivi du nœud à chaque frame). */
+  moveTo(nodeWorldPos: THREE.Vector3, nodeRadius: number): void {
+    if (!this.mesh.visible) return;
     this.mesh.position.copy(nodeWorldPos);
     this.mesh.position.y += nodeRadius + 0.28;
-    this.mesh.visible = true;
   }
 
   hide(): void {
