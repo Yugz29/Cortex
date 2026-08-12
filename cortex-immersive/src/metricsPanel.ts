@@ -1,11 +1,16 @@
 /**
  * Panneau de métriques 3D — plane + CanvasTexture, lisible en XR comme en desktop.
  * Affiche les métriques existantes du Scan sélectionné (aucun nouveau calcul).
+ *
+ * Comportement « pupitre » : posé une seule fois à la sélection (pose calculée
+ * par panelPlacement.ts depuis la caméra), puis fixe dans le repère monde —
+ * il ne suit ni la caméra, ni le nœud, ni le graphe.
  */
 
 import * as THREE from 'three';
 import type { Scan } from '@cortex/types';
 import { classifyLayer, scoreColorHex, LAYER_LABELS } from '@cortex/utils';
+import type { PanelPose } from './panelPlacement';
 
 const W = 512, H = 360;
 
@@ -26,26 +31,17 @@ export class MetricsPanel {
     this.mesh.renderOrder = 10;
   }
 
-  showFor(scan: Scan, nodeWorldPos: THREE.Vector3, nodeRadius: number): void {
+  /** Affiche le panneau à la pose « pupitre » donnée — position et orientation
+   *  fixées une seule fois, à l'instant de la sélection. */
+  showAt(scan: Scan, pose: PanelPose): void {
     this.draw(scan);
+    this.mesh.position.set(pose.position.x, pose.position.y, pose.position.z);
+    this.mesh.quaternion.set(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w);
     this.mesh.visible = true;
-    this.moveTo(nodeWorldPos, nodeRadius);
-  }
-
-  /** Repositionne le panneau sans redessiner (suivi du nœud à chaque frame). */
-  moveTo(nodeWorldPos: THREE.Vector3, nodeRadius: number): void {
-    if (!this.mesh.visible) return;
-    this.mesh.position.copy(nodeWorldPos);
-    this.mesh.position.y += nodeRadius + 0.28;
   }
 
   hide(): void {
     this.mesh.visible = false;
-  }
-
-  /** Billboard : face à la caméra à chaque frame. */
-  update(camera: THREE.Camera): void {
-    if (this.mesh.visible) this.mesh.quaternion.copy(camera.quaternion);
   }
 
   private draw(scan: Scan): void {

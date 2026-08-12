@@ -19,6 +19,7 @@ import {
   oneHandGrabTransform, twoHandGrabTransform,
   type Pose, type GroupTransform,
 } from './graphManipulation';
+import { panelPoseFor } from './panelPlacement';
 
 const status = document.getElementById('status')!;
 
@@ -84,9 +85,10 @@ function selectNode(mesh: THREE.Mesh | null): void {
   mat.emissive.copy(mat.color).multiplyScalar(0.55);
   mesh.scale.setScalar(mesh.userData['baseRadius'] * 1.45);
 
+  // Pupitre : pose calculée depuis la caméra à l'instant de la sélection,
+  // puis fixe dans le monde (indépendante du nœud et du graphe).
   const scan = mesh.userData['scan'] as Scan;
-  const worldPos = mesh.getWorldPosition(new THREE.Vector3());
-  panel.showFor(scan, worldPos, mesh.userData['baseRadius'] * 1.45 * (graphGroup?.scale.x ?? 1));
+  panel.showAt(scan, panelPoseFor(activeCameraPose()));
 }
 
 function pickFromRaycaster(): void {
@@ -153,6 +155,12 @@ function poseOf(c: THREE.Object3D): Pose {
     position:    { x: _wp.x, y: _wp.y, z: _wp.z },
     orientation: { x: _wq.x, y: _wq.y, z: _wq.z, w: _wq.w },
   };
+}
+
+/** Pose monde de la caméra active (casque en session XR, caméra desktop sinon). */
+function activeCameraPose(): Pose {
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  return poseOf(cam);
 }
 
 function transformOf(g: THREE.Group): GroupTransform {
@@ -282,18 +290,10 @@ async function init(): Promise<void> {
   await setupXRButton();
 }
 
-const _panelPos   = new THREE.Vector3();
-const _panelScale = new THREE.Vector3();
-
 renderer.setAnimationLoop(() => {
   controls.update();
   updateGrab();
   pollRecenterButton();
-  // Le panneau suit le nœud sélectionné (le graphe peut être déplacé/zoomé)
-  if (selected) {
-    panel.moveTo(selected.getWorldPosition(_panelPos), selected.getWorldScale(_panelScale).x);
-  }
-  panel.update(renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   renderer.render(scene, camera);
 });
 
