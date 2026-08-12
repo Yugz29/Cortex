@@ -12,8 +12,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ARButton } from 'three/addons/webxr/ARButton.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
-import type { Scan } from '@cortex/types';
-import { fetchGraph, buildGraphGroup } from './graphScene';
+import type { Scan, Edge } from '@cortex/types';
+import { fetchGraph, buildGraphGroup, EDGE_BASE_OPACITY, type GraphSceneResult } from './graphScene';
+import { selectionNeighborhood } from './graphNeighborhood';
 import { MetricsPanel } from './metricsPanel';
 import {
   oneHandGrabTransform, twoHandGrabTransform,
@@ -72,6 +73,49 @@ scene.add(panel.mesh);
 
 let nodeMeshes: THREE.Mesh[] = [];
 let selected: THREE.Mesh | null = null;
+let displayEdges: Edge[] = [];
+let edgeLines: GraphSceneResult['edgeLines'] = null;
+
+// ── Mise en évidence contextuelle du voisinage sélectionné ───────────────────
+// Voisins directs + arêtes du nœud : apparence normale (arêtes accentuées via
+// la surcouche focus) ; tout le reste atténué. Recalculé UNE fois à chaque
+// sélection/désélection — rien par frame.
+
+const DIM_NODE_OPACITY = 0.15;
+const DIM_EDGE_OPACITY = 0.05;
+
+function applyNeighborhoodFocus(mesh: THREE.Mesh | null): void {
+  if (!mesh) {
+    for (const m of nodeMeshes) {
+      const mat = m.material as THREE.MeshStandardMaterial;
+      mat.transparent = false;
+      mat.opacity = 1;
+    }
+    if (edgeLines) {
+      (edgeLines.all.material as THREE.LineBasicMaterial).opacity = EDGE_BASE_OPACITY;
+      edgeLines.focus.visible = false;
+    }
+    return;
+  }
+
+  const selectedId = (mesh.userData['scan'] as Scan).filePath;
+  const hood = selectionNeighborhood(displayEdges, selectedId);
+
+  for (const m of nodeMeshes) {
+    const mat  = m.material as THREE.MeshStandardMaterial;
+    const kept = hood.nodes.has((m.userData['scan'] as Scan).filePath);
+    mat.transparent = !kept;
+    mat.opacity = kept ? 1 : DIM_NODE_OPACITY;
+  }
+  if (edgeLines) {
+    (edgeLines.all.material as THREE.LineBasicMaterial).opacity = DIM_EDGE_OPACITY;
+    // Surcouche focus : 2 sommets par arête, dans l'ordre des displayEdges
+    const indices: number[] = [];
+    for (const i of hood.edges) indices.push(2 * i, 2 * i + 1);
+    edgeLines.focus.geometry.setIndex(indices);
+    edgeLines.focus.visible = indices.length > 0;
+  }
+}
 
 function selectNode(mesh: THREE.Mesh | null): void {
   if (selected) {
@@ -79,6 +123,7 @@ function selectNode(mesh: THREE.Mesh | null): void {
     selected.scale.setScalar(selected.userData['baseRadius']);
   }
   selected = mesh;
+  applyNeighborhoodFocus(mesh);
   if (!mesh) { panel.hide(); return; }
 
   const mat = mesh.material as THREE.MeshStandardMaterial;
@@ -334,11 +379,13 @@ async function init(): Promise<void> {
       setStatus('Connected, but no scan data. Run a scan in Cortex Desktop first.');
       return;
     }
-    const { group, nodeMeshes: meshes } = buildGraphGroup(data);
-    group.position.copy(GRAPH_CENTER);
-    scene.add(group);
-    graphGroup = group;
-    nodeMeshes = meshes;
+    const built = buildGraphGroup(data);
+    built.group.position.copy(GRAPH_CENTER);
+    scene.add(built.group);
+    graphGroup   = built.group;
+    nodeMeshes   = built.nodeMeshes;
+    displayEdges = built.displayEdges;
+    edgeLines    = built.edgeLines;
     setStatus(`${data.scans.length} files · ${data.edges.length} edges — click/trigger a node for metrics.`);
     setTimeout(() => setStatus(null), 6000);
   } catch (err) {

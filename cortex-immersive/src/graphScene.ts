@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import type { Scan, Edge } from '@cortex/types';
 import { buildLayerLayout } from '@cortex/graphLayout';
 import { classifyLayer, scoreColorHex, LAYER_ORDER, LAYER_LABELS, LAYER_COLORS } from '@cortex/utils';
+import { filterDisplayEdges } from './graphNeighborhood';
 
 export interface GraphData {
   scans: Scan[];
@@ -36,10 +37,19 @@ export function layerZ(filePath: string): number {
   return ((LAYER_ORDER.length - 1) / 2 - idx) * LAYER_SPACING;
 }
 
+/** Opacité de base des arêtes (état sans sélection). */
+export const EDGE_BASE_OPACITY = 0.35;
+
 export interface GraphSceneResult {
   group:      THREE.Group;
   /** Meshes sélectionnables — userData.scan porte le Scan complet. */
   nodeMeshes: THREE.Mesh[];
+  /** Arêtes affichées (filterDisplayEdges) — même ordre que les segments. */
+  displayEdges: Edge[];
+  /** Calques de lignes : `all` (toutes les arêtes, atténuable globalement) et
+   *  `focus` (surcouche du voisinage sélectionné — mêmes buffers, sous-ensemble
+   *  choisi par index, invisible par défaut). Null si aucune arête. */
+  edgeLines: { all: THREE.LineSegments; focus: THREE.LineSegments } | null;
 }
 
 export function buildGraphGroup(data: GraphData): GraphSceneResult {
@@ -75,8 +85,10 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
     nodeMeshes.push(mesh);
   }
 
-  // Edges — même filtrage que buildForceLayout : on ignore tout edge dont un
-  // des deux nœuds n'existe pas dans les scans, et les self-loops.
+  // Edges — même filtrage que buildForceLayout (via filterDisplayEdges) : on
+  // ignore tout edge dont un des deux nœuds n'existe pas, et les self-loops.
+  const displayEdges = filterDisplayEdges(data.edges, new Set(positions.keys()));
+
   const linePositions: number[] = [];
   const lineColors:    number[] = [];
   const colorCache = new Map<string, THREE.Color>();
@@ -87,23 +99,43 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
   };
   const scoreByPath = new Map(data.scans.map(s => [s.filePath, s.globalScore]));
 
-  for (const e of data.edges) {
-    if (e.from === e.to) continue;
-    const a = positions.get(e.from);
-    const b = positions.get(e.to);
-    if (!a || !b) continue;
+  for (const e of displayEdges) {
+    const a = positions.get(e.from)!;
+    const b = positions.get(e.to)!;
     linePositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
     const ca = edgeColor(e.from, scoreByPath.get(e.from) ?? 0);
     const cb = edgeColor(e.to,   scoreByPath.get(e.to)   ?? 0);
     lineColors.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b);
   }
 
+  let edgeLines: GraphSceneResult['edgeLines'] = null;
   if (linePositions.length > 0) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
-    geo.setAttribute('color',    new THREE.Float32BufferAttribute(lineColors, 3));
-    const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35 });
-    group.add(new THREE.LineSegments(geo, mat));
+    const posAttr   = new THREE.Float32BufferAttribute(linePositions, 3);
+    const colorAttr = new THREE.Float32BufferAttribute(lineColors, 3);
+
+    const allGeo = new THREE.BufferGeometry();
+    allGeo.setAttribute('position', posAttr);
+    allGeo.setAttribute('color',    colorAttr);
+    const all = new THREE.LineSegments(
+      allGeo,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: EDGE_BASE_OPACITY }),
+    );
+
+    // Surcouche focus : mêmes attributs, sous-ensemble d'arêtes via l'index —
+    // mis à jour uniquement à la sélection/désélection.
+    const focusGeo = new THREE.BufferGeometry();
+    focusGeo.setAttribute('position', posAttr);
+    focusGeo.setAttribute('color',    colorAttr);
+    focusGeo.setIndex([]);
+    const focus = new THREE.LineSegments(
+      focusGeo,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }),
+    );
+    focus.visible = false;
+
+    group.add(all);
+    group.add(focus);
+    edgeLines = { all, focus };
   }
 
   // Étiquettes de couches — un sprite texte par couche active, placé sur son plan Z
@@ -116,7 +148,7 @@ export function buildGraphGroup(data: GraphData): GraphSceneResult {
     group.add(sprite);
   }
 
-  return { group, nodeMeshes };
+  return { group, nodeMeshes, displayEdges, edgeLines };
 }
 
 function makeTextSprite(text: string, colorHex: string): THREE.Sprite {
